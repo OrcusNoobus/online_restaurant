@@ -15,6 +15,13 @@
       "when": 1783182251229,
       "tag": "0001_feat006_menu_extensions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783182467024,
+      "tag": "0002_feat006_delivery_zones",
+      "breakpoints": true
     }
   ]
 }

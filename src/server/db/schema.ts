@@ -109,6 +109,27 @@ export const toppingPrices = pgTable(
   ],
 );
 
+/**
+ * Deliverable localities (002 05-data-model.md). feeBani applies only while
+ * (subtotal + SGR) < freeFromBani; at/above the threshold delivery is free.
+ */
+export const deliveryZones = pgTable(
+  "delivery_zones",
+  {
+    id: serial("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    feeBani: integer("fee_bani").notNull(),
+    freeFromBani: integer("free_from_bani").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+  },
+  (t) => [
+    check("delivery_zones_fee_non_negative", sql`${t.feeBani} >= 0`),
+    check("delivery_zones_free_from_non_negative", sql`${t.freeFromBani} >= 0`),
+  ],
+);
+
 export const productToppingGroups = pgTable(
   "product_topping_groups",
   {

@@ -31,9 +31,11 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       seed ran twice → identical counts, variant ids stable (new test), SGR
       transform verified (9 toppings with deposit 50, SGR price rows zeroed);
       15/15 tests, lint + typecheck clean.
-- [ ] T02 — Delivery zones: `data/delivery-zones.json` (Q8 values, bani),
+- [x] T02 — Delivery zones: `data/delivery-zones.json` (Q8 values, bani),
       delivery_zones table + migration, seed step, `zones.ts` repository,
       `GET /api/zones` + contract test (source: 05-data-model, 06-contracts)
+      — done 2026-07-04: 6 zones seeded (migration 0002); tests cover seeded
+      values, inactive-zone hiding, active-only-on-insert re-seed; 18/18 tests.
 - [ ] T03 — Schedule module: `src/lib/restaurant-config.ts` (11:00–22:30,
       fulfillment ≥ 11:30, delivery 60 min, pickup 15/25, Europe/Bucharest) +
       pure `src/lib/schedule.ts` (isOpenNow, validateScheduledFor,

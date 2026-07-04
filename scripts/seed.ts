@@ -22,6 +22,7 @@ import { z } from "zod";
 
 import {
   categories,
+  deliveryZones,
   products,
   productToppingGroups,
   productVariants,
@@ -91,6 +92,19 @@ const seedSchema = z.object({
   ),
 });
 
+const zonesSchema = z.object({
+  zones: z
+    .array(
+      z.object({
+        slug,
+        name: z.string().min(1),
+        feeBani: z.number().int().nonnegative(),
+        freeFromBani: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1),
+});
+
 function assertUnique(values: string[], what: string): void {
   const seen = new Set<string>();
   for (const value of values) {
@@ -109,14 +123,33 @@ async function main(): Promise<void> {
 
   const raw = readFileSync(new URL("../data/menu-seed.json", import.meta.url), "utf8");
   const seed = seedSchema.parse(JSON.parse(raw));
+  const zonesRaw = readFileSync(new URL("../data/delivery-zones.json", import.meta.url), "utf8");
+  const zoneSeed = zonesSchema.parse(JSON.parse(zonesRaw));
 
   assertUnique(seed.categories.map((c) => c.slug), "category slug");
   assertUnique(seed.categories.flatMap((c) => c.products.map((p) => p.slug)), "product slug");
   assertUnique(seed.toppingGroups.map((g) => g.key), "topping group key");
+  assertUnique(zoneSeed.zones.map((zone) => zone.slug), "delivery zone slug");
 
-  const counts = { categories: 0, products: 0, variants: 0, groups: 0, toppings: 0, prices: 0, links: 0 };
+  const counts = { categories: 0, products: 0, variants: 0, groups: 0, toppings: 0, prices: 0, links: 0, zones: 0 };
 
   await db.transaction(async (tx) => {
+    // Delivery zones: upsert by slug; `active` only on insert (admin may hide zones).
+    for (const [zoneIndex, zone] of zoneSeed.zones.entries()) {
+      const zoneValues = {
+        slug: zone.slug,
+        name: zone.name,
+        feeBani: zone.feeBani,
+        freeFromBani: zone.freeFromBani,
+        sortOrder: zoneIndex,
+      };
+      await tx
+        .insert(deliveryZones)
+        .values(zoneValues)
+        .onConflictDoUpdate({ target: deliveryZones.slug, set: zoneValues });
+      counts.zones += 1;
+    }
+
     // Topping groups + toppings + per-size prices; groups matched by name
     // (the JSON `key` is not stored — 05-data-model.md defines only `name`).
     const groupIdByKey = new Map<string, number>();
@@ -256,7 +289,8 @@ async function main(): Promise<void> {
   console.log(
     `Seed complete: ${counts.categories} categories, ${counts.products} products, ` +
       `${counts.variants} variants, ${counts.groups} topping groups, ` +
-      `${counts.toppings} toppings, ${counts.prices} topping prices, ${counts.links} product-group links.`,
+      `${counts.toppings} toppings, ${counts.prices} topping prices, ${counts.links} product-group links, ` +
+      `${counts.zones} delivery zones.`,
   );
   await db.$client.end();
 }
