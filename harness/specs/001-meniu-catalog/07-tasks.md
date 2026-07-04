@@ -38,9 +38,12 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       (topping,size); `active` set only on insert; ran twice → identical counts
       (13/73/117/12/30/88 prices/239 links). Variant descriptions stay in JSON
       (see 02-clarify.md note).
-- [ ] T04 — Repository `src/server/repositories/menu.ts` `getMenu()` +
+- [x] T04 — Repository `src/server/repositories/menu.ts` `getMenu()` +
       integration tests: shape, sorting, active-filtering, >=1 variant rule
       (source: 05-data-model.md, 06-contracts/api.md)
+      — done 2026-07-04: 5 integration tests (idempotency by row counts,
+      seed-order sorting, multi-size pizza once, active filtering incl.
+      empty-active-category rule); tests self-migrate + self-seed.
 - [ ] T05 — `GET /api/menu` route handler + contract test
       (source: 06-contracts/api.md)
 - [ ] T06 — Menu page (`src/app/page.tsx`) + `src/components/menu/*`,
