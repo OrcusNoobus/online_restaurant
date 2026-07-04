@@ -77,11 +77,16 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       delivery/pickup/scheduled happy paths with DB assertions (snapshots,
       +40 phone, IP), shop_closed, 11:30 floor, next-day block,
       payment-mode mismatch, invalid_cart pass-through; 47/47 tests.
-- [ ] T08 — Options + cart UI: OptionsSheet from menu payload (radio/checkbox,
+- [x] T08 — Options + cart UI: OptionsSheet from menu payload (radio/checkbox,
       required enforced, per-size preview prices), CartProvider (localStorage,
       quote-on-load reconciliation), cart page `/cos` with SGR line, delivery
       fee + "mai adaugă X lei" hint, header badge
       (source: 01-spec in-scope, 06-contracts quote)
+      — done 2026-07-04: cart-store via useSyncExternalStore (hydration-safe
+      localStorage), useQuote hook re-quotes on change and drops stale lines
+      with notice; OptionsSheet preselects single-option required groups;
+      floating cart FAB; fee hint moved to checkout where the zone is known.
+      Verified in dev preview at 375px (sheet → add → /cos totals from quote).
 - [ ] T09 — Checkout + confirmation UI: `/comanda` (mode, zone selector,
       schedule picker, guest form, payment methods per mode, T&C checkbox),
       placeholder legal pages `/termeni` + `/confidentialitate`, confirmation
