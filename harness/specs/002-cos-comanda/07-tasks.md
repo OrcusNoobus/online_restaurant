@@ -19,7 +19,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — Menu schema extensions + stable variant ids: topping_groups
+- [x] T01 — Menu schema extensions + stable variant ids: topping_groups
       `required`/`display_type`/`sort_order`, toppings `sgr_deposit_bani`,
       unique `(product_id, name)` NULLS NOT DISTINCT on product_variants;
       migration; seed upserts variants by natural key (delete leftovers only
@@ -27,6 +27,10 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       (Garanție SGR → price 0 + deposit 50; drink add-ons deposit 50 per
       02-clarify.md Q15 default); seed idempotency test still green from a
       feat-002-shaped database (source: 03-research D4/D5, 05-data-model)
+      — done 2026-07-04: migration 0001 applied on the feat-002-shaped dev DB;
+      seed ran twice → identical counts, variant ids stable (new test), SGR
+      transform verified (9 toppings with deposit 50, SGR price rows zeroed);
+      15/15 tests, lint + typecheck clean.
 - [ ] T02 — Delivery zones: `data/delivery-zones.json` (Q8 values, bani),
       delivery_zones table + migration, seed step, `zones.ts` repository,
       `GET /api/zones` + contract test (source: 05-data-model, 06-contracts)

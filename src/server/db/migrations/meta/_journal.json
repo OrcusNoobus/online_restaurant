@@ -8,6 +8,13 @@
       "when": 1783170137121,
       "tag": "0000_outgoing_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783182251229,
+      "tag": "0001_feat006_menu_extensions",
+      "breakpoints": true
     }
   ]
 }
