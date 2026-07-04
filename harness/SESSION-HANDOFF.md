@@ -11,9 +11,9 @@
 - **Goal:** feat-006 (Coș și plasare comandă) delivered end-to-end: schema →
   zones → schedule → pricing/order services → API → mobile UI, verified live.
 - **Active feature:** none in progress; feat-007 (Panou admin) is next.
-- **Status:** feat-006 DONE with evidence; branch `feat/006-cos-comanda`
-  green and self-contained, NOT yet merged to main (owner's call).
-- **Branch / commit:** feat/006-cos-comanda @ `git log --oneline -13`
+- **Status:** feat-006 DONE with evidence; merged fast-forward into main
+  @ cf3d2a6 and pushed (2026-07-04); merged local branches deleted.
+- **Branch / commit:** main @ `git log --oneline -14`
 
 ## Completed This Session
 
@@ -66,11 +66,9 @@ See PROGRESS.md "Files Modified This Session" — 3 migrations, 5 lib modules,
 
 ## Recommended Next Step
 
-Owner decisions gate the next move:
-1. Merge `feat/006-cos-comanda` → main.
-2. Give the exact restaurant address (src/lib/restaurant-config.ts) and the
-   real T&C/GDPR texts (placeholder pages).
-3. Start feat-007 (Panou admin) at spec time. Spec seeds: auth for staff,
-   live order list + status transitions (enum already in DB), dispatcher
-   adjusts the quoted delivery time (clarify Q10 note), edit products/prices/
-   availability, edit zone fees/thresholds.
+Start feat-007 (Panou admin) at spec time with the owner. Spec seeds: auth
+for staff, live order list + status transitions (enum already in DB),
+dispatcher adjusts the quoted delivery time (002 clarify Q10 note), edit
+products/prices/availability, edit zone fees/thresholds. Also pending
+long-term: lawyer-reviewed T&C/GDPR texts to replace the preliminary ones
+(owner-approved interim content shipped 2026-07-04).

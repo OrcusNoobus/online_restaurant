@@ -6,19 +6,18 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-006 session 1 — spec → code → done, same day)
-- **Active feature:** none — feat-006 (Coș și plasare comandă) DONE with
-  evidence on branch `feat/006-cos-comanda` (not yet merged to main).
-- **Verification status:** ./init.sh fully green (47/47 tests, build, boundary
-  checks); `npm test -- tests/orders` 22/22; quickstart flows 1–5 executed
-  live (orders #13 delivery / #19 pickup in the dev DB).
-- **Open items for the owner:**
-  1. Merge `feat/006-cos-comanda` → main (12 commits, self-contained).
-  2. Supply the exact restaurant address — `RESTAURANT_ADDRESS` in
-     `src/lib/restaurant-config.ts` is a placeholder ("Sântana de Mureș").
-  3. Supply the real T&C / GDPR texts for `/termeni` + `/confidentialitate`
-     (placeholders live, per clarify Q14).
-  4. Old local branch `feat/002-meniu-catalog` is fully merged — safe to delete.
+- **Last updated:** 2026-07-04 (feat-006 merged to main and pushed)
+- **Active feature:** none — feat-006 (Coș și plasare comandă) DONE, merged
+  fast-forward into main @ cf3d2a6, pushed to GitHub; merged local branches
+  deleted.
+- **Verification status:** ./init.sh fully green ON MAIN after the merge
+  (47/47 tests, build, boundary checks); quickstart flows 1–5 executed live
+  (orders #13 delivery / #19 pickup in the dev DB).
+- **Owner inputs received (2026-07-04):** restaurant address + phone
+  (Str. Principală nr. 2, Sântana de Mureș · 0371 717 177) now in
+  `src/lib/restaurant-config.ts`; T&C + GDPR pages carry owner-approved
+  PRELIMINARY texts — replace with lawyer-reviewed versions before real
+  marketing pushes.
 
 ## Done
 
@@ -40,15 +39,15 @@
 
 ## Next Steps
 
-1. Owner merges feat/006 and answers the open items above.
-2. Next feature by dependency order: feat-007 (Panou admin: produse și
-   comenzi) — starts at spec time with the owner. Known seeds for its spec:
-   dispatcher-adjustable delivery estimate (clarify Q10 note), order status
-   flow already defined in the DB enum (new → accepted → in_delivery →
-   completed / canceled), zone fee/threshold editing, product/topping
-   activate-deactivate (soft hide is already respected by menu + pricing).
-3. Alternative next: feat-010/011/012 exist in the list but depend on or are
+1. feat-007 (Panou admin: produse și comenzi) — starts at spec time with the
+   owner. Known seeds for its spec: staff auth, live order list + status
+   transitions (enum already in DB: new → accepted → in_delivery →
+   completed / canceled), dispatcher-adjustable delivery estimate (002
+   clarify Q10 note), zone fee/threshold editing, product/topping
+   activate-deactivate (soft hide already respected by menu + pricing).
+2. Alternative next: feat-010/011/012 exist in the list but depend on or are
    smaller than feat-007; feat-007 unlocks going live (orders only in DB).
+3. Later: replace the preliminary legal texts with lawyer-reviewed versions.
 
 ## Blockers / Risks
 
