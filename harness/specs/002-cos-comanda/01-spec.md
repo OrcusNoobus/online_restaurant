@@ -5,8 +5,10 @@
 > Feeds into: `02-clarify.md`, `04-plan.md`, `harness/feature-list.json`.
 > Single source of truth for desired behavior, in product terms. No technical
 > design here — that belongs to `04-plan.md`.
-> STATUS: DRAFT — în așteptarea aprobării proprietarului și a răspunsurilor
-> din `02-clarify.md` (valorile concrete pe zone, orar, plăți).
+> STATUS: updated 2026-07-04 with the owner's clarify answers (Q8–Q14).
+> ATENȚIE proprietar: față de draftul inițial s-a schimbat regula taxei de
+> livrare — comanda sub „minim" NU se mai blochează; sub prag se adaugă taxa
+> zonei, la/peste prag livrarea e gratuită (02-clarify.md Q8/Q9).
 
 ## Goal
 
@@ -29,40 +31,47 @@ ridicare personală**, ca să **nu mai fiu nevoit să sun și să dictez comanda
 ### In scope
 
 - **Adăugare în coș din meniu:** la alegerea unui produs se deschid secțiunile
-  de opțiuni ca pe site-ul vechi — mărime (unde există), grupul obligatoriu
-  „Ambalaj" (preț per categorie/mărime), grupuri opționale (sos, băutură,
+  de opțiuni ca pe site-ul vechi — mărime (unde există), grupurile obligatorii
+  („Ambalaj", „Garanție SGR" la băuturi), grupuri opționale (sos, băutură,
   garnitură), cantitate. Prețul topping-urilor diferă per mărime (feat-002 Q5).
 - **Coșul:** listă de articole cu opțiunile alese, cantități editabile,
-  ștergere articol. Taxa SGR (0,50 lei/recipient) se adaugă automat pentru
-  băuturi și se afișează ca linie separată (feat-002 Q7).
-- **Calcul pe server:** subtotal, SGR, taxă de livrare pe zonă, total — toate
-  calculate exclusiv pe server, în bani întregi (integer bani). Clientul nu
-  trimite niciodată prețuri.
-- **Livrare la domiciliu:** clientul alege localitatea (zona) → taxa de livrare
-  și comanda minimă ale zonei se aplică; livrare gratuită peste pragul stabilit;
-  sub comanda minimă a zonei plasarea e blocată cu mesaj clar.
-- **Ridicare personală:** fără adresă și fără taxă de livrare; se afișează
+  ștergere articol. Garanția SGR (0,50 lei/recipient) apare ca linie separată,
+  nu topită în prețul băuturii (02-clarify.md Q7). Coșul supraviețuiește unui
+  refresh de pagină.
+- **Calcul pe server:** subtotal, SGR, taxă de livrare, total — toate calculate
+  exclusiv pe server, în bani întregi. Clientul nu trimite niciodată prețuri.
+- **Livrare la domiciliu:** clientul alege localitatea din zonele definite
+  (02-clarify.md Q8); dacă totalul comenzii (cu SGR, fără taxă) atinge pragul
+  zonei, livrarea e gratuită; sub prag se adaugă taxa zonei la total, cu
+  explicație vizibilă („mai adaugă X lei pentru livrare gratuită").
+- **Ridicare personală:** fără adresă, fără taxă și fără prag; se afișează
   adresa restaurantului.
-- **Programare:** „cât mai curând posibil" (cu timp estimat afișat) sau la o
-  oră aleasă de client, validată pe orarul restaurantului (comenzi doar în
-  intervalul de funcționare).
-- **Checkout guest:** prenume, nume, telefon (+40, validat), adresă (la
-  livrare), observații; acord Termeni și Condiții / protecția datelor.
-- **Metode de plată v1:** plată la primire — numerar sau card la livrare;
-  la ridicare — numerar sau card la restaurant (fără plată online).
+- **Programare:** „cât mai curând posibil" (estimare afișată: 60 min livrare;
+  15/25 min la ridicare) sau la o oră aleasă de client, doar în ziua curentă.
+  Orar zilnic 11:00–22:30; nicio livrare/ridicare înainte de 11:30. În afara
+  orarului, checkout-ul e blocat cu mesaj clar (02-clarify.md Q10, Q16).
+- **Checkout guest:** prenume, nume, telefon obligatoriu (validat, +40), email
+  opțional, adresă (la livrare), observații; bifă de acord Termeni și Condiții
+  / protecția datelor cu pagini placeholder (02-clarify.md Q12, Q14).
+- **Metode de plată v1:** la livrare → numerar sau card la livrare; la
+  ridicare → numerar sau card la restaurant (02-clarify.md Q11).
 - **Persistență:** comanda se salvează în PostgreSQL cu status inițial „nouă",
-  cu prețurile înghețate pe liniile comenzii (snapshot la momentul plasării).
+  cu prețurile și denumirile înghețate pe liniile comenzii (snapshot la
+  momentul plasării) și cu adresa IP a clientului (02-clarify.md Q14).
 - **Confirmare:** ecran de confirmare cu numărul comenzii și recapitulare.
 
 ### Out of scope
 
-- Plata online cu cardul (integrare procesator) — feature viitor.
-- Cupoane / coduri de reducere — feature viitor (decis 2026-07-04).
-- Conturi de client și login social (Google/Facebook/TikTok) — feature separat,
-  după feat-006 (decis 2026-07-04).
-- Panoul admin și schimbarea stării comenzii (feat-007).
+- Plata online cu cardul (feat-012, decis 2026-07-04 — v. și DECISIONS.md).
+- Cupoane / coduri de reducere (feat-011, decis 2026-07-04).
+- Conturi de client și login social (feat-010, decis 2026-07-04).
+- Panoul admin, schimbarea stării comenzii, reglarea timpului de livrare de
+  către dispecer (feat-007; nota din 02-clarify.md Q10).
 - Notificări email/SMS/WhatsApp la comandă nouă — v1 doar în baza de date;
   magazinul intră live abia cu feat-007 (decis 2026-07-04).
+- Comenzi programate pentru altă zi decât cea curentă.
+- Texte legale finale (paginile T&C/GDPR rămân placeholder până le dă
+  proprietarul).
 - Tracking curier, facturare, bonuri fiscale.
 - Editarea comenzii după plasare.
 
@@ -72,32 +81,36 @@ agent failure mode; anything not listed as in scope is out of scope by default.
 ## Functional Requirements
 
 1. Un produs cu variante nu poate fi adăugat în coș fără mărime aleasă; un
-   produs cu grup obligatoriu (Ambalaj) nu poate fi adăugat fără selecția
-   grupului.
-2. Prețul unui articol = preț variantă + topping-uri (la prețul mărimii alese)
-   + ambalaj, înmulțit cu cantitatea; SGR se adaugă per recipient de băutură și
-   apare ca linie separată în coș.
-3. Totalul comenzii = subtotal articole + SGR + taxa de livrare a zonei;
-   taxa devine 0 peste pragul de livrare gratuită. Toate sumele sunt calculate
-   pe server; orice manipulare client-side este ignorată.
-4. La livrare, plasarea comenzii sub comanda minimă a zonei este refuzată cu
-   mesaj explicit; la ridicare personală nu se aplică taxă de livrare.
-5. O comandă programată în afara orarului restaurantului este refuzată la
-   validare; „cât mai curând posibil" este disponibil doar în orar.
-6. Comanda plasată se salvează atomic (comanda + liniile ei) cu status „nouă",
-   date de contact validate și prețuri-snapshot; o eroare de validare nu lasă
-   date parțiale.
-7. Întreaga logică (coș, prețuri, validare, plasare) este expusă ca serviciu
-   apelabil independent de UI — canalele viitoare (chat, WhatsApp) o refolosesc
-   fără duplicare.
+   produs cu grupuri obligatorii (Ambalaj, Garanție SGR) nu poate fi adăugat
+   fără selecția fiecărui grup obligatoriu.
+2. Prețul unui articol = preț variantă + opțiuni (la prețul mărimii alese),
+   înmulțit cu cantitatea. Garanția SGR apare ca linie separată în coș și în
+   comanda salvată, iar totalul SGR al comenzii este identificabil distinct.
+3. Totalul comenzii = subtotal articole (inclusiv ambalaj) + SGR + taxa de
+   livrare. La livrare: dacă (subtotal + SGR) ≥ pragul zonei → taxa = 0;
+   altfel taxa = taxa zonei. La ridicare nu există taxă. Toate sumele se
+   calculează pe server; valori venite de la client se ignoră.
+4. Comanda se poate plasa doar în orarul 11:00–22:30. Ora programată trebuie
+   să fie în ziua curentă, ≥ max(acum + estimarea modului, 11:30) și ≤ 22:30;
+   „cât mai curând posibil" folosește estimarea modului (60 min livrare,
+   15/25 min ridicare la alegere).
+5. Validări la plasare: telefon valid obligatoriu, localitate din zonele
+   active + adresă la livrare, metodă de plată permisă pentru mod, acord T&C
+   bifat, coș ne-gol, produse/variante/opțiuni existente și active.
+6. Comanda plasată se salvează atomic (comanda + liniile + opțiunile ei) cu
+   status „nouă", prețuri-snapshot, denumiri-snapshot și IP-ul clientului;
+   o eroare de validare nu lasă date parțiale.
+7. Întreaga logică (validare coș, calcul prețuri, plasare) este expusă ca
+   serviciu apelabil independent de UI — canalele viitoare (chat, WhatsApp)
+   o refolosesc fără duplicare (DECISIONS.md 2026-07-04).
 
 ## Non-Functional Requirements
 
 - Mobile-first: tot fluxul (produs → coș → checkout → confirmare) utilizabil
   pe 375px lățime.
 - Toate prețurile circulă ca bani întregi — vezi `harness/docs/ARCHITECTURE.md`.
-- Coșul supraviețuiește unui refresh de pagină (clientul nu-și pierde comanda
-  compusă).
+- Orar și estimări de timp configurabile într-un singur loc (nu împrăștiate
+  prin cod) — pregătire pentru reglarea de către dispecer în feat-007.
 
 ## Acceptance Criteria
 
@@ -107,17 +120,20 @@ flows in `08-quickstart.md`.
 
 - [ ] Pizza cu mărime + topping + ambalaj are prețul corect în coș (prețul
       topping-ului corespunde mărimii alese).
-  - Verify: `npm test -- tests/orders` (teste de integrare pe serviciul de coș)
-- [ ] O băutură adaugă SGR 0,50 lei/recipient, afișat ca linie separată.
   - Verify: `npm test -- tests/orders`
-- [ ] Taxa de livrare și comanda minimă se aplică per zonă; comanda sub minim
-      e refuzată; peste pragul stabilit livrarea devine gratuită.
+- [ ] O băutură primește Garanția SGR 0,50 lei/recipient, vizibilă ca linie
+      separată și însumată distinct în totalul comenzii.
+  - Verify: `npm test -- tests/orders`
+- [ ] Taxa de livrare: sub pragul zonei se adaugă taxa zonei; la/peste prag
+      livrarea e 0; la ridicare personală nu există taxă. Cazuri pe cel puțin
+      două zone cu valori diferite.
   - Verify: `npm test -- tests/orders`
 - [ ] Comanda happy-path (livrare și ridicare) ajunge în baza de date cu
-      status „nouă", linii cu prețuri-snapshot și date de contact.
+      status „nouă", linii + opțiuni cu prețuri-snapshot, date de contact și IP.
   - Verify: `npm test -- tests/orders`
-- [ ] Validările refuză: telefon invalid, adresă lipsă la livrare, oră în
-      afara orarului, coș gol, produs/variantă inactivă.
+- [ ] Validările refuză: telefon invalid, adresă/zonă lipsă la livrare, oră în
+      afara orarului sau sub 11:30, metodă de plată nepermisă pentru mod, coș
+      gol, produs/variantă/opțiune inactivă, grup obligatoriu neselectat.
   - Verify: `npm test -- tests/orders`
 - [ ] Fluxul complet pe telefon (375px): meniu → opțiuni produs → coș →
       checkout → confirmare cu număr de comandă.

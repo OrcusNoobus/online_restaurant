@@ -81,6 +81,16 @@
       "status": "not-started",
       "evidence": "",
       "spec": ""
+    },
+    {
+      "id": "feat-012",
+      "name": "Plată online cu cardul",
+      "behavior": "Un client își poate plăti comanda online cu cardul la checkout, pe lângă plata la primire; plata confirmată se leagă de comandă. Cerut de proprietar la interviul feat-006 (2026-07-04); DECISIONS.md o listează deja ca v2",
+      "verification": "(defined at spec time) integration tests against payment provider sandbox + manual end-to-end payment",
+      "dependencies": ["feat-006"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
     }
   ]
 }
