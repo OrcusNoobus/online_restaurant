@@ -87,10 +87,14 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       with notice; OptionsSheet preselects single-option required groups;
       floating cart FAB; fee hint moved to checkout where the zone is known.
       Verified in dev preview at 375px (sheet → add → /cos totals from quote).
-- [ ] T09 — Checkout + confirmation UI: `/comanda` (mode, zone selector,
+- [x] T09 — Checkout + confirmation UI: `/comanda` (mode, zone selector,
       schedule picker, guest form, payment methods per mode, T&C checkbox),
       placeholder legal pages `/termeni` + `/confidentialitate`, confirmation
       screen with `#id`; closed-shop state (source: 01-spec in-scope, Q14/Q16)
+      — done 2026-07-04: end-to-end verified live in dev preview (375px):
+      zone Sâncraiu → fee 30 + "mai adaugă 10 lei" hint → order #13 in DB
+      with +40 phone, IP, snapshots; confirmation screen with totals; cart
+      cleared. Closed state blocks the form via the same schedule module.
 - [ ] T10 — Write `08-quickstart.md` manual flows and execute them on a 375px
       viewport (delivery below/above threshold, pickup, scheduled, closed
       hours); record evidence in `harness/feature-list.json`; Definition of
