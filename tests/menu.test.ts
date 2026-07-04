@@ -7,12 +7,12 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { inArray } from "drizzle-orm";
+import { eq, gt, inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/menu/route";
 import { db } from "@/server/db/client";
-import { categories, products, productVariants } from "@/server/db/schema";
+import { categories, products, productVariants, toppingPrices, toppings } from "@/server/db/schema";
 import { getMenu } from "@/server/repositories/menu";
 
 interface SeedFile {
@@ -48,6 +48,38 @@ describe.skipIf(skipDb)("db:seed", () => {
     run("npm run db:seed");
     expect(await tableCounts()).toEqual(before);
   }, 120_000);
+
+  it("keeps variant ids stable across re-seeds (002 03-research D4)", async () => {
+    const ids = (rows: { id: number }[]) => rows.map(({ id }) => id).sort((a, b) => a - b);
+    const before = await db.select({ id: productVariants.id }).from(productVariants);
+    run("npm run db:seed");
+    const after = await db.select({ id: productVariants.id }).from(productVariants);
+    expect(ids(after)).toEqual(ids(before));
+  }, 120_000);
+
+  it("applies the SGR transform: deposits on toppings, SGR price zeroed (002 03-research D5)", async () => {
+    const withDeposit = await db
+      .select({ name: toppings.name, deposit: toppings.sgrDepositBani })
+      .from(toppings)
+      .where(gt(toppings.sgrDepositBani, 0));
+    // "Garanție SGR" + the 8 drink add-ons (02-clarify.md Q15)
+    expect(withDeposit).toHaveLength(9);
+    expect(withDeposit.every(({ deposit }) => deposit === 50)).toBe(true);
+
+    const sgrTopping = withDeposit.find(({ name }) => name === "Garanție SGR");
+    expect(sgrTopping).toBeDefined();
+    const [sgrRow] = await db
+      .select({ id: toppings.id })
+      .from(toppings)
+      .where(eq(toppings.name, "Garanție SGR"));
+    const sgrPrices = await db
+      .select({ priceBani: toppingPrices.priceBani })
+      .from(toppingPrices)
+      .where(eq(toppingPrices.toppingId, sgrRow.id));
+    // its legacy 50-bani "price" moved into sgr_deposit_bani
+    expect(sgrPrices.length).toBeGreaterThan(0);
+    expect(sgrPrices.every(({ priceBani }) => priceBani === 0)).toBe(true);
+  });
 });
 
 describe.skipIf(skipDb)("getMenu()", () => {

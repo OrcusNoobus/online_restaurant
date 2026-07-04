@@ -1,17 +1,23 @@
 /**
  * Idempotent menu seed: validates data/menu-seed.json (the owner may hand-edit
  * it) and upserts it into Postgres. Run via `npm run db:seed`; running twice
- * must not duplicate anything (01-spec.md FR4).
+ * must not duplicate anything (001 01-spec.md FR4).
  *
  * Upsert keys: slug for categories/products; (group, name) for toppings;
- * (topping, size) for topping prices. Variants have no natural key and are
- * replaced per product — revisit before orders reference variant ids (feat-006).
+ * (topping, size) for topping prices; (product, size name) for variants —
+ * variant ids are STABLE because order lines reference them (002 03-research D4).
+ * Variants dropped from the JSON are deleted; once orders exist, deleting a
+ * referenced variant fails loudly (RESTRICT) instead of silently rewriting history.
  * `active` is set only on insert, so re-seeding never reactivates rows the
  * admin has hidden. Rows removed from the JSON stay in the database.
+ *
+ * SGR transform (002 03-research D5): the JSON stays a faithful legacy
+ * snapshot; here the "Garanție SGR" topping becomes price 0 + deposit, and
+ * drink add-ons get the deposit on top of their price (002 02-clarify Q15).
  */
 import { readFileSync } from "node:fs";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -23,6 +29,10 @@ import {
   toppingPrices,
   toppings,
 } from "../src/server/db/schema";
+
+/** JSON group keys the SGR transform recognizes (002 05-data-model.md). */
+const SGR_GROUP_KEY = "garantie-sgr";
+const DRINK_ADDON_GROUP_KEY = "adauga-bautura";
 
 const slug = z.string().regex(/^[a-z0-9-]+$/);
 
@@ -60,6 +70,8 @@ const seedSchema = z.object({
     z.object({
       key: z.string(),
       name: z.string().min(1),
+      required: z.boolean().default(false),
+      displayType: z.enum(["radio", "checkbox"]).default("checkbox"),
       toppings: z
         .array(
           z.object({
@@ -108,14 +120,33 @@ async function main(): Promise<void> {
     // Topping groups + toppings + per-size prices; groups matched by name
     // (the JSON `key` is not stored — 05-data-model.md defines only `name`).
     const groupIdByKey = new Map<string, number>();
-    for (const group of seed.toppingGroups) {
+    for (const [groupIndex, group] of seed.toppingGroups.entries()) {
+      // SGR transform: the deposit moves out of prices into sgr_deposit_bani
+      // so pricing can total it as the separate SGR line (002 03-research D5).
+      const isSgrGroup = group.key === SGR_GROUP_KEY;
+      const isDrinkAddonGroup = group.key === DRINK_ADDON_GROUP_KEY;
+      const sgrDepositBani = isSgrGroup || isDrinkAddonGroup ? seed.sgrDepositBani : 0;
+
+      const groupValues = {
+        name: group.name,
+        required: group.required,
+        displayType: group.displayType,
+        sortOrder: groupIndex,
+      };
       const existing = await tx
         .select({ id: toppingGroups.id })
         .from(toppingGroups)
         .where(eq(toppingGroups.name, group.name));
-      const groupId =
-        existing[0]?.id ??
-        (await tx.insert(toppingGroups).values({ name: group.name }).returning({ id: toppingGroups.id }))[0].id;
+      let groupId: number;
+      if (existing[0]) {
+        groupId = existing[0].id;
+        await tx.update(toppingGroups).set(groupValues).where(eq(toppingGroups.id, groupId));
+      } else {
+        [{ id: groupId }] = await tx
+          .insert(toppingGroups)
+          .values(groupValues)
+          .returning({ id: toppingGroups.id });
+      }
       groupIdByKey.set(group.key, groupId);
       counts.groups += 1;
 
@@ -124,18 +155,27 @@ async function main(): Promise<void> {
           .select({ id: toppings.id })
           .from(toppings)
           .where(and(eq(toppings.groupId, groupId), eq(toppings.name, topping.name)));
-        const toppingId =
-          found[0]?.id ??
-          (await tx.insert(toppings).values({ groupId, name: topping.name }).returning({ id: toppings.id }))[0].id;
+        let toppingId: number;
+        if (found[0]) {
+          toppingId = found[0].id;
+          await tx.update(toppings).set({ sgrDepositBani }).where(eq(toppings.id, toppingId));
+        } else {
+          [{ id: toppingId }] = await tx
+            .insert(toppings)
+            .values({ groupId, name: topping.name, sgrDepositBani })
+            .returning({ id: toppings.id });
+        }
         counts.toppings += 1;
 
         for (const price of topping.prices) {
+          // the SGR group's own "price" was the deposit — it lives in sgr_deposit_bani now
+          const priceBani = isSgrGroup ? 0 : price.priceBani;
           await tx
             .insert(toppingPrices)
-            .values({ toppingId, sizeName: price.sizeName ?? null, priceBani: price.priceBani })
+            .values({ toppingId, sizeName: price.sizeName ?? null, priceBani })
             .onConflictDoUpdate({
               target: [toppingPrices.toppingId, toppingPrices.sizeName],
-              set: { priceBani: price.priceBani },
+              set: { priceBani },
             });
           counts.prices += 1;
         }
@@ -169,15 +209,35 @@ async function main(): Promise<void> {
           .returning({ id: products.id });
         counts.products += 1;
 
-        await tx.delete(productVariants).where(eq(productVariants.productId, productRow.id));
-        await tx.insert(productVariants).values(
-          product.variants.map((variant, variantIndex) => ({
-            productId: productRow.id,
-            name: variant.name ?? null,
-            priceBani: variant.priceBani,
-            sortOrder: variantIndex,
-          })),
-        );
+        // Variants upsert by (product, name) — ids stay stable for order lines.
+        await tx
+          .insert(productVariants)
+          .values(
+            product.variants.map((variant, variantIndex) => ({
+              productId: productRow.id,
+              name: variant.name ?? null,
+              priceBani: variant.priceBani,
+              sortOrder: variantIndex,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [productVariants.productId, productVariants.name],
+            set: {
+              priceBani: sql`excluded.price_bani`,
+              sortOrder: sql`excluded.sort_order`,
+            },
+          });
+        // Drop variants no longer in the JSON. Once orders reference one,
+        // the RESTRICT FK makes this fail loudly — a human decision, not data loss.
+        const keptNames = product.variants
+          .map((variant) => variant.name ?? null)
+          .filter((name): name is string => name !== null);
+        const keepsNull = product.variants.some((variant) => (variant.name ?? null) === null);
+        const staleName = keptNames.length > 0 ? notInArray(productVariants.name, keptNames) : undefined;
+        const stale = keepsNull
+          ? and(isNotNull(productVariants.name), staleName)
+          : or(sql`${productVariants.name} IS NULL`, ...(staleName ? [staleName] : []));
+        await tx.delete(productVariants).where(and(eq(productVariants.productId, productRow.id), stale));
         counts.variants += product.variants.length;
 
         await tx.delete(productToppingGroups).where(eq(productToppingGroups.productId, productRow.id));
