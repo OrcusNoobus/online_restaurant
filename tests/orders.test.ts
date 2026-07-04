@@ -7,13 +7,15 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { POST as postQuoteRoute } from "@/app/api/cart/quote/route";
 import { GET as getZonesRoute } from "@/app/api/zones/route";
 import { db } from "@/server/db/client";
-import { deliveryZones } from "@/server/db/schema";
+import { deliveryZones, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
 import { getActiveZones } from "@/server/repositories/zones";
+import { type QuoteReason, quoteCart } from "@/server/services/pricing";
 
 interface ZonesFile {
   zones: { slug: string; name: string; feeBani: number; freeFromBani: number }[];
@@ -33,6 +35,31 @@ beforeAll(() => {
   run("npm run db:migrate");
   run("npm run db:seed");
 }, 120_000);
+
+/** Seeded fixture: ids for a product, one of its variants, and named toppings. */
+async function findProduct(slug: string, variantName: string | null) {
+  const [product] = await db.select({ id: products.id }).from(products).where(eq(products.slug, slug));
+  const variantRows = await db
+    .select({ id: productVariants.id, name: productVariants.name })
+    .from(productVariants)
+    .where(eq(productVariants.productId, product.id));
+  const variant = variantRows.find(({ name }) => name === variantName)!;
+  return { productId: product.id, variantId: variant.id };
+}
+
+async function findTopping(groupName: string, name: string): Promise<number> {
+  const rows = await db
+    .select({ id: toppings.id })
+    .from(toppings)
+    .innerJoin(toppingGroups, eq(toppings.groupId, toppingGroups.id))
+    .where(and(eq(toppingGroups.name, groupName), eq(toppings.name, name)));
+  expect(rows).toHaveLength(1);
+  return rows[0].id;
+}
+
+function codesOf(result: Awaited<ReturnType<typeof quoteCart>>): QuoteReason["code"][] {
+  return result.ok ? [] : result.reasons.map(({ code }) => code);
+}
 
 describe.skipIf(skipDb)("delivery zones", () => {
   it("seeds every zone from data/delivery-zones.json with its fee and threshold", async () => {
@@ -78,4 +105,231 @@ describe.skipIf(skipDb)("delivery zones", () => {
       await db.update(deliveryZones).set({ active: true }).where(eq(deliveryZones.id, seeded.id));
     }
   }, 120_000);
+});
+
+describe.skipIf(skipDb)("quoteCart()", () => {
+  it("prices toppings by the chosen size (Ambalaj: 300 on 30cm, 400 on 40cm)", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const pizza40 = await findProduct("pizza-bambini", "40 cm");
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+    const sosId = await findTopping("Adauga un sos", "Sos Dulce 80 ml");
+
+    const small = await quoteCart({
+      mode: "pickup",
+      items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId, sosId] }],
+    });
+    expect(small.ok).toBe(true);
+    if (small.ok) {
+      // 3700 (30cm) + 300 (ambalaj 30cm) + 500 (sos)
+      expect(small.quote.subtotalBani).toBe(4500);
+      expect(small.quote.sgrBani).toBe(0);
+      expect(small.quote.totalBani).toBe(4500);
+    }
+
+    const big = await quoteCart({
+      mode: "pickup",
+      items: [{ ...pizza40, quantity: 1, toppingIds: [ambalajId, sosId] }],
+    });
+    expect(big.ok).toBe(true);
+    // 4700 (40cm) + 400 (ambalaj 40cm) + 500 (sos)
+    if (big.ok) expect(big.quote.subtotalBani).toBe(5600);
+  });
+
+  it("totals SGR separately for drinks (base price + deposit line)", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+
+    const result = await quoteCart({
+      mode: "delivery",
+      zoneSlug: "santana-de-mures",
+      items: [{ ...heineken, quantity: 2, toppingIds: [sgrId] }],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 2 × 1100 base; 2 × 50 SGR as its own line; below 4000 → fee 2000
+    expect(result.quote.subtotalBani).toBe(2200);
+    expect(result.quote.sgrBani).toBe(100);
+    expect(result.quote.deliveryFeeBani).toBe(2000);
+    expect(result.quote.freeDeliveryGapBani).toBe(4000 - 2300);
+    expect(result.quote.totalBani).toBe(2200 + 100 + 2000);
+    const sgrOption = result.quote.items[0].options.find(({ toppingName }) => toppingName === "Garanție SGR");
+    expect(sgrOption).toMatchObject({ priceBani: 0, sgrDepositBani: 50 });
+  });
+
+  it("applies the zone fee below the threshold and drops it at the threshold (two zones)", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+    const item = { ...pizza30, quantity: 1, toppingIds: [ambalajId] }; // 3700 + 300 = 4000
+
+    // Sântana: freeFrom 4000 → exactly at threshold → free delivery
+    const atThreshold = await quoteCart({ mode: "delivery", zoneSlug: "santana-de-mures", items: [item] });
+    expect(atThreshold.ok).toBe(true);
+    if (atThreshold.ok) {
+      expect(atThreshold.quote.deliveryFeeBani).toBe(0);
+      expect(atThreshold.quote.freeDeliveryGapBani).toBe(0);
+      expect(atThreshold.quote.totalBani).toBe(4000);
+    }
+
+    // Sâncraiu: fee 3000, freeFrom 5000 → below threshold → fee applies, order NOT blocked
+    const below = await quoteCart({ mode: "delivery", zoneSlug: "sancraiu-de-mures", items: [item] });
+    expect(below.ok).toBe(true);
+    if (below.ok) {
+      expect(below.quote.deliveryFeeBani).toBe(3000);
+      expect(below.quote.freeDeliveryGapBani).toBe(1000);
+      expect(below.quote.totalBani).toBe(7000);
+    }
+  });
+
+  it("never charges a delivery fee for pickup", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    const result = await quoteCart({
+      mode: "pickup",
+      items: [{ ...heineken, quantity: 1, toppingIds: [sgrId] }],
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.quote.deliveryFeeBani).toBe(0);
+      expect(result.quote.freeDeliveryGapBani).toBe(0);
+      expect(result.quote.totalBani).toBe(1150);
+    }
+  });
+
+  it("rejects a required group left unselected, with the group name", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const result = await quoteCart({
+      mode: "pickup",
+      items: [{ ...pizza30, quantity: 1, toppingIds: [] }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reasons).toContainEqual(
+        expect.objectContaining({ code: "missing_required_group", groupName: "Ambalaj", itemIndex: 0 }),
+      );
+    }
+  });
+
+  it("rejects cart-shape violations with per-item reason codes", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+
+    expect(codesOf(await quoteCart({ mode: "pickup", items: [] }))).toEqual(["empty_cart"]);
+
+    // variant of another product
+    const mismatch = await quoteCart({
+      mode: "pickup",
+      items: [{ productId: pizza30.productId, variantId: heineken.variantId, quantity: 1, toppingIds: [ambalajId] }],
+    });
+    expect(codesOf(mismatch)).toContain("variant_mismatch");
+
+    // SGR group is not attached to pizza
+    const notAllowed = await quoteCart({
+      mode: "pickup",
+      items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId, sgrId] }],
+    });
+    expect(codesOf(notAllowed)).toContain("topping_not_allowed");
+
+    const duplicate = await quoteCart({
+      mode: "pickup",
+      items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId, ambalajId] }],
+    });
+    expect(codesOf(duplicate)).toContain("duplicate_topping");
+
+    const unknownProduct = await quoteCart({
+      mode: "pickup",
+      items: [{ productId: 999_999, variantId: 1, quantity: 1, toppingIds: [] }],
+    });
+    expect(codesOf(unknownProduct)).toContain("product_not_found");
+  });
+
+  it("rejects unknown/missing zones only for delivery", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    const items = [{ ...heineken, quantity: 1, toppingIds: [sgrId] }];
+
+    expect(codesOf(await quoteCart({ mode: "delivery", items }))).toEqual(["zone_required"]);
+    expect(codesOf(await quoteCart({ mode: "delivery", zoneSlug: "atlantida", items }))).toEqual(["zone_unknown"]);
+    expect(codesOf(await quoteCart({ mode: "pickup", items }))).toEqual([]);
+  });
+
+  it("reports inactive products and inactive toppings distinctly", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+    const sosId = await findTopping("Adauga un sos", "Sos Dulce 80 ml");
+
+    await db.update(products).set({ active: false }).where(eq(products.id, pizza30.productId));
+    try {
+      const inactiveProduct = await quoteCart({
+        mode: "pickup",
+        items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId] }],
+      });
+      expect(codesOf(inactiveProduct)).toEqual(["product_inactive"]);
+    } finally {
+      await db.update(products).set({ active: true }).where(eq(products.id, pizza30.productId));
+    }
+
+    await db.update(toppings).set({ active: false }).where(eq(toppings.id, sosId));
+    try {
+      const inactiveTopping = await quoteCart({
+        mode: "pickup",
+        items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId, sosId] }],
+      });
+      expect(codesOf(inactiveTopping)).toContain("topping_inactive");
+    } finally {
+      await db.update(toppings).set({ active: true }).where(eq(toppings.id, sosId));
+    }
+  });
+});
+
+describe.skipIf(skipDb)("POST /api/cart/quote", () => {
+  function quoteRequest(body: unknown): Request {
+    return new Request("http://localhost/api/cart/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("returns the contract shape on success (no zone leak)", async () => {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+
+    const response = await postQuoteRoute(
+      quoteRequest({
+        mode: "delivery",
+        zoneSlug: "targu-mures",
+        items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId] }],
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(Object.keys(body).sort()).toEqual([
+      "deliveryFeeBani",
+      "freeDeliveryGapBani",
+      "items",
+      "sgrBani",
+      "subtotalBani",
+      "totalBani",
+    ]);
+    expect(body.items[0]).toMatchObject({
+      productName: "Pizza Bambini",
+      variantName: "30 cm",
+      unitPriceBani: 3700,
+      lineTotalBani: 4000,
+    });
+  });
+
+  it("answers 400 for malformed shapes and 422 for semantic failures", async () => {
+    const badShape = await postQuoteRoute(quoteRequest({ mode: "teleport", items: [] }));
+    expect(badShape.status).toBe(400);
+    expect((await badShape.json()).error).toBe("validation");
+
+    const semantic = await postQuoteRoute(quoteRequest({ mode: "pickup", items: [] }));
+    expect(semantic.status).toBe(422);
+    const semanticBody = await semantic.json();
+    expect(semanticBody.error).toBe("invalid_cart");
+    expect(semanticBody.reasons).toContainEqual(expect.objectContaining({ code: "empty_cart" }));
+  });
 });

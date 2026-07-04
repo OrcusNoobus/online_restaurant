@@ -91,6 +91,7 @@ often as the cart changes.
 
 - `zoneSlug` required iff `mode = "delivery"`.
 - `toppingIds` may be empty; duplicates are rejected.
+- Shape caps (zod): quantity 1–99, ≤ 100 items, ≤ 30 toppings per item.
 
 **Response `200`:**
 
@@ -126,8 +127,9 @@ often as the cart changes.
 "itemIndex":0,"detail":"..."}]}` with codes: `empty_cart`,
 `product_not_found`, `product_inactive`, `variant_mismatch` (variant not of
 that product), `topping_not_allowed` (not in the product's groups),
-`topping_inactive`, `missing_required_group` (+ `groupName` field),
-`duplicate_topping`, `zone_required`, `zone_unknown`, `zone_inactive`.
+`topping_inactive`, `topping_price_missing` (no price row for the chosen
+size), `missing_required_group` (+ `groupName` field), `duplicate_topping`,
+`zone_required`, `zone_unknown`, `zone_inactive`.
 
 ## New: `POST /api/orders`
 
