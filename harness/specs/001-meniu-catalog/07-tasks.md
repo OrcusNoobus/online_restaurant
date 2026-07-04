@@ -49,8 +49,13 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       — done 2026-07-04: handler wraps getMenu() in { categories }, 500 →
       {"error":"internal"}; contract test asserts status, content-type and
       body parity with the repository.
-- [ ] T06 — Menu page (`src/app/page.tsx`) + `src/components/menu/*`,
+- [x] T06 — Menu page (`src/app/page.tsx`) + `src/components/menu/*`,
       mobile-first, prices via `formatBani` (source: 01-spec.md FR1–FR3)
+      — done 2026-07-04: server component + force-dynamic (menu never frozen
+      at build), sticky CategoryNav anchors, ProductCard with letter
+      placeholder (Q3), light/dark, layout lang="ro" + Romanian metadata;
+      eyeballed at 375px via dev server. Empty active categories hidden by
+      the page (contract leaves it to the UI).
 - [ ] T07 — Run `08-quickstart.md` flows end-to-end on a phone-sized viewport;
       record evidence in `harness/feature-list.json` (source: 08-quickstart.md)
 
