@@ -44,8 +44,11 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       — done 2026-07-04: 5 integration tests (idempotency by row counts,
       seed-order sorting, multi-size pizza once, active filtering incl.
       empty-active-category rule); tests self-migrate + self-seed.
-- [ ] T05 — `GET /api/menu` route handler + contract test
+- [x] T05 — `GET /api/menu` route handler + contract test
       (source: 06-contracts/api.md)
+      — done 2026-07-04: handler wraps getMenu() in { categories }, 500 →
+      {"error":"internal"}; contract test asserts status, content-type and
+      body parity with the repository.
 - [ ] T06 — Menu page (`src/app/page.tsx`) + `src/components/menu/*`,
       mobile-first, prices via `formatBani` (source: 01-spec.md FR1–FR3)
 - [ ] T07 — Run `08-quickstart.md` flows end-to-end on a phone-sized viewport;

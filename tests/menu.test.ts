@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { GET } from "@/app/api/menu/route";
 import { db } from "@/server/db/client";
 import { categories, products, productVariants } from "@/server/db/schema";
 import { getMenu } from "@/server/repositories/menu";
@@ -85,6 +86,15 @@ describe("getMenu()", () => {
     const seedProductSlugs = seedCategory.products.map((p) => p.slug);
     const menuProductSlugs = menuCategory!.products.map((p) => p.slug).filter((s) => seedProductSlugs.includes(s));
     expect(menuProductSlugs).toEqual(seedProductSlugs);
+  });
+
+  it("matches the GET /api/menu contract (06-contracts/api.md)", async () => {
+    const response = await GET();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    // the API returns exactly the repository shape, wrapped in { categories }
+    expect(await response.json()).toEqual({ categories: await getMenu() });
   });
 
   it("hides inactive products and inactive categories, keeps empty active categories", async () => {
