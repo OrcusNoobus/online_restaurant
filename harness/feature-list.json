@@ -8,8 +8,8 @@
       "behavior": "The project installs, verifies, and starts from a clean checkout; harness/docs/ARCHITECTURE.md and this feature list exist and are committed",
       "verification": "./init.sh",
       "dependencies": [],
-      "status": "not-started",
-      "evidence": "",
+      "status": "done",
+      "evidence": "commit 472f666; ./init.sh passing 2026-07-04: Postgres healthy, lint + typecheck clean, boundary checks pass, 7/7 tests, next build OK",
       "spec": ""
     },
     {
