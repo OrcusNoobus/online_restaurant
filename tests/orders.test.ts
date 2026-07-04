@@ -13,7 +13,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { POST as postQuoteRoute } from "@/app/api/cart/quote/route";
 import { GET as getZonesRoute } from "@/app/api/zones/route";
 import { db } from "@/server/db/client";
-import { deliveryZones, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
+import { deliveryZones, orders, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
+import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { getActiveZones } from "@/server/repositories/zones";
 import { type QuoteReason, quoteCart } from "@/server/services/pricing";
 
@@ -279,6 +280,77 @@ describe.skipIf(skipDb)("quoteCart()", () => {
       expect(codesOf(inactiveTopping)).toContain("topping_inactive");
     } finally {
       await db.update(toppings).set({ active: true }).where(eq(toppings.id, sosId));
+    }
+  });
+});
+
+describe.skipIf(skipDb)("insertOrder()", () => {
+  function pickupOrderDraft(item: { productId: number; variantId: number }, unitPriceBani: number): NewOrder {
+    return {
+      mode: "pickup",
+      customerFirstName: "Test",
+      customerLastName: "Client",
+      phone: "+40740000000",
+      email: null,
+      zoneId: null,
+      addressStreet: null,
+      notes: null,
+      scheduledFor: null,
+      estimateMinutes: 15,
+      paymentMethod: "cash",
+      subtotalBani: unitPriceBani,
+      sgrBani: 0,
+      deliveryFeeBani: 0,
+      totalBani: unitPriceBani,
+      termsAcceptedAt: new Date(),
+      clientIp: "127.0.0.1",
+      items: [
+        {
+          ...item,
+          productName: "Test",
+          variantName: null,
+          unitPriceBani,
+          quantity: 1,
+          lineTotalBani: unitPriceBani,
+          options: [],
+        },
+      ],
+    };
+  }
+
+  it("is atomic: a failing line rolls back the whole order", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const countBefore = await db.$count(orders);
+
+    const draft = pickupOrderDraft(heineken, 1100);
+    draft.items.push({
+      productId: heineken.productId,
+      variantId: heineken.variantId,
+      productName: "Test",
+      variantName: null,
+      unitPriceBani: 1100,
+      quantity: 1,
+      lineTotalBani: 1100,
+      options: [
+        // FK violation: no such topping
+        { toppingId: 999_999, groupName: "X", toppingName: "X", priceBani: 0, sgrDepositBani: 0 },
+      ],
+    });
+
+    await expect(insertOrder(draft)).rejects.toThrow();
+    expect(await db.$count(orders)).toBe(countBefore);
+  });
+
+  it("blocks deleting a variant referenced by an order (RESTRICT, loud seed failure)", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const orderId = await insertOrder(pickupOrderDraft(heineken, 1100));
+
+    try {
+      await expect(
+        db.delete(productVariants).where(eq(productVariants.id, heineken.variantId)),
+      ).rejects.toThrow();
+    } finally {
+      await db.delete(orders).where(eq(orders.id, orderId));
     }
   });
 });

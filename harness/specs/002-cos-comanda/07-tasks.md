@@ -61,9 +61,12 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       integration tests incl. threshold edge (=freeFrom → free) and
       inactive-vs-not-allowed distinction; contract gained
       topping_price_missing + shape caps; 38/38 tests.
-- [ ] T06 — Order tables (orders, order_items, order_item_options + enums +
+- [x] T06 — Order tables (orders, order_items, order_item_options + enums +
       CHECKs) + migration + `repositories/orders.ts` transactional insert
       (source: 05-data-model)
+      — done 2026-07-04: migration 0003 (3 enums, 3 tables, sum/mode CHECKs,
+      RESTRICT FKs); insertOrder() single-transaction; tests prove rollback
+      on a failing line and RESTRICT on referenced variants.
 - [ ] T07 — Place order: `services/orders.ts` `placeOrder()` +
       `POST /api/orders` (schedule/payment/phone/terms validation, snapshots,
       client IP, structured logs); integration tests: happy path delivery +
