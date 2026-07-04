@@ -69,6 +69,11 @@ adăugarea SGR și afișarea lui separată.
 
 ## Notes For Future Changes
 
+- 44 de variante (mărimi mari de pizza) au în `data/menu-seed.json` propria
+  descriere (gramaj/ingrediente per mărime). Modelul de date aprobat ține
+  descrierea doar pe produs, așa că seed-ul nu le importă — datele rămân în
+  JSON. Dacă proprietarul vrea descrieri per mărime în UI, se extinde
+  `ProductVariant` atunci (nu blochează feat-002).
 - Proprietarul a confirmat (2026-07-04) mecanica de comandă de pe site-ul
   vechi, de replicat la coș (feat-006): după alegerea produsului apar secțiuni —
   "Ambalaj" obligatoriu (preț per categorie/mărime) + opțional băutură / sos /

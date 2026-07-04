@@ -32,8 +32,12 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       — done 2026-07-04: 7 tables incl. topping_prices + product_topping_groups;
       CHECK constraints on prices; unique (topping_id, size_name) NULLS NOT
       DISTINCT; migrations apply idempotently in ./init.sh (skipped by SKIP_DB=1).
-- [ ] T03 — Idempotent seed script `npm run db:seed` reading
+- [x] T03 — Idempotent seed script `npm run db:seed` reading
       `data/menu-seed.json`, upserting by slug (source: 01-spec.md FR4)
+      — done 2026-07-04: zod-validated input, upsert by slug / (group,name) /
+      (topping,size); `active` set only on insert; ran twice → identical counts
+      (13/73/117/12/30/88 prices/239 links). Variant descriptions stay in JSON
+      (see 02-clarify.md note).
 - [ ] T04 — Repository `src/server/repositories/menu.ts` `getMenu()` +
       integration tests: shape, sorting, active-filtering, >=1 variant rule
       (source: 05-data-model.md, 06-contracts/api.md)
