@@ -9,11 +9,11 @@
 ## Current Objective
 
 - **Goal:** feat-002 (Meniu produse) delivered the full menu vertical: schema →
-  seed → repository → API → mobile page. The roadmap now moves to the process
-  features that harden it.
-- **Active feature:** none in progress; feat-003 (Verification coverage) next
-- **Status:** feat-002 done with evidence; repo green end to end
-- **Branch / commit:** feat/002-meniu-catalog @ see `git log --oneline -8`
+  seed → repository → API → mobile page. The process features that harden it
+  (feat-003 verification audit, feat-004 docs, feat-005 cleanup) are also done.
+- **Active feature:** none in progress; feat-006 (Coș și plasare comandă) next
+- **Status:** feat-002…feat-005 done with evidence; repo green end to end
+- **Branch / commit:** feat/002-meniu-catalog @ see `git log --oneline -12`
 
 ## Completed This Session
 
@@ -23,6 +23,10 @@
 - [x] T05 — `GET /api/menu` + contract test
 - [x] T06 — mobile-first menu page (CategoryNav, ProductCard, force-dynamic)
 - [x] T07 — 08-quickstart.md flows 1–4 executed; evidence in feature-list.json
+- [x] feat-003 — verification audit; fixed the broken SKIP_DB=1 test path
+- [x] feat-004 — docs review: README seed step, Decision 4 (force-dynamic) in
+      03-research.md, /api/menu structured logs per the observability bar
+- [x] feat-005 — cleanup: debug-code sweep clean, state files current
 
 ## Verification Evidence
 
@@ -65,8 +69,10 @@
 
 ## Recommended Next Step
 
-Start feat-003 (Verification coverage): audit that unit/integration/e2e
-verification for feat-002 is fully wired into `./init.sh` and
-`08-quickstart.md`, close any gaps, then mark it done — most wiring already
-exists, so this is an audit-and-tighten pass. After feat-004/005, decide with
-the owner when to merge `feat/002-meniu-catalog` into `main`.
+Two human decisions gate the next move:
+1. Merge `feat/002-meniu-catalog` → `main` (branch green, self-contained).
+2. Start feat-006 (Coș și plasare comandă) at spec time: interview the owner,
+   draft `01-spec.md` + `02-clarify.md`. Known clarify seeds: SGR display at
+   cart, mandatory "Ambalaj" group mechanics (02-clarify.md notes), delivery
+   zones/fees, minimum order. Also revisit the seed's replace-variants rule
+   before orders reference variant ids (comment in scripts/seed.ts).

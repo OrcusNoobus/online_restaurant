@@ -6,9 +6,9 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-002 session 2)
-- **Active feature:** none — feat-002 and feat-003 done; feat-004 (Documentation
-  update) is next
+- **Last updated:** 2026-07-04 (feat-002 session 2, clock-out)
+- **Active feature:** none — feat-002 through feat-005 done; feat-006 (Coș și
+  plasare comandă) is next and starts at spec time with the owner
 - **Latest commit:** see git log on feat/002-meniu-catalog (T02–T07 complete)
 - **Verification status:** ./init.sh green; `npm test -- tests/menu` 6/6; all
   08-quickstart.md flows executed and passing
@@ -32,10 +32,15 @@
 
 ## Next Steps
 
-1. feat-004 Documentation update — README, ARCHITECTURE.md, DECISIONS.md
-   current vs. implemented feature.
-2. feat-005 Cleanup and handoff, then merge feat/002-meniu-catalog → main
-   (owner's call on timing).
+1. Merge `feat/002-meniu-catalog` → `main` (owner's call; branch is green and
+   self-contained).
+2. feat-006 Coș și plasare comandă — start the document chain: draft
+   `harness/specs/002-cos-comanda/01-spec.md` with the owner, collect clarify
+   questions (SGR display, delivery zones/fees, minimum order, packaging rule
+   from 02-clarify.md notes). Ordering is a service, callable by any channel
+   (DECISIONS.md 2026-07-04).
+3. Before feat-006 code: revisit the seed's replace-variants rule (variant ids
+   must become stable once orders reference them — noted in scripts/seed.ts).
 
 ## Blockers / Risks
 

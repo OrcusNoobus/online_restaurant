@@ -48,8 +48,8 @@
       "behavior": "Evidence recorded, PROGRESS.md and SESSION-HANDOFF.md current, repo restartable via ./init.sh",
       "verification": "./init.sh",
       "dependencies": ["feat-004"],
-      "status": "not-started",
-      "evidence": "",
+      "status": "done",
+      "evidence": "2026-07-04: ./init.sh green at clock-out; debug-code sweep clean (only intentional structured logs remain); evidence recorded for feat-002..005; PROGRESS.md + SESSION-HANDOFF.md point to feat-006 spec work and the merge decision",
       "spec": ""
     },
     {
