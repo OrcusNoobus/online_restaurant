@@ -26,6 +26,26 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-04] — feat-006 Coș și plasare comandă complete (spec → done, one session)
+- Status: Completed
+- Action: Full document chain (spec + 16 clarify Q&A with the owner, research
+  with 8 recorded decisions, plan, data model, contracts, tasks) then T01–T10:
+  stable variant ids, delivery zones, pure schedule module, quoteCart/placeOrder
+  services + 3 new API routes, options-sheet → cart → checkout → confirmation
+  UI. 47/47 tests, ./init.sh green, live orders #13/#19 verified in DB.
+  Owner decisions promoted to feature-list: feat-010 accounts, feat-011
+  coupons, feat-012 online payment. Key product rule captured: the per-zone
+  "minimum order" is a free-delivery threshold (fee below, free at/above),
+  never a hard block.
+- Challenge: (1) React 19 lint forbids setState-in-effect — the classic
+  localStorage-cart pattern failed lint. (2) Topping names are only unique
+  per group ("Ambalaj" ×7) — a global name lookup broke tests. (3) The
+  ARCHITECTURE boundary grep flagged the literal server-import string inside
+  a comment in src/components.
+- Solution: (1) module store + useSyncExternalStore, derived loading/payment
+  state (09-debug.md). (2) lookups scoped by (group, name). (3) reworded the
+  comment; noted in PROGRESS for future sessions.
+
 ## [2026-07-04] — Feature-list cleanup: template pseudo-features removed
 - Status: Completed
 - Action: Removed feat-003 (Verification coverage), feat-004 (Documentation update) and feat-005 (Cleanup and handoff) from feature-list.json — as a complete set, no renumbering (feat-006..009 keep their IDs; they are referenced in DECISIONS.md, PROGRESS.md and commit history). Validated after removal: schema OK, no dangling dependencies (006→002, 007→006, 008→006, 009→008), WIP≤1, done entries carry evidence.

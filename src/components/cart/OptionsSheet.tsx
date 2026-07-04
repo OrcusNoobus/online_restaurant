@@ -4,7 +4,8 @@
  * Bottom sheet for configuring one product before adding it to the cart:
  * size, required groups (Ambalaj, Garanție SGR), optional extras, quantity.
  * Prices shown here are PREVIEW from the menu payload — the server quote is
- * authoritative (002 06-contracts). Structural props only (no @/server).
+ * authoritative (002 06-contracts). Structural props only, per the
+ * components-stay-presentational boundary in ARCHITECTURE.md.
  */
 import { useEffect, useMemo, useState } from "react";
 

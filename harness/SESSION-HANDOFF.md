@@ -8,60 +8,54 @@
 
 ## Current Objective
 
-- **Goal:** feat-002 (Meniu produse) delivered the full menu vertical: schema →
-  seed → repository → API → mobile page, hardened by the Definition-of-Done
-  passes (verification audit, docs review, cleanup).
-- **Active feature:** none in progress; feat-006 (Coș și plasare comandă) next
-- **Status:** feat-001 + feat-002 done with evidence; repo green end to end;
-  main pushed to github.com/OrcusNoobus/online_restaurant
-- **Branch / commit:** main @ see `git log --oneline -12`
+- **Goal:** feat-006 (Coș și plasare comandă) delivered end-to-end: schema →
+  zones → schedule → pricing/order services → API → mobile UI, verified live.
+- **Active feature:** none in progress; feat-007 (Panou admin) is next.
+- **Status:** feat-006 DONE with evidence; branch `feat/006-cos-comanda`
+  green and self-contained, NOT yet merged to main (owner's call).
+- **Branch / commit:** feat/006-cos-comanda @ `git log --oneline -13`
 
 ## Completed This Session
 
-- [x] T02 — Drizzle setup (7 tables, CHECK constraints, db:migrate in init.sh)
-- [x] T03 — idempotent `npm run db:seed`, zod-validated
-- [x] T04 — `getMenu()` repository + integration tests
-- [x] T05 — `GET /api/menu` + contract test
-- [x] T06 — mobile-first menu page (CategoryNav, ProductCard, force-dynamic)
-- [x] T07 — 08-quickstart.md flows 1–4 executed; evidence in feature-list.json
-- [x] Verification audit (DoD) — fixed the broken SKIP_DB=1 test path
-- [x] Docs review (DoD) — README seed step, Decision 4 (force-dynamic) in
-      03-research.md, /api/menu structured logs per the observability bar
-- [x] Cleanup (DoD) — debug-code sweep clean, state files current
-- [x] History rewritten to owner-only attribution; main pushed to GitHub
-- [x] Feature-list cleanup: template pseudo-features removed (see DEV_LOG)
+- [x] Spec phase: 01-spec + 02-clarify (Q1–Q16 all answered by owner),
+      03-research (8 decisions), 04-plan, 05-data-model, 06-contracts, 07-tasks
+- [x] T01 — schema extensions + stable variant ids (migration 0001)
+- [x] T02 — delivery_zones + seed + GET /api/zones (migration 0002)
+- [x] T03 — schedule config + pure Europe/Bucharest rules + 8 unit tests
+- [x] T04 — menu payload carries topping groups (contract extended)
+- [x] T05 — quoteCart() + POST /api/cart/quote (fee-below-threshold model)
+- [x] T06 — order tables + atomic insertOrder (migration 0003)
+- [x] T07 — placeOrder() + POST /api/orders (snapshots, +40 phone, IP)
+- [x] T08 — options sheet + localStorage cart + /cos
+- [x] T09 — /comanda checkout + confirmation + legal placeholders
+- [x] T10 — 08-quickstart.md flows 1–5 executed; evidence recorded; 09-debug.md
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
-| Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh also pass |
-| Tests (layer 2) | `npm test` | 13/13 passing | includes 6 menu integration tests |
-| End-to-end (layer 3) | `npm test -- tests/menu` + quickstart flows 1–4 | pass | 375px viewport + curl; inactive-product flow verified live |
+| Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh pass |
+| Tests (layer 2) | `npm test` | 47/47 | 22 orders + 8 schedule + 17 menu/seed |
+| End-to-end (layer 3) | `npm test -- tests/orders` + quickstart 1–5 | pass | live orders #13 (delivery) / #19 (pickup) verified in DB at 375px |
 
 ## Files Changed
 
-- `src/server/db/*` — Drizzle schema (7 tables), client, first migration
-- `scripts/seed.ts` — idempotent seed; `data/menu-seed.json` unchanged
-- `src/server/repositories/menu.ts` — `getMenu()` per contract
-- `src/app/api/menu/route.ts`, `src/app/page.tsx`, `src/app/layout.tsx`,
-  `src/components/menu/{CategoryNav,ProductCard}.tsx`
-- `tests/menu.test.ts`, `vitest.config.ts`, `init.sh`, `package.json`
-- harness state files; `.claude/launch.json` (dev preview tooling)
+See PROGRESS.md "Files Modified This Session" — 3 migrations, 5 lib modules,
+3 repositories, 2 services, 3 API routes, cart/checkout UI, 3 test suites.
 
 ## Decisions Made
 
-- **force-dynamic on `/` and `/api/menu`**: menu always rendered from the DB,
-  never frozen into static HTML at build. Recorded as Decision 4 in
-  03-research.md; promote to DECISIONS.md when another feature depends on it.
-- **Seed lifecycle rule**: `active` set only on insert; variants replaced per
-  product until orders reference them (revisit at feat-006).
-- **Variant-level legacy descriptions** stay in the JSON snapshot only —
-  recorded in 02-clarify.md Notes.
+- Fee model: per-zone fee only below the zone threshold (subtotal + SGR);
+  free at/above; never blocked. Future: degressive fee (owner note).
+- v1 window: place while open (11:00–22:30), same-day scheduling only,
+  floor 11:30. Future: next-day scheduling (owner note).
+- SGR on drink add-ons too; all SGR flows through `sgr_deposit_bani`.
+- Client-held cart + stateless quote/place services (channel-agnostic core).
+- Order status + payment enums fixed now; feat-007 executes transitions.
 
 ## Blockers / Risks
 
-- None. Optional: owner replays 08-quickstart.md before accepting feat-002.
+- None. Shop must not go live before feat-007 (orders land only in the DB).
 
 ## Next Session Startup
 
@@ -72,10 +66,11 @@
 
 ## Recommended Next Step
 
-Two human decisions gate the next move:
-1. Merge `feat/002-meniu-catalog` → `main` (branch green, self-contained).
-2. Start feat-006 (Coș și plasare comandă) at spec time: interview the owner,
-   draft `01-spec.md` + `02-clarify.md`. Known clarify seeds: SGR display at
-   cart, mandatory "Ambalaj" group mechanics (02-clarify.md notes), delivery
-   zones/fees, minimum order. Also revisit the seed's replace-variants rule
-   before orders reference variant ids (comment in scripts/seed.ts).
+Owner decisions gate the next move:
+1. Merge `feat/006-cos-comanda` → main.
+2. Give the exact restaurant address (src/lib/restaurant-config.ts) and the
+   real T&C/GDPR texts (placeholder pages).
+3. Start feat-007 (Panou admin) at spec time. Spec seeds: auth for staff,
+   live order list + status transitions (enum already in DB), dispatcher
+   adjusts the quoted delivery time (clarify Q10 note), edit products/prices/
+   availability, edit zone fees/thresholds.
