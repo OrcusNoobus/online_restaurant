@@ -53,18 +53,27 @@ date primește prețuri de topping per mărime — actualizat în `05-data-model
 **Answer:** Se păstrează ordinea de pe site-ul vechi (Pizza primele).
 Răspuns de proprietar, 2026-07-04.
 
+### Q7: Prețuri inconsistente la băuturi (descoperit la import)
+
+**Answer:** Diferențele erau taxa SGR (0,50 lei/recipient) inclusă inconsecvent
+în prețuri pe site-ul vechi. Regula corectă, decisă de proprietar (2026-07-04):
+prețurile băuturilor sunt prețuri DE BAZĂ (ex: Heineken 0,5l = 11,00 lei,
+Coca Cola 1l = 12,00 lei), iar SGR-ul de 0,50 lei se adaugă per recipient la
+coș. Aplicat în `data/menu-seed.json` (`sgrDepositBani: 50`); typo-ul legacy
+"Cola Cola 0,5 l" corectat în "Coca Cola 0,5 l". Coșul (feat-006) implementează
+adăugarea SGR și afișarea lui separată.
+
 ## Open Questions
 
-- **Q7 — Prețuri inconsistente la băuturi (descoperit la import, 2026-07-04):**
-  Pe site-ul vechi, aceeași băutură adăugată la comandă are prețuri DIFERITE în
-  funcție de produsul la care e atașată (ex: Heineken 0,5l = 11,50 lei la pizza
-  30/40cm dar 11,00 lei la XXL; Coca Cola 1l apare cu 12,00 / 14,00 / 14,50 lei).
-  Lista completă: `legacyPriceConflicts` în `data/menu-seed.json`. Interim am
-  păstrat prețul MAI MARE. Care e prețul corect pentru fiecare? (Nu blochează
-  afișarea meniului — devine relevant la coș. Există și un typo pe site-ul
-  vechi: "Cola Cola 0,5 l".)
+(none — toate întrebările sunt rezolvate)
 
 ## Notes For Future Changes
+
+- Proprietarul a confirmat (2026-07-04) mecanica de comandă de pe site-ul
+  vechi, de replicat la coș (feat-006): după alegerea produsului apar secțiuni —
+  "Ambalaj" obligatoriu (preț per categorie/mărime) + opțional băutură / sos /
+  garnitură. Modelul nostru le acoperă: `toppingGroups` cu `required` și
+  `displayType` în `data/menu-seed.json`.
 
 - Q5 (prețuri topping per mărime) devine operațională la feature-ul de coș —
   acolo se calculează prețul final al unei pizza cu topping-uri. Modelul de

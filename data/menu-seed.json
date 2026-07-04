@@ -1,7 +1,7 @@
 {
   "source": "https://royal-food-delivery.order.app.hd.digital/menus/",
   "scrapedAt": "2026-07-04",
-  "note": "Snapshot of the legacy Metro dish menu. Prices in integer bani (1 leu = 100 bani). Owner may hand-edit before seeding. legacyPriceConflicts lists items that had DIFFERENT prices on different products on the legacy site (kept the higher one).",
+  "note": "Snapshot of the legacy Metro dish menu. Prices in integer bani (1 leu = 100 bani). Drink prices are BASE prices — the Romanian SGR deposit (sgrDepositBani per container) is added at cart time, per owner decision 2026-07-04 (02-clarify.md Q7). Owner may hand-edit before seeding.",
   "categories": [
     {
       "slug": "pizza",
@@ -1801,15 +1801,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1150
+              "priceBani": 1100
             },
             {
               "sizeName": null,
-              "priceBani": 1150
+              "priceBani": 1100
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1150
+              "priceBani": 1100
             },
             {
               "sizeName": "60x40 cm",
@@ -1822,15 +1822,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": null,
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "60x40 cm",
@@ -1843,15 +1843,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": null,
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": "60x40 cm",
@@ -1864,15 +1864,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": null,
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 850
+              "priceBani": 800
             },
             {
               "sizeName": "60x40 cm",
@@ -1881,19 +1881,19 @@
           ]
         },
         {
-          "name": "Cola Cola 0,5 l",
+          "name": "Coca Cola 0,5 l",
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": null,
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "60x40 cm",
@@ -1906,15 +1906,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": null,
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "60x40 cm",
@@ -1927,15 +1927,15 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": null,
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1050
+              "priceBani": 1000
             },
             {
               "sizeName": "60x40 cm",
@@ -1948,19 +1948,19 @@
           "prices": [
             {
               "sizeName": "30 cm",
-              "priceBani": 1450
+              "priceBani": 1200
             },
             {
               "sizeName": null,
-              "priceBani": 1450
+              "priceBani": 1200
             },
             {
               "sizeName": "40 cm",
-              "priceBani": 1450
+              "priceBani": 1200
             },
             {
               "sizeName": "60x40 cm",
-              "priceBani": 1400
+              "priceBani": 1200
             }
           ]
         }
@@ -2163,69 +2163,5 @@
       ]
     }
   ],
-  "legacyPriceConflicts": [
-    {
-      "group": "adauga-bautura",
-      "topping": "Heineken 0,5 l",
-      "sizeName": null,
-      "keptPriceBani": 1150,
-      "otherPriceBani": 1100
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Birra Moretti 0,5 l",
-      "sizeName": null,
-      "keptPriceBani": 1050,
-      "otherPriceBani": 1000
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Coca Cola 0,33 l",
-      "sizeName": null,
-      "keptPriceBani": 850,
-      "otherPriceBani": 800
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Fanta 0,33 l",
-      "sizeName": null,
-      "keptPriceBani": 850,
-      "otherPriceBani": 800
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Cola Cola 0,5 l",
-      "sizeName": null,
-      "keptPriceBani": 1050,
-      "otherPriceBani": 1000
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Fanta 0,5 l",
-      "sizeName": null,
-      "keptPriceBani": 1050,
-      "otherPriceBani": 1000
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Prigat Piersici 0,5 l",
-      "sizeName": null,
-      "keptPriceBani": 1050,
-      "otherPriceBani": 1000
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Coca Cola 1 l",
-      "sizeName": null,
-      "keptPriceBani": 1450,
-      "otherPriceBani": 1400
-    },
-    {
-      "group": "adauga-bautura",
-      "topping": "Coca Cola 1 l",
-      "sizeName": null,
-      "keptPriceBani": 1450,
-      "otherPriceBani": 1200
-    }
-  ]
+  "sgrDepositBani": 50
 }
