@@ -18,7 +18,7 @@
       "behavior": "Un client deschide site-ul pe telefon și vede categoriile și produsele cu prețuri, mărimi (pizza 30/40/XXL) și descrieri, încărcate din PostgreSQL — cu meniul real importat (seed) de pe site-ul Metro dish existent",
       "verification": "npm test -- tests/menu",
       "dependencies": ["feat-001"],
-      "status": "not-started",
+      "status": "in-progress",
       "evidence": "",
       "spec": "harness/specs/001-meniu-catalog/"
     },

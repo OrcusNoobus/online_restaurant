@@ -19,9 +19,13 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — Scrape the legacy Metro dish menu into `data/menu-seed.json`
+- [x] T01 — Scrape the legacy Metro dish menu into `data/menu-seed.json`
       (categories, products, descriptions, sizes, prices in bani, toppings);
       owner eyeballs the JSON for correctness (source: 01-spec.md, 03-research.md D3)
+      — done 2026-07-04: 13 categories, 73 products (22 pizzas × 3 size variants),
+      117 variants, 12 topping groups, 30 toppings. Legacy quirks recorded in the
+      JSON: 9 drink-price conflicts (see 02-clarify.md Q7), SGR label fixed
+      ("1.00" → "Garanție SGR"), pizza names normalized across size categories.
 - [ ] T02 — Drizzle setup: deps, `drizzle.config.ts`, `src/server/db/schema.ts`
       + `client.ts`, first migration; wire `db:migrate` into `./init.sh`
       (source: 05-data-model.md)

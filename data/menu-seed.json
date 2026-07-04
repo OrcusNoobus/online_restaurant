@@ -1,0 +1,2231 @@
+{
+  "source": "https://royal-food-delivery.order.app.hd.digital/menus/",
+  "scrapedAt": "2026-07-04",
+  "note": "Snapshot of the legacy Metro dish menu. Prices in integer bani (1 leu = 100 bani). Owner may hand-edit before seeding. legacyPriceConflicts lists items that had DIFFERENT prices on different products on the legacy site (kept the higher one).",
+  "categories": [
+    {
+      "slug": "pizza",
+      "name": "Pizza",
+      "products": [
+        {
+          "slug": "pizza-bambini",
+          "name": "Pizza Bambini",
+          "description": "aluat, sos, mozzarella, piept de pui, porumb pizzaalap ,szósz , mozzarella, csirkemell, kukorica 615g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3700
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4700,
+              "description": "aluat, sos roșii, mozzarella, piept de pui, porumb pizzaalap, szósz ,mozzarella ,csirkemell, kukorica 990g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8000,
+              "description": "aluat, sos roșii, mozzarella, piept de pui, porumb pizzalap, szósz ,mozzarella ,csirkemell, kukorica 1780g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-carnivor-supreme",
+          "name": "Pizza Carnivor Supreme",
+          "description": "aluat, sos rosii, mozzarella, șuncă, bacon, salam uscat, piept pui, cârnați de porc pizzaalap, szósz paradicsom, mozzarella, sonka, bacon, szalámi, csirkemell, sertéskolbász 680g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4300
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5400,
+              "description": "aluat, sos rosii, mozzarella, șuncă, bacon, salam uscat, piept de pui, cârnați de porc pizzalap, szósz paradicsom, mozzarella, sonka, bacon, szalámi, csirkemell, kolbász 1070g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 9100,
+              "description": "aluat, sos roșii, mozzarella, șuncă, bacon, salam uscat, cârnați de porc, piept de pui pizzalap, paradicsomszósz, mozzarella, sonka, bacon, szárított szalámi, sertéskolbász, csirkemell 1820g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-tonno-e-cipolla",
+          "name": "Pizza Tonno e Cipolla",
+          "description": "aluat, sos rosii , mozzarella, ton, ceapa rosie, lamaie pizzaalap, szósz paradicsom, mozzarella, tonhal, vöröshagyma, citrom 550g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3600
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4700,
+              "description": "aluat, sos rosii, mozzarella, ton, ceapa rosie, lamaie pizzalap, szósz paradicsom, mozzarella, tonhal, vöröshagyma, citrom 930g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8400,
+              "description": "aluat, sos roșii, mozzarella, ton, ceapă roșie, lămâie pizzalap, paradicsomszósz, mozzarella, tonhal, vöröshagyma, citrom 1680g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-pollo-e-funghi",
+          "name": "Pizza Pollo e Funghi",
+          "description": "aluat ,sos, mozzarella, piept de pui, șuncă de porc, ciuperci pizzaalap, szósz, mozzarella, csirkemell, disznósonka, gomba 690g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3800
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4900,
+              "description": "aluat, sos, mozzarella, piept de pui, șuncă de porc, ciuperci pizzaalap, szósz, mozzarella, csirkemell, disznósonka, gomba 1080g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8200,
+              "description": "aluat, sos roșii, mozzarella, piept de pui, șuncă de porc, ciuperci pizzalap, szósz, mozzarella, csirkemell, disznósonka, gomba 1850g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-ardeleneasca",
+          "name": "Pizza Ardelenească / Erdélyi",
+          "description": "aluat, sos, mozzarella, șuncă, bacon, ceapă, măsline pizzaalap, szósz, mozzarella, sonka, császárszalonna, hagyma, maszlina 690g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3900
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5000,
+              "description": "aluat, sos, mozzarella, șuncă, bacon, ceapă, măsline pizzaalap, szósz, mozzarella, sonka, császárszalonna, hagyma, maszlina 1010g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8300,
+              "description": "aluat, sos roșii, mozzarella, șuncă, bacon, ceapă, măsline pizzalap, szósz, mozzarella, sonka, császárszalonna, hagyma, maszlina 1860g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-royal",
+          "name": "Pizza Royal (pizza casei)",
+          "description": "aluat, sos, mozzarella, șuncă, salam, bacon, mascarpone pizzaalap, szósz, mozzarella, sonka, szalámi, császárszalonna, mascarpone 675g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4100
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5200,
+              "description": "aluat, sos, mozzarella, șuncă, salam, bacon, mascarpone pizzalap, szósz, mozzarella, sonka, szalámi, császárszalonna, mascarpone 1010g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 9000,
+              "description": "aluat, sos roșii, mozzarella, șuncă de porc, salam, bacon, mascarpone pizzalap, szósz, mozzarella, sonka, szalámi, császárszalonna, mascarpone 1780g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-rustica",
+          "name": "Pizza Rustică",
+          "description": "aluat , sos, mozzarella, carnați de porc, ardei roșu, ceapă, roșii pizzaalap, szósz, mozzarella, sertés kolbász, piros paprika, hagyma, paradicsom 605g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3500
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4500,
+              "description": "aluat, sos, mozzarella, carnati, ardei rosu, ceapa, rosii pizzalap, szósz, mozzarella, kolbász, piros paprika, hagyma, paradicsom 990g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 7800,
+              "description": "Sos roșii, mozzarella, cârnați de porc, ardei roșu, ceapă, roșii Paradicsomszósz, mozzarella, sertéskolbász, piros paprika, hagyma, paradicsom 1850g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-taraneasca",
+          "name": "Pizza Țărănească",
+          "description": "aluat, sos, mozzarella, cârnați de porc, brânză burduf, ceapă roșie, bacon pizzaalap, szósz, mozzarella, kolbász, burduf sajt, lila hagyma, szalonna 600g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3800
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4900,
+              "description": "aluat, sos roșii, mozzarella, bacon, cârnați, brânză burduf, ceapă roșie pizzaalap, szósz paradicsom, mozzarella, bacon, kolbász, brânză burduf, vöröshagyma 980g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8400,
+              "description": "aluat, sos roșii, mozzarella, bacon, cârnați de porc, brânză de burduf, ceapă roșie pizzalap, paradicsomszósz, mozzarella, bacon, sertéskolbász, burduf sajt, vöröshagyma 1800g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-prosciutto-crudo-e-rucola",
+          "name": "Pizza Prosciutto crudo e rucola",
+          "description": "aluat, sos, mozzarella, prosciutto, rucola, roșii cherry, parmezan 645g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4000
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5100,
+              "description": "aluat, sos, mozzarella, prosciutto, rucola, roșii cherry, parmezan pizzalap, szósz, mozzarella, prosciutto, rukola, cherry paradicsom, parmezán 980g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 9200,
+              "description": "aluat, sos roșii, mozzarella, prosciutto, rucola, roșii cherry, parmezan pizzalap, szósz, mozzarella, prosciutto, rukola, cherry paradicsom, parmezán 1780g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-ungureasca",
+          "name": "Pizza Ungurească",
+          "description": "aluat, sos rosii, mozzarella, salam picant, cârnați porc, ardei iute, ceapă roșie, bacon pizza alap, szósz paradicsom, mozzarella, csípős szalámi, sertéskolbász, erős paprika, lila hagyma, bacon 650g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4100
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5200,
+              "description": "aluat, sos rosii, mozzarella, salam picant, cârnați de porc, bacon, ceapă roșie, ardei iute pizzaalap, szósz paradicsom, mozzarella, csípős szalámi, sertéskolbász, bacon, vöröshagyma, csípős paprika 1010g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 9000,
+              "description": "aluat ,sos roșii, mozzarella, salam picant, cârnați de porc, ardei iute, ceapă roșie pizzalap, paradicsomszósz, mozzarella, csípős szalámi, sertéskolbász, csípős paprika, lila hagyma 1740g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-margherita",
+          "name": "Pizza Margherita",
+          "description": "aluat, sos, mozzarella, busuioc pizzaalap, szósz, mozzarella, bazsalikom 470g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 2900
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 3800,
+              "description": "aluat, sos rosii, mozzarella, busuioc pizzalap, szósz, mozzarella, bazsalikom 790g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 6400,
+              "description": "aluat, sos roșii, mozzarella, busuioc pizzalap, szósz, mozzarella, bazsalikom 1400g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-prosciutto",
+          "name": "Pizza Prosciutto",
+          "description": "aluat, sos, mozzarella, șuncă pizzaalap ,szósz, mozzarella, sonka 570g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3400
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4500,
+              "description": "aluat, sos, mozzarella, șuncă pizzalap, szósz, mozzarella, sonka 950g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 7500,
+              "description": "aluat, sos roșii, mozzarella, șuncă pizzalap, szósz, mozzarella, sonka 1620g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-prosciutto-e-funghi",
+          "name": "Pizza Prosciutto e Funghi",
+          "description": "aluat, sos, mozzarella, șuncă, ciuperci pizzaalap, szósz, mozzarella, sonka, gomba 600g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3700
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4700,
+              "description": "aluat, sos, mozzarella, șuncă, ciuperci pizzalap, szósz, mozzarella, sonka, gomba 970g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 7700,
+              "description": "aluat, sos roșii, mozzarella, șuncă, ciuperci pizzalap, szósz, mozzarella, sonka, gomba 1710g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-quattro-carni",
+          "name": "Pizza Quattro Carni",
+          "description": "aluat, sos, mozzarella, salam, șuncă, piept de pui, bacon pizzaalap, szósz, mozzarella, szalámi, sonka, csirkemell, császár szalonna 685g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4100
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5200,
+              "description": "aluat, sos, mozzarella, salam, șuncă, piept de pui, bacon pizzalap, szósz, mozzarella, szalámi, sonka, csirkemell, császár szalonna 1080g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 9000,
+              "description": "aluat, sos roșii, mozzarella, salam, șuncă de porc, piept de pui, bacon pizzalap, szósz, mozzarella, szalámi, sonka, csirkemell, császár szalonna 1870g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-capricciosa",
+          "name": "Pizza Capricciosa",
+          "description": "aluat, sos, mozzarella, șuncă, ciuperci, ardei, măsline pizzaalap, szósz, mozzarella, sonka, gomba, paprika, maszlina 670g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3800
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4900,
+              "description": "aluat, sos, mozzarella, șuncă, ciuperci, ardei, măsline pizzalap, szósz, mozzarella, sonka, gomba, paprika, maszlina 1090g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8000,
+              "description": "aluat, sos roșii, mozzarella, șuncă, ciuperci, ardei, măsline pizzalap, szósz, mozzarella, sonka, gomba, paprika, maszlina 1840g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-quattro-stagioni",
+          "name": "Pizza Quattro Stagioni",
+          "description": "Sos, mozzarella, șuncă, salam, ciuperci, ardei Szósz, mozzarella, sonka, szalámi, gomba, paprika 690g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3900
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5000,
+              "description": "aluat, sos, mozzarella, șuncă, salam, ciuperci, ardei, masline pizzalap, szósz, mozzarella, sonka, szalámi, gomba, paprika 1100g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8200,
+              "description": "aluat, sos roșii, mozzarella, șuncă, salam, ciuperci, ardei pizzalap, szósz, mozzarella, sonka, szalámi, gomba, paprika 1890g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-quattro-formaggi",
+          "name": "Pizza Quattro Formaggi",
+          "description": "aluat, sos, mozzarella, gorgonzola, cașcaval afumat, brânză burduf pizzaalap, szósz, mozzarella, gorgonzola, füstöltsajt, burduftúró 585g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 4000
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 5100,
+              "description": "aluat, sos, mozzarella, gorgonzola, cașcaval afumat, brânză burduf pizzalap, szósz, mozzarella, gorgonzola, füstöltsajt, burduftúró 970g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8400,
+              "description": "aluat, sos roșii, mozzarella, gorgonzola, cașcaval afumat, brânză burduf pizzalap, szósz, mozzarella, gorgonzola, füstöltsajt, burduftúró 1690g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-diavolo",
+          "name": "Pizza Diavolo",
+          "description": "aluat, sos, mozzarella, salam picant, ardei iute pizzaalap, szósz, mozzarella, csípősszalámi, csípőspaprika 530g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3700
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4700,
+              "description": "aluat, sos, mozzarella, salam picant, ardei iute pizzalap, szósz, mozzarella, csípősszalámi, csípőspaprika 890g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8200,
+              "description": "aluat, sos roșii, mozzarella, salam picant, ardei iute pizzalap, szósz, mozzarella, csípősszalámi, csípőspaprika 1630g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-chicken",
+          "name": "Pizza Chicken",
+          "description": "aluat, sos alb, mozzarella,piept de pui, ardei, roșii, smântâna pizzaalap, fehérszósz, mozzarella, csirkemell, paprika, paradicsom, tejfö 725g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3800
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4900,
+              "description": "aluat, sos alb, mozzarella, piept de pui, ardei, roșii, smântână pizzalap, fehérszósz, mozzarella, csirkemell, paprika, paradicsom, tejfö 1045g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8300,
+              "description": "aluat, sos alb, mozzarella, piept de pui, ardei, roșii, smântână pizzalap, fehérszósz, mozzarella, csirkemell, paprika, paradicsom, tejfö 1800g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-vegetariana",
+          "name": "Pizza Vegetariană",
+          "description": "aluat, sos, mozzarella, ciuperci,roșii, ardei, ceapă, porumb, măsline pizzaalap, szósz, mozzarella, gomba, paradicsom, paprika, hagyma, kukorica, maszlina 680g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3400
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4300,
+              "description": "aluat, sos roșii, mozzarella, ciuperci, roșii, ardei, ceapă, porumb, măsline 900g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 7500,
+              "description": "aluat, sos roșii, mozzarella, ciuperci, roșii, ardei, ceapă, porumb, măsline pizzalap, szósz, mozzarella, gomba, paradicsom, paprika, hagyma, kukorica, maszlina 1780g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-kinder",
+          "name": "Pizza Kinder",
+          "description": "aluat, sos, mozzarella, șuncă, porumb pizzaalap, szósz, mozzarella, sonka, kukorica 590g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3700
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4700,
+              "description": "aluat, sos rosii, mozzarella, șuncă, porumb pizzalap, szósz, mozzarella, sonka, kukorica 980g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 8000,
+              "description": "aluat, sos roșii, mozzarella, șuncă, porumb pizzalap, szósz, mozzarella, sonka, kukorica 1790g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pizza-mediteraneana",
+          "name": "Pizza Mediteraneană",
+          "description": "aluat, sos rosii, mozzarella, ceapă, roșii, măsline pizzaalap, szósz paradicsom, mozzarella, hagyma, paradicsom, maszlina 610g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": "30 cm",
+              "priceBani": 3300
+            },
+            {
+              "name": "40 cm",
+              "priceBani": 4300,
+              "description": "aluat, sos rosii, mozzarella, ceapă, roșii, măsline pizzalap, szósz paradicsom, mozzarella, hagyma, paradicsom, maszlina 980g"
+            },
+            {
+              "name": "60x40 cm",
+              "priceBani": 7500,
+              "description": "aluat, sos roșii, mozzarella, ceapă, roșii, măsline pizzalap, paradicsomszósz, mozzarella, hagyma, paradicsom, maszlina 1790g"
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "burger",
+      "name": "Burger",
+      "products": [
+        {
+          "slug": "clasic-burger",
+          "name": "Clasic Burger",
+          "description": "chiflă, carne de vită Black Angus, ceapă caramelizată, sosul casei, salată, cartofi prăjiți Zsemle, Black Angus marha hús, karamellizált hagyma, a ház szósza, saláta, szalmakrumpli 440g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-burger",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "adauga-extra-la-burger"
+          ]
+        },
+        {
+          "slug": "cheeseburger",
+          "name": "Cheeseburger",
+          "description": "Chiflă, carne de vită Black Angus, ceapă caramelizată, cheddar, salată, sosul casei, cartofi prăjiți Zsemle, Black Angus marha hús, cheddar, karamellizált hagyma, saláta, a ház szósza, szalmakrumpli 450g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3890
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-burger",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "adauga-extra-la-burger"
+          ]
+        },
+        {
+          "slug": "bacon-burger",
+          "name": "Bacon Burger",
+          "description": "Chiflă, carne de vită Black Angus, ceapă caramelizată, cheddar, bacon, salată, sos, cartofi prăjiți Zsemle, Black Angus, saláta, cheddar, a ház szósza, karamellizált hagyma, császárszalonna, szalmakrumpli 450g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 4090
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-burger",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "adauga-extra-la-burger"
+          ]
+        },
+        {
+          "slug": "dublu-cheeseburger",
+          "name": "Dublu Cheeseburger",
+          "description": "Chiflă, carne de vită Black Angus, ceapă caramelizată, cheddar, salată, sosul casei, cartofi prăjiți Zsemle, Black Angus, cheddar, karamellizált hagyma, saláta, a ház szósza, szalmakrumpli 550g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 4690
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-burger",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "adauga-extra-la-burger"
+          ]
+        },
+        {
+          "slug": "crispy-burger",
+          "name": "Crispy Burger",
+          "description": "Chifla, sos usturoi, salata, crispy strips, castraveti murati, ketchup si portie cartofi prajiti Zsemle, fokhagymás szósz, saláta, crispy strips, savanyú uborka, ketchup és egy adag szalmakrumpli 420gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3290
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-burger",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "adauga-extra-la-burger"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "crispy",
+      "name": "Crispy",
+      "products": [
+        {
+          "slug": "mini-box-strips",
+          "name": "Mini Box (strips)",
+          "description": "5 crispy strips de pui, cartofi prăjiți, sos usturoi 5 darab csirke crispy strips, szalmakrumpli, tejfölös fokhagyma szósz 480g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3400
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "ambalaj-crispy-mini",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "maxi-box-strips",
+          "name": "Maxi Box (strips)",
+          "description": "15 crispy strips de pui, cartofi prăjiți, sos usturoi 15 darab csirke crispy strips ,szalmakrumpli, tejfölös fokhagyma szósz 1260g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 8600
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "ambalaj-crispy-maxi",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "mega-box-strips",
+          "name": "Mega Box (strips)",
+          "description": "30 crispy strips de pui, cartofi prăjiți, sos usturoi 30 darab csirke crispy strips, szalmakrumpli, tejfölös fokhagyma szósz 2480g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 14900
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "ambalaj-crispy-mega"
+          ]
+        },
+        {
+          "slug": "mini-aripioare",
+          "name": "Mini  (aripioare)",
+          "description": "4 crispy aripioare de pui, cartofi prăjiți, sos usturoi 4 darab ropogós csirkeszárny, szalmakrumpli, tejfölös fokhagymaszósz 480gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2700
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "ambalaj-crispy-mini"
+          ]
+        },
+        {
+          "slug": "maxi-aripioare",
+          "name": "Maxi (aripioare)",
+          "description": "10 crispy aripioare , cartofi prăjiți, sos usturoi 10 darab ropogós csirkeszárny, szalmakrumpli, tejfölös fokhagymaszósz 1260gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 6800
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "ambalaj-crispy-maxi"
+          ]
+        },
+        {
+          "slug": "mega-aripioare",
+          "name": "Mega (aripioare)",
+          "description": "20 crispy aripioare, cartofi prăjiți, sos usturoi 20 darab ropogós csirkeszárny, szalmakrumpli, tejfölös fokhagymaszósz 2480gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 11900
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "ambalaj-crispy-mega"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "supe-ciorbe",
+      "name": "Supe / Ciorbe",
+      "products": [
+        {
+          "slug": "ciorba-de-pui-a-la-grec-csirkes-csorbaleves",
+          "name": "Ciorbă de pui a la grec / Csirkés csorbaleves",
+          "description": "Carne de pui, morcov, țelină, pătrunjel, păstârnac, orez, smântână, ou și condimente Csirkehús, murok ,zeller ,petrezselyem, paszternák, rízs, tejfől, tojás és fűszerek 350ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2000
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "supa-de-pui-cu-fidea-si-legume-husleves",
+          "name": "Supă de pui cu fidea și legume / Húsleves",
+          "description": "Carne de pui, morcov, țelină, pătrunjel, păstârnac, condiment, fidea cu ou Csirkehús, murok, zeller, petrezselyem, paszternák, laska, fűszerek 350g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1800
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "ciorba-radauteana-radoci-csorba",
+          "name": "Ciorbă rădăuțeană / Radóci csorba",
+          "description": "Carne de pui, morcov, țelină, pătrunjel, păstârnac, usturoi, orez, smântână, ou, condimente Csirkehús, murok, zeller, petrezselyem, paszternák, rízs, fokhagyma, tejfől, fűszerek 350g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2000
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "grill",
+      "name": "Grill",
+      "products": [
+        {
+          "slug": "piept-de-pui-la-gratar-csirkemell",
+          "name": "Piept de pui la grătar / Csirkemell",
+          "description": "200g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2400
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "pulpa-de-pui-la-gratar-felso-csirke-comb",
+          "name": "Pulpă de pui la grătar / Felső csirke comb",
+          "description": "160g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1900
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "ceafa-de-porc-la-gratar-nyakas-karaj",
+          "name": "Ceafă de porc la grătar / Nyakas karaj",
+          "description": "200g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2100
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "family-pack",
+      "name": "Family pack",
+      "products": [
+        {
+          "slug": "pui-intreg-la-cuptor-si-cartofi-prajiti",
+          "name": "Pui întreg la cuptor și cartofi prăjiți",
+          "description": "Pui întreg la cuptor cu cartofi prăjiți Nyárson sült csirke szalmakrumplival 2500g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 10490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-family-pack",
+            "adauga-bautura",
+            "adauga-un-sos",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "ciolan-la-cuptor-si-cartofi-prajiti",
+          "name": "Ciolan la cuptor și cartofi prăjiți",
+          "description": "Ciolan la cuptor, cartofi prăjiți si 3 sosuri Sült csülök és szalmakrumpli 2500gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 12990
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-family-pack",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        },
+        {
+          "slug": "coaste-la-cuptor-si-cartofi-prajiti",
+          "name": "Coaste la cuptor și cartofi prăjiți",
+          "description": "Coaste la cuptor, cartofi prajiti si 3 sosuri Sült sertésbordák és szalmakrumpli 2500gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 11990
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-family-pack",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "garniturikoretek",
+      "name": "Garnituri/Köretek",
+      "products": [
+        {
+          "slug": "cartofi-prajiti-szalmakrumpli",
+          "name": "Cartofi prăjiți / Szalmakrumpli",
+          "description": "200g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 800
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-garnituri",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        },
+        {
+          "slug": "cartofi-prajiti-cu-parmezan-si-usturoi-szalmakrumpli-parmezannal-es-fokhagymava",
+          "name": "Cartofi prăjiți cu parmezan și usturoi / Szalmakrumpli parmezánnal és fokhagymáva",
+          "description": "220g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1300
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-garnituri",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        },
+        {
+          "slug": "cartofi-wedges-wedgeskrumpli",
+          "name": "Cartofi wedges / Wedgeskrumpli",
+          "description": "200g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 900
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-garnituri",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        },
+        {
+          "slug": "orez-rizs",
+          "name": "Orez / Rizs",
+          "description": "Orez Rizs 200gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 800
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj-garnituri",
+            "adauga-bautura",
+            "adauga-un-sos"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "sosuriszoszok",
+      "name": "Sosuri/Szószok",
+      "products": [
+        {
+          "slug": "sos-rosii-dulce-edes",
+          "name": "Sos Rosii Dulce / Édes",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 500
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-rosii-picant-csipos",
+          "name": "Sos Rosii Picant / Csípős",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 500
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-rosii-extra-picant-extracsipos",
+          "name": "Sos Rosii Extra Picant / Extracsípős",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 500
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-usturoi-fokhagyma",
+          "name": "Sos Usturoi / Fokhagyma",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 600
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-sweet-chilli-sweetchilli",
+          "name": "Sos Sweet chilli / Sweetchilli",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 700
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-cheddar-jalapeno",
+          "name": "Sos Cheddar Jalapeno",
+          "description": "80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 800
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-bbq",
+          "name": "Sos BBQ",
+          "description": "Sos BBQ 80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 600
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sos-hrean",
+          "name": "Sos Hrean",
+          "description": "Sos Hrean 80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 600
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "sosul-casei-picant",
+          "name": "Sosul Casei (picant)",
+          "description": "Sosul Casei (picant) A Ház Szósza (csípős) 80ml",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 600
+            }
+          ],
+          "toppingGroupKeys": [
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "bauturi",
+      "name": "Băuturi",
+      "products": [
+        {
+          "slug": "heineken-0-5-l",
+          "name": "Heineken 0,5 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1100
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "birra-moretti-0-5-l",
+          "name": "Birra Moretti 0,5 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1000
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "coca-cola-0-33-l",
+          "name": "Coca Cola 0,33 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 800
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "fanta-0-33-l",
+          "name": "Fanta 0,33 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 800
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "coca-cola-0-5-l",
+          "name": "Coca Cola 0,5 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1000
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "fanta-0-5-l",
+          "name": "Fanta 0,5 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1000
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "prigat-piersici-0-5-l",
+          "name": "Prigat Piersici 0,5 L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1000
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "coca-cola-1l",
+          "name": "Coca Cola 1L",
+          "description": null,
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1200
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "coca-cola-2-5-l",
+          "name": "Coca cola 2.5 L",
+          "description": "Coca cola 2.5 L",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1800
+            }
+          ],
+          "toppingGroupKeys": [
+            "garantie-sgr",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "pasta",
+      "name": "Pasta",
+      "products": [
+        {
+          "slug": "lasagna-bolognese",
+          "name": "Lasagna Bolognese",
+          "description": "Foi lasagna, sos Bolognese mix vită/porc, sos bechamel Lasagne lapok, Bolognai szósz(disznó/marhamix),bechamel 450g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3300
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "garnituri-koretek",
+            "adauga-bautura"
+          ]
+        },
+        {
+          "slug": "paste-bolognese",
+          "name": "Paste Bolognese",
+          "description": "Paste Penne/ Spaghetti, sos ragu bolognese, parmezan Penne/Spaghetti tészta, bolognai ragu szósz, parmezán 450gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "garnituri-koretek",
+            "adauga-bautura"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "wraps",
+      "name": "Wraps",
+      "products": [
+        {
+          "slug": "crispy-wrap",
+          "name": "Crispy Wrap",
+          "description": "Lipie, sos, salata iceberg, crispy strips, rosii, ceapa rosie Lepény, szósz, jégsaláta, ropogós csirkecsíkok, paradicsom, vöröshagyma 325gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "adauga-bautura"
+          ]
+        },
+        {
+          "slug": "chicken-wrap",
+          "name": "Chicken Wrap",
+          "description": "Lipie, sos, salata iceberg, piept pui, rosii, ceapa rosie Lepény, szósz, jégsaláta, csirkemell, paradicsom, vöröshagyma 325gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "adauga-bautura"
+          ]
+        },
+        {
+          "slug": "veggie-wrap",
+          "name": "Veggie Wrap",
+          "description": "Lipie, sos, salata iceberg, ardei rosu, rosii, ceapa rosie, cheddar Lepény, szósz, jégsaláta, piros paprika, paradicsom, vöröshagyma, cheddar 295gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 2190
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-un-sos",
+            "garnituri-koretek",
+            "adauga-bautura"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "salate",
+      "name": "Salate",
+      "products": [
+        {
+          "slug": "salata-caesar",
+          "name": "Salată Caesar",
+          "description": "Salată iceberg, crutoane, piept de pui, bacon, dressing Caesar, parmesan Jégsaláta, krutonok, csirkemell, bacon, Caesar öntet, parmezán 320gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3490
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        },
+        {
+          "slug": "salata-crispy",
+          "name": "Salată Crispy",
+          "description": "Salată iceberg, crutoane, crispy strips, bacon, sos caesar si parmezan Jégsaláta, krutonok, csirke crispy, bacon, Caesar öntet, parmezán 320gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 3290
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura",
+            "garnituri-koretek"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "desert",
+      "name": "Desert",
+      "products": [
+        {
+          "slug": "profiterol",
+          "name": "Profiterol",
+          "description": "Profiterol 150gr",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 1900
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura"
+          ]
+        },
+        {
+          "slug": "salam-de-biscuiti-kekszszalami",
+          "name": "Salam de biscuiți / Kekszszalámi",
+          "description": "Salam de biscuiți - 100 g",
+          "imageUrl": null,
+          "variants": [
+            {
+              "name": null,
+              "priceBani": 500
+            }
+          ],
+          "toppingGroupKeys": [
+            "ambalaj",
+            "adauga-bautura"
+          ]
+        }
+      ]
+    }
+  ],
+  "toppingGroups": [
+    {
+      "key": "ambalaj",
+      "name": "Ambalaj",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 300
+            },
+            {
+              "sizeName": null,
+              "priceBani": 300
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 400
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 500
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adauga-un-sos",
+      "name": "Adauga un sos",
+      "displayType": "checkbox",
+      "required": false,
+      "toppings": [
+        {
+          "name": "Sos Dulce 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": null,
+              "priceBani": 500
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 500
+            }
+          ]
+        },
+        {
+          "name": "Sos Picant 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": null,
+              "priceBani": 500
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 500
+            }
+          ]
+        },
+        {
+          "name": "Sos Extra Picant 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": null,
+              "priceBani": 500
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 500
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 500
+            }
+          ]
+        },
+        {
+          "name": "Sos Usturoi 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": null,
+              "priceBani": 600
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 600
+            }
+          ]
+        },
+        {
+          "name": "Sos Sweet Chilli 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 700
+            },
+            {
+              "sizeName": null,
+              "priceBani": 700
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 700
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 700
+            }
+          ]
+        },
+        {
+          "name": "Sos Cheddar 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 800
+            },
+            {
+              "sizeName": null,
+              "priceBani": 800
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 800
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 800
+            }
+          ]
+        },
+        {
+          "name": "Sosul Casei 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": null,
+              "priceBani": 600
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 600
+            }
+          ]
+        },
+        {
+          "name": "Sos Hrean 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": null,
+              "priceBani": 600
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 600
+            }
+          ]
+        },
+        {
+          "name": "Sos BBQ 80 ml",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": null,
+              "priceBani": 600
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 600
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adauga-bautura",
+      "name": "Adauga Bautura",
+      "displayType": "checkbox",
+      "required": false,
+      "toppings": [
+        {
+          "name": "Heineken 0,5 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1150
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1150
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1150
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1100
+            }
+          ]
+        },
+        {
+          "name": "Birra Moretti 0,5 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1000
+            }
+          ]
+        },
+        {
+          "name": "Coca Cola 0,33 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 850
+            },
+            {
+              "sizeName": null,
+              "priceBani": 850
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 850
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 800
+            }
+          ]
+        },
+        {
+          "name": "Fanta 0,33 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 850
+            },
+            {
+              "sizeName": null,
+              "priceBani": 850
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 850
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 800
+            }
+          ]
+        },
+        {
+          "name": "Cola Cola 0,5 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1000
+            }
+          ]
+        },
+        {
+          "name": "Fanta 0,5 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1000
+            }
+          ]
+        },
+        {
+          "name": "Prigat Piersici 0,5 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1050
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1000
+            }
+          ]
+        },
+        {
+          "name": "Coca Cola 1 l",
+          "prices": [
+            {
+              "sizeName": "30 cm",
+              "priceBani": 1450
+            },
+            {
+              "sizeName": null,
+              "priceBani": 1450
+            },
+            {
+              "sizeName": "40 cm",
+              "priceBani": 1450
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1400
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "garnituri-koretek",
+      "name": "Garnituri/Köretek",
+      "displayType": "checkbox",
+      "required": false,
+      "toppings": [
+        {
+          "name": "Cartofi prăjiți/Szalmakrumpli 200g",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 1100
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1100
+            }
+          ]
+        },
+        {
+          "name": "Cartofi prăjiți cu parmezan si usturoi/Szalmakrumpli parmezánnal és fokhagymával 220g",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 1600
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1600
+            }
+          ]
+        },
+        {
+          "name": "Cartofi wedges/Wedges krumpli 200g",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 1200
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1200
+            }
+          ]
+        },
+        {
+          "name": "Orez - 200g",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 1100
+            },
+            {
+              "sizeName": "60x40 cm",
+              "priceBani": 1100
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-burger",
+      "name": "Ambalaj Burger",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 300
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "adauga-extra-la-burger",
+      "name": "Adauga extra la burger",
+      "displayType": "checkbox",
+      "required": false,
+      "toppings": [
+        {
+          "name": "Extra bacon",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 400
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-crispy-mini",
+      "name": "Ambalaj Crispy mini",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 300
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-crispy-maxi",
+      "name": "Ambalaj Crispy Maxi",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 400
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-crispy-mega",
+      "name": "Ambalaj Crispy Mega",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-family-pack",
+      "name": "Ambalaj family pack",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "ambalaj-garnituri",
+      "name": "Ambalaj Garnituri",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Ambalaj",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 300
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "garantie-sgr",
+      "name": "Garantie SGR",
+      "displayType": "radio",
+      "required": true,
+      "toppings": [
+        {
+          "name": "Garanție SGR",
+          "prices": [
+            {
+              "sizeName": null,
+              "priceBani": 50
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "legacyPriceConflicts": [
+    {
+      "group": "adauga-bautura",
+      "topping": "Heineken 0,5 l",
+      "sizeName": null,
+      "keptPriceBani": 1150,
+      "otherPriceBani": 1100
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Birra Moretti 0,5 l",
+      "sizeName": null,
+      "keptPriceBani": 1050,
+      "otherPriceBani": 1000
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Coca Cola 0,33 l",
+      "sizeName": null,
+      "keptPriceBani": 850,
+      "otherPriceBani": 800
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Fanta 0,33 l",
+      "sizeName": null,
+      "keptPriceBani": 850,
+      "otherPriceBani": 800
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Cola Cola 0,5 l",
+      "sizeName": null,
+      "keptPriceBani": 1050,
+      "otherPriceBani": 1000
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Fanta 0,5 l",
+      "sizeName": null,
+      "keptPriceBani": 1050,
+      "otherPriceBani": 1000
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Prigat Piersici 0,5 l",
+      "sizeName": null,
+      "keptPriceBani": 1050,
+      "otherPriceBani": 1000
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Coca Cola 1 l",
+      "sizeName": null,
+      "keptPriceBani": 1450,
+      "otherPriceBani": 1400
+    },
+    {
+      "group": "adauga-bautura",
+      "topping": "Coca Cola 1 l",
+      "sizeName": null,
+      "keptPriceBani": 1450,
+      "otherPriceBani": 1200
+    }
+  ]
+}

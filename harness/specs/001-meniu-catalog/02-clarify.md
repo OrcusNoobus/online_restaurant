@@ -55,7 +55,14 @@ Răspuns de proprietar, 2026-07-04.
 
 ## Open Questions
 
-(none — toate întrebările sunt rezolvate; feature-ul poate începe)
+- **Q7 — Prețuri inconsistente la băuturi (descoperit la import, 2026-07-04):**
+  Pe site-ul vechi, aceeași băutură adăugată la comandă are prețuri DIFERITE în
+  funcție de produsul la care e atașată (ex: Heineken 0,5l = 11,50 lei la pizza
+  30/40cm dar 11,00 lei la XXL; Coca Cola 1l apare cu 12,00 / 14,00 / 14,50 lei).
+  Lista completă: `legacyPriceConflicts` în `data/menu-seed.json`. Interim am
+  păstrat prețul MAI MARE. Care e prețul corect pentru fiecare? (Nu blochează
+  afișarea meniului — devine relevant la coș. Există și un typo pe site-ul
+  vechi: "Cola Cola 0,5 l".)
 
 ## Notes For Future Changes
 
