@@ -7,7 +7,8 @@
 ## Current State
 
 - **Last updated:** 2026-07-04 (feat-002 session 2)
-- **Active feature:** none — feat-002 done; feat-003 (Verification coverage) is next
+- **Active feature:** none — feat-002 and feat-003 done; feat-004 (Documentation
+  update) is next
 - **Latest commit:** see git log on feat/002-meniu-catalog (T02–T07 complete)
 - **Verification status:** ./init.sh green; `npm test -- tests/menu` 6/6; all
   08-quickstart.md flows executed and passing
@@ -31,12 +32,9 @@
 
 ## Next Steps
 
-1. feat-003 Verification coverage — per feature-list: confirm unit/integration/
-   e2e verification wired into ./init.sh and 08-quickstart.md (largely in place;
-   audit and close gaps).
-2. feat-004 Documentation update — README, ARCHITECTURE.md, DECISIONS.md
+1. feat-004 Documentation update — README, ARCHITECTURE.md, DECISIONS.md
    current vs. implemented feature.
-3. feat-005 Cleanup and handoff, then merge feat/002-meniu-catalog → main
+2. feat-005 Cleanup and handoff, then merge feat/002-meniu-catalog → main
    (owner's call on timing).
 
 ## Blockers / Risks

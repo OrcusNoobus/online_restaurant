@@ -28,8 +28,8 @@
       "behavior": "The active feature has unit, integration, and end-to-end verification wired into ./init.sh and 08-quickstart.md",
       "verification": "./init.sh",
       "dependencies": ["feat-002"],
-      "status": "not-started",
-      "evidence": "",
+      "status": "done",
+      "evidence": "audit 2026-07-04: layer 1 lint+typecheck+boundary greps, layer 2 npm test (7 unit + 6 integration), layer 3 build + npm test -- tests/menu + 08-quickstart.md flows — all wired in ./init.sh. Gap fixed: SKIP_DB=1 path was broken by db-dependent tests; menu suites now skipIf(SKIP_DB). Verified both paths: SKIP_DB=1 with Postgres stopped (7 passed/6 skipped, init.sh green) and full run (13/13, init.sh green)",
       "spec": ""
     },
     {

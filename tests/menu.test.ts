@@ -25,6 +25,9 @@ interface SeedFile {
 
 const seedFile: SeedFile = JSON.parse(readFileSync("data/menu-seed.json", "utf8"));
 
+// SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
+const skipDb = process.env.SKIP_DB === "1";
+
 function run(command: string): void {
   execSync(command, { stdio: "pipe" });
 }
@@ -34,11 +37,12 @@ async function tableCounts(): Promise<number[]> {
 }
 
 beforeAll(() => {
+  if (skipDb) return;
   run("npm run db:migrate");
   run("npm run db:seed");
 }, 120_000);
 
-describe("db:seed", () => {
+describe.skipIf(skipDb)("db:seed", () => {
   it("is idempotent: a second run adds no rows", async () => {
     const before = await tableCounts();
     run("npm run db:seed");
@@ -46,7 +50,7 @@ describe("db:seed", () => {
   }, 120_000);
 });
 
-describe("getMenu()", () => {
+describe.skipIf(skipDb)("getMenu()", () => {
   it("returns categories in seed order, each product with >= 1 variant", async () => {
     const menu = await getMenu();
 
