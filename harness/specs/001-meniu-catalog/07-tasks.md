@@ -26,9 +26,12 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       117 variants, 12 topping groups, 30 toppings. Legacy quirks recorded in the
       JSON: 9 drink-price conflicts (see 02-clarify.md Q7), SGR label fixed
       ("1.00" → "Garanție SGR"), pizza names normalized across size categories.
-- [ ] T02 — Drizzle setup: deps, `drizzle.config.ts`, `src/server/db/schema.ts`
+- [x] T02 — Drizzle setup: deps, `drizzle.config.ts`, `src/server/db/schema.ts`
       + `client.ts`, first migration; wire `db:migrate` into `./init.sh`
       (source: 05-data-model.md)
+      — done 2026-07-04: 7 tables incl. topping_prices + product_topping_groups;
+      CHECK constraints on prices; unique (topping_id, size_name) NULLS NOT
+      DISTINCT; migrations apply idempotently in ./init.sh (skipped by SKIP_DB=1).
 - [ ] T03 — Idempotent seed script `npm run db:seed` reading
       `data/menu-seed.json`, upserting by slug (source: 01-spec.md FR4)
 - [ ] T04 — Repository `src/server/repositories/menu.ts` `getMenu()` +

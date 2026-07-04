@@ -49,6 +49,11 @@ fi
 # 1. Install dependencies (idempotent)
 npm install
 
+# 1b. Database migrations (idempotent; needs the db from step 0)
+if [ "${SKIP_DB:-0}" != "1" ]; then
+  npm run db:migrate
+fi
+
 # 2. Static checks — layer 1: syntax, types, lint
 npm run lint
 npm run typecheck
