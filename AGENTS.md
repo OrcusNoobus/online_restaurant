@@ -69,6 +69,9 @@ deprecation notices.
 ## Work Rules
 
 - Work on exactly one feature at a time. Finish it before starting the next.
+- `harness/feature-list.json` holds product behaviors only. Process work
+  (verify, document, clean up) is the Definition of Done applied to each
+  feature — never a feature entry. (Incident: 2026-07-04, see DEV_LOG.)
 - Do not "also refactor" feature B while implementing feature A.
 - Do not modify files outside the active feature's `04-plan.md` file targets.
 - Every unresolved ambiguity is a coin flip the agent will make silently —
@@ -161,7 +164,3 @@ from instruction to enforcement: a check in `./init.sh` or a test.
 2. One feature at a time.
 3. Never mark a feature done without running its verification command.
 4. Leave a clean state for the next session.
-
----
-*Harness: New_harness v3.0.1 (2026-07-03). When the harness repo's templates
-improve, diff this project's harness files against them and adopt what helps.*
