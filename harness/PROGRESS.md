@@ -6,13 +6,18 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-006 session 1 — spec interview + draft)
+- **Last updated:** 2026-07-04 (feat-006 session 1 — spec phase complete)
 - **Active feature:** feat-006 (Coș și plasare comandă), in-progress, branch
-  `feat/006-cos-comanda`. Spec chain started: 01-spec.md DRAFT + 02-clarify.md
-  (Q1–Q7 resolved at owner interview; Q8–Q14 open — zone table, orar, plăți).
+  `feat/006-cos-comanda`. Document chain 01–07 written: spec updated with all
+  owner answers, clarify Q1–Q14 resolved, Q15/Q16 open with agent proposals
+  as recorded defaults; research (8 decisions), plan, data model, contracts,
+  tasks T01–T10 ready. Code NOT started — awaiting owner plan approval.
 - **Scope decisions (owner, 2026-07-04):** livrare + ridicare personală în v1;
-  ASAP + programare la oră; guest checkout (conturi + social login → feat-010);
-  cupoane → feat-011; notificare comenzi doar în DB până la feat-007.
+  ASAP + programare la oră; guest checkout (conturi + social login →
+  feat-010); cupoane → feat-011; plată online → feat-012; notificare comenzi
+  doar în DB până la feat-007. Regula-cheie de livrare: „comanda minimă" pe
+  zonă e prag de livrare gratuită — sub prag se adaugă taxa zonei, comanda NU
+  se blochează (02-clarify.md Q8/Q9).
 - **Verification status:** ./init.sh green (run at session start); feat-002
   evidence unchanged. feat/002-meniu-catalog branch is fully merged into main
   (safe to delete).
@@ -32,17 +37,18 @@
 
 ## In Progress
 
-- feat-006 spec phase: 01-spec.md drafted, awaiting owner approval; clarify
-  Q8–Q14 open (concrete zone/fee/minimum table, free-delivery threshold base,
-  opening hours, payment mapping, email field, pickup minimum, T&C pages).
+- feat-006: document chain complete (01–07); implementation not started.
+  Open coin-flips recorded with defaults: Q15 (SGR on drink add-ons — default:
+  apply, seed-reversible), Q16 (ordering window — default: same-day only,
+  placeable 11:00–22:30).
 
 ## Next Steps
 
-1. Owner answers 02-clarify.md Q8–Q14 and approves 01-spec.md.
-2. Continue the chain: 03-research.md (cart state, scheduling validation) →
-   04-plan.md → 05-data-model.md + 06-contracts → 07-tasks.md → code.
-3. In 04-plan.md: fix the seed's replace-variants rule FIRST — variant ids must
-   become stable before order lines reference them (noted in scripts/seed.ts).
+1. Owner reads 01-spec.md (note the changed delivery-fee rule) and 04-plan.md;
+   answers Q15/Q16 if the defaults are wrong.
+2. Implementation starts at 07-tasks.md T01 (schema extensions + stable
+   variant ids — the seed replace-variants debt from feat-002), then T02+.
+3. One task = one commit; verification target: `npm test -- tests/orders`.
 
 ## Blockers / Risks
 
