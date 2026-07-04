@@ -11,11 +11,23 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { POST as postQuoteRoute } from "@/app/api/cart/quote/route";
+import { POST as postOrderRoute } from "@/app/api/orders/route";
 import { GET as getZonesRoute } from "@/app/api/zones/route";
+import { orderRequestSchema } from "@/lib/order-schemas";
 import { db } from "@/server/db/client";
-import { deliveryZones, orders, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
+import {
+  deliveryZones,
+  orderItemOptions,
+  orderItems,
+  orders,
+  products,
+  productVariants,
+  toppingGroups,
+  toppings,
+} from "@/server/db/schema";
 import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { getActiveZones } from "@/server/repositories/zones";
+import { placeOrder } from "@/server/services/orders";
 import { type QuoteReason, quoteCart } from "@/server/services/pricing";
 
 interface ZonesFile {
@@ -352,6 +364,214 @@ describe.skipIf(skipDb)("insertOrder()", () => {
     } finally {
       await db.delete(orders).where(eq(orders.id, orderId));
     }
+  });
+});
+
+describe.skipIf(skipDb)("placeOrder()", () => {
+  // Saturday 2026-07-04, 18:00 restaurant time (EEST = UTC+3) — open.
+  const OPEN_NOW = new Date("2026-07-04T15:00:00Z");
+  const CLOSED_NOW = new Date("2026-07-04T20:31:00Z"); // 23:31 local
+
+  async function orderBody(overrides: Record<string, unknown> = {}) {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    return orderRequestSchema.parse({
+      mode: "delivery",
+      zoneSlug: "santana-de-mures",
+      items: [{ ...heineken, quantity: 2, toppingIds: [sgrId] }],
+      customer: { firstName: "Ion", lastName: "Pop", phone: "0740123456", email: null },
+      addressStreet: "Str. Principală 10",
+      notes: "interfon 12",
+      scheduledFor: null,
+      paymentMethod: "cash",
+      termsAccepted: true,
+      ...overrides,
+    });
+  }
+
+  async function cleanupOrder(orderId: number) {
+    await db.delete(orders).where(eq(orders.id, orderId));
+  }
+
+  it("places a delivery order: status new, snapshots, normalized phone, IP, totals", async () => {
+    const result = await placeOrder(await orderBody(), { clientIp: "5.15.30.53", now: OPEN_NOW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    try {
+      expect(result.order).toMatchObject({
+        orderNumber: `#${result.order.orderId}`,
+        status: "new",
+        mode: "delivery",
+        estimateMinutes: 60,
+        subtotalBani: 2200,
+        sgrBani: 100,
+        deliveryFeeBani: 2000,
+        totalBani: 4300,
+      });
+
+      const [row] = await db.select().from(orders).where(eq(orders.id, result.order.orderId));
+      expect(row).toMatchObject({
+        status: "new",
+        phone: "+40740123456",
+        clientIp: "5.15.30.53",
+        addressStreet: "Str. Principală 10",
+        totalBani: 4300,
+      });
+      expect(row.zoneId).not.toBeNull();
+
+      const itemRows = await db.select().from(orderItems).where(eq(orderItems.orderId, result.order.orderId));
+      expect(itemRows).toHaveLength(1);
+      expect(itemRows[0]).toMatchObject({ productName: "Heineken 0,5 L", unitPriceBani: 1100, quantity: 2 });
+
+      const optionRows = await db
+        .select()
+        .from(orderItemOptions)
+        .where(eq(orderItemOptions.orderItemId, itemRows[0].id));
+      expect(optionRows).toContainEqual(
+        expect.objectContaining({ toppingName: "Garanție SGR", priceBani: 0, sgrDepositBani: 50 }),
+      );
+    } finally {
+      await cleanupOrder(result.order.orderId);
+    }
+  });
+
+  it("places a pickup order with the chosen estimate and no fee/zone", async () => {
+    const body = await orderBody({
+      mode: "pickup",
+      zoneSlug: undefined,
+      addressStreet: null,
+      paymentMethod: "card_restaurant",
+      pickupEstimateMinutes: 25,
+    });
+    const result = await placeOrder(body, { clientIp: null, now: OPEN_NOW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    try {
+      expect(result.order).toMatchObject({ mode: "pickup", estimateMinutes: 25, deliveryFeeBani: 0, totalBani: 2300 });
+      const [row] = await db.select().from(orders).where(eq(orders.id, result.order.orderId));
+      expect(row.zoneId).toBeNull();
+      expect(row.deliveryFeeBani).toBe(0);
+    } finally {
+      await cleanupOrder(result.order.orderId);
+    }
+  });
+
+  it("stores a valid scheduled time and leaves the estimate null", async () => {
+    // 20:00 restaurant time = 17:00Z on an open day
+    const body = await orderBody({ scheduledFor: "2026-07-04T17:00:00Z" });
+    const result = await placeOrder(body, { clientIp: null, now: OPEN_NOW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    try {
+      expect(result.order.estimateMinutes).toBeNull();
+      expect(result.order.scheduledFor).toBe(new Date("2026-07-04T17:00:00Z").toISOString());
+    } finally {
+      await cleanupOrder(result.order.orderId);
+    }
+  });
+
+  it("rejects placement while closed, bad schedules and mode-mismatched payment", async () => {
+    const closed = await placeOrder(await orderBody(), { clientIp: null, now: CLOSED_NOW });
+    expect(closed).toMatchObject({ ok: false, error: "invalid_order" });
+    if (!closed.ok && closed.error === "invalid_order") {
+      expect(closed.reasons).toContainEqual(expect.objectContaining({ code: "shop_closed" }));
+    }
+
+    // scheduled before the 11:30 fulfillment floor (08:15Z = 11:15 local); now = 11:00 local
+    const tooEarly = await placeOrder(await orderBody({ scheduledFor: "2026-07-04T08:15:00Z" }), {
+      clientIp: null,
+      now: new Date("2026-07-04T08:00:00Z"),
+    });
+    if (!tooEarly.ok && tooEarly.error === "invalid_order") {
+      expect(tooEarly.reasons).toContainEqual(expect.objectContaining({ code: "schedule_out_of_hours" }));
+    } else {
+      expect.unreachable("expected invalid_order");
+    }
+
+    // next-day scheduling is v1-forbidden (Q16)
+    const nextDay = await placeOrder(await orderBody({ scheduledFor: "2026-07-05T10:00:00Z" }), {
+      clientIp: null,
+      now: OPEN_NOW,
+    });
+    if (!nextDay.ok && nextDay.error === "invalid_order") {
+      expect(nextDay.reasons).toContainEqual(expect.objectContaining({ code: "schedule_out_of_hours" }));
+    } else {
+      expect.unreachable("expected invalid_order");
+    }
+
+    // card_restaurant is a pickup-only method
+    const badPayment = await placeOrder(await orderBody({ paymentMethod: "card_restaurant" }), {
+      clientIp: null,
+      now: OPEN_NOW,
+    });
+    if (!badPayment.ok && badPayment.error === "invalid_order") {
+      expect(badPayment.reasons).toContainEqual(expect.objectContaining({ code: "payment_not_allowed_for_mode" }));
+    } else {
+      expect.unreachable("expected invalid_order");
+    }
+  });
+
+  it("propagates cart problems as invalid_cart without writing anything", async () => {
+    const countBefore = await db.$count(orders);
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const body = await orderBody({ items: [{ ...pizza30, quantity: 1, toppingIds: [] }] });
+    const result = await placeOrder(body, { clientIp: null, now: OPEN_NOW });
+    expect(result).toMatchObject({ ok: false, error: "invalid_cart" });
+    expect(await db.$count(orders)).toBe(countBefore);
+  });
+
+  it("zod rejects bad phones, missing delivery address and unaccepted terms", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    const base = {
+      mode: "delivery",
+      zoneSlug: "santana-de-mures",
+      items: [{ ...heineken, quantity: 1, toppingIds: [sgrId] }],
+      customer: { firstName: "Ion", lastName: "Pop", phone: "0740123456" },
+      addressStreet: "Str. Principală 10",
+      paymentMethod: "cash",
+      termsAccepted: true,
+    };
+
+    expect(orderRequestSchema.safeParse(base).success).toBe(true);
+    expect(
+      orderRequestSchema.safeParse({ ...base, customer: { ...base.customer, phone: "12345" } }).success,
+    ).toBe(false);
+    expect(orderRequestSchema.safeParse({ ...base, addressStreet: null }).success).toBe(false);
+    expect(orderRequestSchema.safeParse({ ...base, termsAccepted: false }).success).toBe(false);
+  });
+});
+
+describe.skipIf(skipDb)("POST /api/orders", () => {
+  function orderRequest(body: unknown): Request {
+    return new Request("http://localhost/api/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "5.15.30.53, 10.0.0.1" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("answers 400 for shape violations and 422 for cart problems", async () => {
+    const badShape = await postOrderRoute(orderRequest({ mode: "delivery", items: [] }));
+    expect(badShape.status).toBe(400);
+    expect((await badShape.json()).error).toBe("validation");
+
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const emptyRequired = await postOrderRoute(
+      orderRequest({
+        mode: "pickup",
+        items: [{ ...heineken, quantity: 1, toppingIds: [] }],
+        customer: { firstName: "Ion", lastName: "Pop", phone: "0740123456" },
+        paymentMethod: "cash",
+        termsAccepted: true,
+      }),
+    );
+    expect(emptyRequired.status).toBe(422);
+    const body = await emptyRequired.json();
+    expect(body.error).toBe("invalid_cart");
+    expect(body.reasons).toContainEqual(expect.objectContaining({ code: "missing_required_group" }));
   });
 });
 

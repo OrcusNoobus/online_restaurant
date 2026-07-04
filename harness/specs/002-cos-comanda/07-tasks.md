@@ -67,11 +67,16 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       — done 2026-07-04: migration 0003 (3 enums, 3 tables, sum/mode CHECKs,
       RESTRICT FKs); insertOrder() single-transaction; tests prove rollback
       on a failing line and RESTRICT on referenced variants.
-- [ ] T07 — Place order: `services/orders.ts` `placeOrder()` +
+- [x] T07 — Place order: `services/orders.ts` `placeOrder()` +
       `POST /api/orders` (schedule/payment/phone/terms validation, snapshots,
       client IP, structured logs); integration tests: happy path delivery +
       pickup, atomicity on failure, every invalid_order code
       (source: 01-spec FR4–FR7, 06-contracts)
+      — done 2026-07-04: injectable clock for deterministic tests; contract
+      refined (shape rules → 400 zod, state/time rules → 422); 7 new tests:
+      delivery/pickup/scheduled happy paths with DB assertions (snapshots,
+      +40 phone, IP), shop_closed, 11:30 floor, next-day block,
+      payment-mode mismatch, invalid_cart pass-through; 47/47 tests.
 - [ ] T08 — Options + cart UI: OptionsSheet from menu payload (radio/checkbox,
       required enforced, per-size preview prices), CartProvider (localStorage,
       quote-on-load reconciliation), cart page `/cos` with SGR line, delivery
