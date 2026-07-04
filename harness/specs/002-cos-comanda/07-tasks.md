@@ -36,11 +36,15 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `GET /api/zones` + contract test (source: 05-data-model, 06-contracts)
       — done 2026-07-04: 6 zones seeded (migration 0002); tests cover seeded
       values, inactive-zone hiding, active-only-on-insert re-seed; 18/18 tests.
-- [ ] T03 — Schedule module: `src/lib/restaurant-config.ts` (11:00–22:30,
+- [x] T03 — Schedule module: `src/lib/restaurant-config.ts` (11:00–22:30,
       fulfillment ≥ 11:30, delivery 60 min, pickup 15/25, Europe/Bucharest) +
       pure `src/lib/schedule.ts` (isOpenNow, validateScheduledFor,
       estimateFor) + unit tests with fixed clocks (source: Q10/Q16,
       03-research D3)
+      — done 2026-07-04: Intl-based local-time math; 8 unit tests cover both
+      EEST/EET offsets, the 11:30 floor, closing edge and same-day rule.
+      RESTAURANT_ADDRESS is a placeholder — owner supplies the exact address
+      before T09 ships the pickup screen.
 - [ ] T04 — Extended menu payload: repository + `GET /api/menu` include
       toppingGroups per 06-contracts; adjust tests/menu.test.ts
       (source: 06-contracts)
