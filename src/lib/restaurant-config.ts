@@ -21,5 +21,6 @@ export const DELIVERY_ESTIMATE_MINUTES = 60;
 /** ASAP pickup: the customer picks one of these; scheduling an exact hour is also allowed. */
 export const PICKUP_ESTIMATE_OPTIONS_MINUTES = [15, 25] as const;
 
-/** Shown for pickup orders (checkout + confirmation). */
-export const RESTAURANT_ADDRESS = "Sântana de Mureș";
+/** Shown for pickup orders (checkout + confirmation) and on the legal pages. */
+export const RESTAURANT_ADDRESS = "Str. Principală nr. 2, Sântana de Mureș";
+export const RESTAURANT_PHONE = "0371 717 177";

@@ -18,6 +18,7 @@ import {
   DELIVERY_ESTIMATE_MINUTES,
   PICKUP_ESTIMATE_OPTIONS_MINUTES,
   RESTAURANT_ADDRESS,
+  RESTAURANT_PHONE,
 } from "@/lib/restaurant-config";
 import { isOpenAt } from "@/lib/schedule";
 
@@ -225,7 +226,7 @@ export default function CheckoutPage() {
               </div>
               {mode === "pickup" && (
                 <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                  Ridici comanda de la restaurant: {RESTAURANT_ADDRESS}.
+                  Ridici comanda de la restaurant: {RESTAURANT_ADDRESS} · Telefon: {RESTAURANT_PHONE}.
                 </p>
               )}
             </fieldset>
