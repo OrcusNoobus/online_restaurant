@@ -18,8 +18,8 @@
       "behavior": "Un client deschide site-ul pe telefon și vede categoriile și produsele cu prețuri, mărimi (pizza 30/40/XXL) și descrieri, încărcate din PostgreSQL — cu meniul real importat (seed) de pe site-ul Metro dish existent",
       "verification": "npm test -- tests/menu",
       "dependencies": ["feat-001"],
-      "status": "in-progress",
-      "evidence": "",
+      "status": "done",
+      "evidence": "commits 307601d..36cf598 (T02-T06); npm test -- tests/menu: 6/6 passing 2026-07-04 (idempotency, sorting, multi-size pizza, active-filtering, API contract); ./init.sh green incl. db:migrate; 08-quickstart.md flows 1-4 executed 2026-07-04 on 375px viewport + curl (13 categories/73 products/117 variants, prices integer bani, inactive product hidden from page+API, double seed = no duplicates)",
       "spec": "harness/specs/001-meniu-catalog/"
     },
     {

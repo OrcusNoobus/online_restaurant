@@ -56,8 +56,11 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       placeholder (Q3), light/dark, layout lang="ro" + Romanian metadata;
       eyeballed at 375px via dev server. Empty active categories hidden by
       the page (contract leaves it to the UI).
-- [ ] T07 — Run `08-quickstart.md` flows end-to-end on a phone-sized viewport;
+- [x] T07 — Run `08-quickstart.md` flows end-to-end on a phone-sized viewport;
       record evidence in `harness/feature-list.json` (source: 08-quickstart.md)
+      — done 2026-07-04: all 4 flows pass (menu on 375px, API contract via
+      curl, inactive product hidden + reverted, double-seed stable at 73
+      products). Evidence recorded in harness/feature-list.json.
 
 ## Review Heuristics
 
