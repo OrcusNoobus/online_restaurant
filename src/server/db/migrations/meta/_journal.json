@@ -22,6 +22,13 @@
       "when": 1783182467024,
       "tag": "0002_feat006_delivery_zones",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783183174382,
+      "tag": "0003_feat006_orders",
+      "breakpoints": true
     }
   ]
 }

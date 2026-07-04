@@ -9,10 +9,12 @@ import {
   boolean,
   check,
   integer,
+  pgEnum,
   pgTable,
   primaryKey,
   serial,
   text,
+  timestamp,
   unique,
 } from "drizzle-orm/pg-core";
 
@@ -141,4 +143,108 @@ export const productToppingGroups = pgTable(
       .references(() => toppingGroups.id, { onDelete: "cascade" }),
   },
   (t) => [primaryKey({ columns: [t.productId, t.groupId] })],
+);
+
+export const orderModeEnum = pgEnum("order_mode", ["delivery", "pickup"]);
+/** Full lifecycle defined once (002 03-research D6); feat-006 only creates 'new'. */
+export const orderStatusEnum = pgEnum("order_status", [
+  "new",
+  "accepted",
+  "in_delivery",
+  "completed",
+  "canceled",
+]);
+export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card_delivery", "card_restaurant"]);
+
+/**
+ * One placed order (002 05-data-model.md). Money and names are snapshots —
+ * the menu may change later, the order must not. RESTRICT FKs make catalog
+ * deletions with order history loud instead of silent.
+ */
+export const orders = pgTable(
+  "orders",
+  {
+    id: serial("id").primaryKey(),
+    mode: orderModeEnum("mode").notNull(),
+    status: orderStatusEnum("status").notNull().default("new"),
+    customerFirstName: text("customer_first_name").notNull(),
+    customerLastName: text("customer_last_name").notNull(),
+    phone: text("phone").notNull(),
+    email: text("email"),
+    zoneId: integer("zone_id").references(() => deliveryZones.id, { onDelete: "restrict" }),
+    addressStreet: text("address_street"),
+    notes: text("notes"),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    estimateMinutes: integer("estimate_minutes"),
+    paymentMethod: paymentMethodEnum("payment_method").notNull(),
+    subtotalBani: integer("subtotal_bani").notNull(),
+    sgrBani: integer("sgr_bani").notNull().default(0),
+    deliveryFeeBani: integer("delivery_fee_bani").notNull().default(0),
+    totalBani: integer("total_bani").notNull(),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }).notNull(),
+    clientIp: text("client_ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("orders_subtotal_non_negative", sql`${t.subtotalBani} >= 0`),
+    check("orders_sgr_non_negative", sql`${t.sgrBani} >= 0`),
+    check("orders_fee_non_negative", sql`${t.deliveryFeeBani} >= 0`),
+    check("orders_total_positive", sql`${t.totalBani} > 0`),
+    check(
+      "orders_total_is_sum",
+      sql`${t.totalBani} = ${t.subtotalBani} + ${t.sgrBani} + ${t.deliveryFeeBani}`,
+    ),
+    check(
+      "orders_delivery_has_zone_and_address",
+      sql`${t.mode} = 'pickup' OR (${t.zoneId} IS NOT NULL AND ${t.addressStreet} IS NOT NULL)`,
+    ),
+    check("orders_pickup_has_no_fee", sql`${t.mode} = 'delivery' OR ${t.deliveryFeeBani} = 0`),
+  ],
+);
+
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: serial("id").primaryKey(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "restrict" }),
+    variantId: integer("variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "restrict" }),
+    productName: text("product_name").notNull(),
+    variantName: text("variant_name"),
+    unitPriceBani: integer("unit_price_bani").notNull(),
+    quantity: integer("quantity").notNull(),
+    lineTotalBani: integer("line_total_bani").notNull(),
+  },
+  (t) => [
+    check("order_items_unit_price_positive", sql`${t.unitPriceBani} > 0`),
+    check("order_items_quantity_positive", sql`${t.quantity} > 0`),
+    check("order_items_line_total_positive", sql`${t.lineTotalBani} > 0`),
+  ],
+);
+
+export const orderItemOptions = pgTable(
+  "order_item_options",
+  {
+    id: serial("id").primaryKey(),
+    orderItemId: integer("order_item_id")
+      .notNull()
+      .references(() => orderItems.id, { onDelete: "cascade" }),
+    toppingId: integer("topping_id")
+      .notNull()
+      .references(() => toppings.id, { onDelete: "restrict" }),
+    groupName: text("group_name").notNull(),
+    toppingName: text("topping_name").notNull(),
+    priceBani: integer("price_bani").notNull(),
+    sgrDepositBani: integer("sgr_deposit_bani").notNull().default(0),
+  },
+  (t) => [
+    check("order_item_options_price_non_negative", sql`${t.priceBani} >= 0`),
+    check("order_item_options_sgr_non_negative", sql`${t.sgrDepositBani} >= 0`),
+  ],
 );
