@@ -95,7 +95,11 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       zone Sâncraiu → fee 30 + "mai adaugă 10 lei" hint → order #13 in DB
       with +40 phone, IP, snapshots; confirmation screen with totals; cart
       cleared. Closed state blocks the form via the same schedule module.
-- [ ] T10 — Write `08-quickstart.md` manual flows and execute them on a 375px
+- [x] T10 — Write `08-quickstart.md` manual flows and execute them on a 375px
       viewport (delivery below/above threshold, pickup, scheduled, closed
       hours); record evidence in `harness/feature-list.json`; Definition of
       Done layers 1–3 (source: 01-spec acceptance criteria)
+      — done 2026-07-04: flows 1–5 executed (live orders #13 delivery +
+      #19 pickup verified in DB); ./init.sh fully green (47/47 tests, build
+      with all new routes, boundary checks — one false positive fixed by
+      rewording a comment); evidence recorded in feature-list.json.

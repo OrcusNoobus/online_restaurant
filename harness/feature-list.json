@@ -28,8 +28,8 @@
       "behavior": "Un client alege produse (mărime, topping-uri, ambalaj obligatoriu), vede coșul cu totalul calculat pe server (subtotal + SGR + taxă livrare pe zonă, gratuită peste prag), alege livrare sau ridicare personală, ASAP sau oră programată în orar, completează datele ca guest și plasează comanda cu plata la primire; comanda apare în baza de date cu status «nouă». Ordering-ul se implementează ca serviciu, apelabil de orice canal (DECISIONS.md 2026-07-04)",
       "verification": "npm test -- tests/orders",
       "dependencies": ["feat-002"],
-      "status": "in-progress",
-      "evidence": "",
+      "status": "done",
+      "evidence": "commits eda26d0..T10 on feat/006-cos-comanda; npm test -- tests/orders: 22/22 passing 2026-07-04 (per-size pricing, SGR separate line, zone fee below/at threshold on 2 zones, pickup no-fee, delivery+pickup+scheduled happy paths with DB snapshot assertions, atomic rollback, RESTRICT guard, all 422 reason codes); ./init.sh green incl. build with all 5 new routes; 08-quickstart.md flows 1-5 executed 2026-07-04 on 375px preview — live orders #13 (delivery Sancraiu, fee 3000, total 7000, phone normalized, IP stored) and #19 (pickup 25 min, card_restaurant, sgr 50, no fee)",
       "spec": "harness/specs/002-cos-comanda/"
     },
     {
