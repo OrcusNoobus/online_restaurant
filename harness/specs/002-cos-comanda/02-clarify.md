@@ -82,8 +82,11 @@ Răspuns de proprietar, 2026-07-04.
 Regula, în cuvintele proprietarului: „Prag livrare gratuită: comanda minimă,
 sau taxa de livrare dacă nu se atinge comanda minimă." Adică: sub pragul zonei
 comanda este permisă, dar se adaugă taxa zonei; la sau peste prag, livrarea e
-gratuită. Numele localităților se afișează cu diacritice complete (formele
-scurte din tabel sunt cele folosite de proprietar).
+gratuită. Confirmat explicit de proprietar (2026-07-04): „nu blocăm comanda,
+ci punem taxa de livrare". ÎN PERSPECTIVĂ (nu v1): taxă degresivă — scade pe
+măsură ce crește valoarea coșului. Numele localităților se afișează cu
+diacritice complete (formele scurte din tabel sunt cele folosite de
+proprietar).
 
 ### Q9: Pragul de livrare gratuită se raportează la ce sumă?
 
@@ -127,27 +130,25 @@ proprietarul textele legale. Adresa IP a clientului se stochează pe comandă
 (prevenirea fraudelor, ca pe site-ul vechi) — util și pentru viitoarea bază de
 date de clienți. Răspuns de proprietar, 2026-07-04.
 
-## Open Questions
-
 ### Q15: SGR pentru băuturile adăugate ca opțiune la alt produs
 
-Grupul „Adaugă băutură" (checkbox pe pizza etc.) conține 8 băuturi la preț de
-bază, FĂRĂ SGR atașat — site-ul vechi nu adăuga SGR la acestea, doar la
-băuturile comandate ca produs. Legal, orice recipient are garanție SGR.
-Propunerea agentului: aplicăm SGR 0,50 lei și băuturilor adăugate ca opțiune
-(marcate în data model cu un flag), ca totalul să fie corect în ambele cazuri.
-Până la răspuns, implementăm propunerea (flag-ul face regula reversibilă din
-seed, fără schimbare de cod).
+**Answer:** Da — SGR 0,50 lei se aplică și băuturilor adăugate ca opțiune
+(site-ul vechi nu o făcea; legal e per recipient). Implementat prin
+`sgrDepositBani` pe topping, setat din seed — reversibil doar din date.
+Răspuns de proprietar, 2026-07-04.
 
 ### Q16: Fereastra de plasare și programare a comenzilor
 
-Propunerea agentului pentru v1 (de confirmat):
-- Comenzile se pot plasa doar cât timp site-ul e „deschis" (11:00–22:30);
-  în afara orarului checkout-ul e blocat cu mesaj „închis, revenim la 11:00".
-- Programarea este doar pentru ziua curentă (fără comenzi pentru altă zi).
-- Ora programată trebuie să fie ≥ max(acum + estimarea modului, 11:30) și
-  ≤ 22:30. Estimarea modului: 60 min livrare, 15 min ridicare.
-Până la răspuns, implementăm exact propunerea de mai sus.
+**Answer:** Confirmat pentru v1: comenzile se plasează doar în orar
+(11:00–22:30, în afara lui checkout blocat cu mesaj „închis"); programare
+doar pentru ziua curentă, cu ora ≥ max(acum + estimarea modului, 11:30) și
+≤ 22:30. ÎN PERSPECTIVĂ (nu v1): preluarea comenzilor programate pe zilele
+următoare — de adus în spec la momentul potrivit.
+Răspuns de proprietar, 2026-07-04.
+
+## Open Questions
+
+(none — toate întrebările sunt rezolvate)
 
 ## Notes
 
