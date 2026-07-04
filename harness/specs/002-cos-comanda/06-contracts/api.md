@@ -157,6 +157,9 @@ atomically.
   (= ASAP). `pickupEstimateMinutes` (15 | 25) only for pickup + ASAP.
 - `phone` accepted formats: `07XXXXXXXX` / `+407XXXXXXXX` (normalized to
   `+40...`). `termsAccepted` must be literally `true`.
+- Shape-checkable rules (phone format, terms flag, address-iff-delivery) are
+  zod-level → they answer `400 validation` with the offending path in
+  `issues`; the 422 codes below are reserved for state/time-dependent rules.
 - Client IP is read from request headers server-side, never from the body.
 
 **Response `201`:**
@@ -176,12 +179,13 @@ atomically.
 
 **Errors:**
 
+- `400 validation` — shape violations incl. phone format, terms flag,
+  missing delivery address (see Common Rules).
 - `422 invalid_cart` — exactly the quote codes above.
 - `422 {"error":"invalid_order","reasons":[{"code":"..."}]}` with codes:
   `shop_closed` (placement outside 11:00–22:30 Europe/Bucharest),
   `schedule_out_of_hours` (scheduled before max(now + estimate, 11:30) or
-  after 22:30, or not today), `payment_not_allowed_for_mode`,
-  `invalid_phone`, `terms_not_accepted`.
+  after 22:30, or not today), `payment_not_allowed_for_mode`.
 
 ## Logging (observability bar, ARCHITECTURE.md)
 
