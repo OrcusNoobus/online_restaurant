@@ -26,6 +26,12 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-04] — Feature-list cleanup: template pseudo-features removed
+- Status: Completed
+- Action: Removed feat-003 (Verification coverage), feat-004 (Documentation update) and feat-005 (Cleanup and handoff) from feature-list.json — as a complete set, no renumbering (feat-006..009 keep their IDs; they are referenced in DECISIONS.md, PROGRESS.md and commit history). Validated after removal: schema OK, no dangling dependencies (006→002, 007→006, 008→006, 009→008), WIP≤1, done entries carry evidence.
+- Challenge: The scaffold generated these as "features", and the agent dutifully executed them as features (commits 62b5fe0, 48ccd43, f43f7c8 — the work itself was real and stays). But they were process steps: exactly what AGENTS.md already mandates per feature via Definition of Done and the Session Exit Checklist. Keeping them in the list duplicated the process as data and would have re-added three pseudo-features' worth of noise after every real feature.
+- Solution: The feature list now holds product behaviors only (feat-001, feat-002 done; feat-006..009 roadmap). Rule of thumb promoted from this incident: if a "feature's" behavior describes the *process* (verify/document/clean up) rather than something a user or client can do, it belongs in Definition of Done, not in feature-list.json. Proposed to the owner as an AGENTS.md rule.
+
 ## [2026-07-04] — feat-002 Meniu produse complete (T02–T07)
 - Status: Completed
 - Action: Drizzle schema + migrations wired into ./init.sh, idempotent zod-validated seed, getMenu() repository, GET /api/menu, mobile-first menu page; 6 integration tests; all 08-quickstart.md flows executed live (375px + curl). Evidence in harness/feature-list.json.

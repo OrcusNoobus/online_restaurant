@@ -9,11 +9,12 @@
 ## Current Objective
 
 - **Goal:** feat-002 (Meniu produse) delivered the full menu vertical: schema →
-  seed → repository → API → mobile page. The process features that harden it
-  (feat-003 verification audit, feat-004 docs, feat-005 cleanup) are also done.
+  seed → repository → API → mobile page, hardened by the Definition-of-Done
+  passes (verification audit, docs review, cleanup).
 - **Active feature:** none in progress; feat-006 (Coș și plasare comandă) next
-- **Status:** feat-002…feat-005 done with evidence; repo green end to end
-- **Branch / commit:** feat/002-meniu-catalog @ see `git log --oneline -12`
+- **Status:** feat-001 + feat-002 done with evidence; repo green end to end;
+  main pushed to github.com/OrcusNoobus/online_restaurant
+- **Branch / commit:** main @ see `git log --oneline -12`
 
 ## Completed This Session
 
@@ -23,10 +24,12 @@
 - [x] T05 — `GET /api/menu` + contract test
 - [x] T06 — mobile-first menu page (CategoryNav, ProductCard, force-dynamic)
 - [x] T07 — 08-quickstart.md flows 1–4 executed; evidence in feature-list.json
-- [x] feat-003 — verification audit; fixed the broken SKIP_DB=1 test path
-- [x] feat-004 — docs review: README seed step, Decision 4 (force-dynamic) in
+- [x] Verification audit (DoD) — fixed the broken SKIP_DB=1 test path
+- [x] Docs review (DoD) — README seed step, Decision 4 (force-dynamic) in
       03-research.md, /api/menu structured logs per the observability bar
-- [x] feat-005 — cleanup: debug-code sweep clean, state files current
+- [x] Cleanup (DoD) — debug-code sweep clean, state files current
+- [x] History rewritten to owner-only attribution; main pushed to GitHub
+- [x] Feature-list cleanup: template pseudo-features removed (see DEV_LOG)
 
 ## Verification Evidence
 
@@ -49,8 +52,8 @@
 ## Decisions Made
 
 - **force-dynamic on `/` and `/api/menu`**: menu always rendered from the DB,
-  never frozen into static HTML at build. Promote to DECISIONS.md if it
-  becomes a pattern (feat-004 will review docs).
+  never frozen into static HTML at build. Recorded as Decision 4 in
+  03-research.md; promote to DECISIONS.md when another feature depends on it.
 - **Seed lifecycle rule**: `active` set only on insert; variants replaced per
   product until orders reference them (revisit at feat-006).
 - **Variant-level legacy descriptions** stay in the JSON snapshot only —

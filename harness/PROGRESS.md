@@ -6,9 +6,14 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-002 session 2, clock-out)
-- **Active feature:** none — feat-002 through feat-005 done; feat-006 (Coș și
+- **Last updated:** 2026-07-04 (feat-002 session 2, clock-out + list cleanup)
+- **Active feature:** none — feat-001 and feat-002 done; feat-006 (Coș și
   plasare comandă) is next and starts at spec time with the owner
+- **Note:** the template's pseudo-features (verification coverage / docs /
+  cleanup, formerly feat-003..005) were removed from feature-list.json — that
+  work is the Definition of Done in AGENTS.md, applied per feature, not a
+  feature itself. The work they tracked WAS done (commits 62b5fe0, 48ccd43,
+  f43f7c8). IDs were not renumbered; feat-006..009 keep their names.
 - **Latest commit:** see git log on feat/002-meniu-catalog (T02–T07 complete)
 - **Verification status:** ./init.sh green; `npm test -- tests/menu` 6/6; all
   08-quickstart.md flows executed and passing
