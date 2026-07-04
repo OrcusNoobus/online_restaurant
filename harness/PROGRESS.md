@@ -6,17 +6,16 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-002 session 2, clock-out + list cleanup)
-- **Active feature:** none — feat-001 and feat-002 done; feat-006 (Coș și
-  plasare comandă) is next and starts at spec time with the owner
-- **Note:** the template's pseudo-features (verification coverage / docs /
-  cleanup, formerly feat-003..005) were removed from feature-list.json — that
-  work is the Definition of Done in AGENTS.md, applied per feature, not a
-  feature itself. The work they tracked WAS done (commits 62b5fe0, 48ccd43,
-  f43f7c8). IDs were not renumbered; feat-006..009 keep their names.
-- **Latest commit:** see git log on feat/002-meniu-catalog (T02–T07 complete)
-- **Verification status:** ./init.sh green; `npm test -- tests/menu` 6/6; all
-  08-quickstart.md flows executed and passing
+- **Last updated:** 2026-07-04 (feat-006 session 1 — spec interview + draft)
+- **Active feature:** feat-006 (Coș și plasare comandă), in-progress, branch
+  `feat/006-cos-comanda`. Spec chain started: 01-spec.md DRAFT + 02-clarify.md
+  (Q1–Q7 resolved at owner interview; Q8–Q14 open — zone table, orar, plăți).
+- **Scope decisions (owner, 2026-07-04):** livrare + ridicare personală în v1;
+  ASAP + programare la oră; guest checkout (conturi + social login → feat-010);
+  cupoane → feat-011; notificare comenzi doar în DB până la feat-007.
+- **Verification status:** ./init.sh green (run at session start); feat-002
+  evidence unchanged. feat/002-meniu-catalog branch is fully merged into main
+  (safe to delete).
 
 ## Done
 
@@ -33,19 +32,17 @@
 
 ## In Progress
 
-- (nothing mid-flight)
+- feat-006 spec phase: 01-spec.md drafted, awaiting owner approval; clarify
+  Q8–Q14 open (concrete zone/fee/minimum table, free-delivery threshold base,
+  opening hours, payment mapping, email field, pickup minimum, T&C pages).
 
 ## Next Steps
 
-1. Merge `feat/002-meniu-catalog` → `main` (owner's call; branch is green and
-   self-contained).
-2. feat-006 Coș și plasare comandă — start the document chain: draft
-   `harness/specs/002-cos-comanda/01-spec.md` with the owner, collect clarify
-   questions (SGR display, delivery zones/fees, minimum order, packaging rule
-   from 02-clarify.md notes). Ordering is a service, callable by any channel
-   (DECISIONS.md 2026-07-04).
-3. Before feat-006 code: revisit the seed's replace-variants rule (variant ids
-   must become stable once orders reference them — noted in scripts/seed.ts).
+1. Owner answers 02-clarify.md Q8–Q14 and approves 01-spec.md.
+2. Continue the chain: 03-research.md (cart state, scheduling validation) →
+   04-plan.md → 05-data-model.md + 06-contracts → 07-tasks.md → code.
+3. In 04-plan.md: fix the seed's replace-variants rule FIRST — variant ids must
+   become stable before order lines reference them (noted in scripts/seed.ts).
 
 ## Blockers / Risks
 
