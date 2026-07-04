@@ -38,8 +38,8 @@
       "behavior": "README, harness/docs/ARCHITECTURE.md, harness/docs/DECISIONS.md, and contracts affected by the implemented feature are current",
       "verification": "Manual review against the promotion rules in specs/*/09-debug.md",
       "dependencies": ["feat-003"],
-      "status": "not-started",
-      "evidence": "",
+      "status": "done",
+      "evidence": "review 2026-07-04: 09-debug.md has no incidents to promote; 06-contracts/api.md matches code (contract test asserts parity); ARCHITECTURE.md accurate, no changes needed (human-owned); DECISIONS.md unchanged per its own promotion rule (force-dynamic is feature-local, recorded as Decision 4 in 03-research.md); README quickstart gained the db:seed step; /api/menu route aligned with the ARCHITECTURE.md observability bar (structured ok/error log lines)",
       "spec": ""
     },
     {

@@ -36,6 +36,21 @@
 - **Reason:** Reproducible seeds from a clean checkout; no dependency on the
   legacy platform staying up; the owner can hand-edit the JSON before import.
 
+## Decision 4: Rendering — force-dynamic for menu page and API (added at implementation, 2026-07-04)
+
+- **Options considered:**
+  - A: Default static prerendering — the page would query the DB at build time
+    and freeze the menu into HTML until the next deploy.
+  - B: `export const dynamic = "force-dynamic"` — every request renders from
+    the database.
+  - C: Static + revalidation (ISR) — cached with periodic refresh.
+- **Decision:** B — force-dynamic on `/` and `/api/menu` (build output shows
+  ƒ Dynamic for both).
+- **Reason:** The admin panel (feat-007) will edit products and availability;
+  those changes must be visible immediately. Menu render is a handful of
+  indexed reads for a single restaurant — caching solves a problem we do not
+  have. Revisit toward ISR/`use cache` only if measured load says so.
+
 ## Intentionally Not Decided Yet
 
 - Image storage (local `/public` vs object storage) — deferred until real

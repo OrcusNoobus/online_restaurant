@@ -13,9 +13,10 @@ Vitest. O singură aplicație monolit: site clienți + admin + API.
 ## Pornire rapidă
 
 ```bash
-./init.sh                    # verificare completă: instalare, DB, lint, teste, build
-docker compose up -d db      # doar baza de date (Postgres pe localhost:5433)
+./init.sh                    # verificare completă: instalare, DB, migrări, lint, teste, build
+npm run db:seed              # importă meniul real (idempotent) — altfel meniul e gol
 npm run dev                  # http://localhost:3000
+docker compose up -d db      # doar baza de date (Postgres pe localhost:5433)
 ```
 
 ## Pentru agenți și dezvoltatori
