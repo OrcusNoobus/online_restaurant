@@ -45,9 +45,13 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       EEST/EET offsets, the 11:30 floor, closing edge and same-day rule.
       RESTAURANT_ADDRESS is a placeholder — owner supplies the exact address
       before T09 ships the pickup screen.
-- [ ] T04 — Extended menu payload: repository + `GET /api/menu` include
+- [x] T04 — Extended menu payload: repository + `GET /api/menu` include
       toppingGroups per 06-contracts; adjust tests/menu.test.ts
       (source: 06-contracts)
+      — done 2026-07-04: getMenu() attaches groups (required/displayType,
+      active toppings, per-size prices); empty groups omitted (rule added to
+      contract); tests cover Ambalaj radio/required, SGR deposit 50 + zeroed
+      prices, inactive-topping hiding; 28/28 tests.
 - [ ] T05 — Pricing service: `src/lib/order-schemas.ts` (zod, shared),
       `services/pricing.ts` `quoteCart()` + `POST /api/cart/quote`;
       integration tests: per-size topping price, required groups, SGR sum,

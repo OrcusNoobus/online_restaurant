@@ -12,7 +12,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/menu/route";
 import { db } from "@/server/db/client";
-import { categories, products, productVariants, toppingPrices, toppings } from "@/server/db/schema";
+import { categories, products, productVariants, toppingGroups, toppingPrices, toppings } from "@/server/db/schema";
 import { getMenu } from "@/server/repositories/menu";
 
 interface SeedFile {
@@ -122,6 +122,55 @@ describe.skipIf(skipDb)("getMenu()", () => {
     const seedProductSlugs = seedCategory.products.map((p) => p.slug);
     const menuProductSlugs = menuCategory!.products.map((p) => p.slug).filter((s) => seedProductSlugs.includes(s));
     expect(menuProductSlugs).toEqual(seedProductSlugs);
+  });
+
+  it("attaches topping groups per product with per-size prices (002 06-contracts)", async () => {
+    const menu = await getMenu();
+    const pizza = menu.flatMap((c) => c.products).find((p) => p.slug === "pizza-bambini");
+    expect(pizza).toBeDefined();
+
+    const ambalaj = pizza!.toppingGroups.find((g) => g.name === "Ambalaj");
+    expect(ambalaj).toBeDefined();
+    expect(ambalaj!.required).toBe(true);
+    expect(ambalaj!.displayType).toBe("radio");
+    expect(ambalaj!.toppings.length).toBeGreaterThan(0);
+    for (const topping of ambalaj!.toppings) {
+      expect(topping.prices.length).toBeGreaterThan(0);
+      for (const price of topping.prices) expect(Number.isSafeInteger(price.priceBani)).toBe(true);
+    }
+
+    // a drink carries the SGR group: required, deposit on the topping, price rows zeroed
+    const drink = menu.flatMap((c) => c.products).find((p) => p.slug === "heineken-0-5-l");
+    expect(drink).toBeDefined();
+    const sgr = drink!.toppingGroups.find((g) => g.name === "Garantie SGR");
+    expect(sgr).toBeDefined();
+    expect(sgr!.required).toBe(true);
+    expect(sgr!.toppings).toHaveLength(1);
+    expect(sgr!.toppings[0].sgrDepositBani).toBe(50);
+    expect(sgr!.toppings[0].prices.every(({ priceBani }) => priceBani === 0)).toBe(true);
+  });
+
+  it("hides inactive toppings and omits groups left empty (002 06-contracts)", async () => {
+    const [group] = await db
+      .insert(toppingGroups)
+      .values({ name: "Test grup gol", required: true, displayType: "radio", sortOrder: 999 })
+      .returning({ id: toppingGroups.id });
+    const inserted = await db
+      .insert(toppings)
+      .values([
+        { groupId: group.id, name: "Test inactiv", active: false },
+      ])
+      .returning({ id: toppings.id });
+
+    try {
+      const menu = await getMenu();
+      const allGroups = menu.flatMap((c) => c.products).flatMap((p) => p.toppingGroups);
+      expect(allGroups.some((g) => g.name === "Test grup gol")).toBe(false);
+      expect(allGroups.flatMap((g) => g.toppings).some((t) => t.name === "Test inactiv")).toBe(false);
+    } finally {
+      await db.delete(toppings).where(inArray(toppings.id, inserted.map(({ id }) => id)));
+      await db.delete(toppingGroups).where(eq(toppingGroups.id, group.id));
+    }
   });
 
   it("matches the GET /api/menu contract (06-contracts/api.md)", async () => {
