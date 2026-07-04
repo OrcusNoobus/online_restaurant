@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Feature List",
+  "description": "Machine-readable source of truth for feature state. Each feature is a (behavior, verification, status) triple: what it does, how to prove it, and where it stands. Agents read and update this file; the human approves the list itself. At most ONE feature may be 'in-progress' at a time (WIP=1).",
+  "type": "object",
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique feature identifier",
+            "pattern": "^feat-\\d{3}$"
+          },
+          "name": {
+            "type": "string",
+            "description": "Short feature name"
+          },
+          "behavior": {
+            "type": "string",
+            "description": "The observable behavior in product terms — what a user or client can do when this feature works. Scope each feature so it is completable in one session."
+          },
+          "verification": {
+            "type": "string",
+            "description": "Executable command (or precise manual check) that proves the behavior. A feature without a verification command cannot be marked done."
+          },
+          "dependencies": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^feat-\\d{3}$" },
+            "description": "Feature IDs that must be done before this one starts"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["not-started", "in-progress", "blocked", "done"],
+            "description": "Current state. 'done' means the verification command passed — nothing less. The transition to 'done' happens only after running the verification."
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Proof recorded when status becomes 'done': commit hash, test output summary, or verification transcript. Empty until then."
+          },
+          "spec": {
+            "type": "string",
+            "description": "Optional path to this feature's spec folder, e.g. 'harness/specs/001-personal-tasks/'"
+          }
+        },
+        "required": ["id", "name", "behavior", "verification", "status"]
+      }
+    }
+  },
+  "required": ["features"]
+}

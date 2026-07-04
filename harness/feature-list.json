@@ -1,0 +1,56 @@
+{
+  "$schema": "./feature-list.schema.json",
+  "project": "Royal Food Delivery",
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "Project setup",
+      "behavior": "The project installs, verifies, and starts from a clean checkout; harness/docs/ARCHITECTURE.md and this feature list exist and are committed",
+      "verification": "./init.sh",
+      "dependencies": [],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-002",
+      "name": "Meniu produse (catalog)",
+      "behavior": "Un client deschide site-ul pe telefon și vede categoriile și produsele cu prețuri, mărimi (pizza 30/40/XXL) și descrieri, încărcate din PostgreSQL — cu meniul real importat (seed) de pe site-ul Metro dish existent",
+      "verification": "npm test -- tests/menu",
+      "dependencies": ["feat-001"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": "harness/specs/001-meniu-catalog/"
+    },
+    {
+      "id": "feat-003",
+      "name": "Verification coverage",
+      "behavior": "The active feature has unit, integration, and end-to-end verification wired into ./init.sh and 08-quickstart.md",
+      "verification": "./init.sh",
+      "dependencies": ["feat-002"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-004",
+      "name": "Documentation update",
+      "behavior": "README, harness/docs/ARCHITECTURE.md, harness/docs/DECISIONS.md, and contracts affected by the implemented feature are current",
+      "verification": "Manual review against the promotion rules in specs/*/09-debug.md",
+      "dependencies": ["feat-003"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-005",
+      "name": "Cleanup and handoff",
+      "behavior": "Evidence recorded, PROGRESS.md and SESSION-HANDOFF.md current, repo restartable via ./init.sh",
+      "verification": "./init.sh",
+      "dependencies": ["feat-004"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: royal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: royal
+      POSTGRES_PASSWORD: royal_dev
+      POSTGRES_DB: royal
+    ports:
+      # 5433 on the host to avoid clashing with a locally installed Postgres
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U royal -d royal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:
