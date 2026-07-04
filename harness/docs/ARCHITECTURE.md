@@ -41,6 +41,14 @@ else is forbidden.
 - All data crossing a system boundary (API bodies, form input, URL params)
   MUST be validated with zod at that boundary.
   - WHY: internal code can then trust its inputs; no defensive re-validation everywhere.
+- Business operations (menu queries, cart pricing, order placement/status)
+  MUST live in `src/server/services` (or repositories for pure reads) and MUST
+  NOT be implemented inside pages, components, or route handlers. Route
+  handlers validate, call a service, and shape the response — nothing more.
+  - WHY: the web shop is only the first channel. The planned LLM chat
+    assistant and WhatsApp/Telegram channels (see DECISIONS.md 2026-07-04)
+    must call the same operations; logic trapped in the UI would force a
+    rewrite per channel.
 
 ## Boundary Checks (executable)
 

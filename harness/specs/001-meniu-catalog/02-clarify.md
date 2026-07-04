@@ -30,26 +30,40 @@ seed. Confirmat de proprietar la interviul din 2026-07-04.
 "Pizza 40cm" și "Pizza XXL" sunt categorii separate; la noi o pizza e UN produs
 cu 3 variante de mărime, fiecare cu prețul ei. Decis la interviu (2026-07-04).
 
+### Q3: Fotografii — proprii sau placeholder?
+
+**Answer:** Placeholder-e elegante în faza asta; fotografii proprii mai târziu.
+Pozele de pe site-ul vechi NU se copiază (posibile drepturi ale platformei).
+Răspuns de proprietar, 2026-07-04.
+
+### Q4: Cum apare un produs temporar indisponibil?
+
+**Answer:** Rămâne vizibil, gri, cu eticheta "indisponibil" — nu dispare din
+meniu. Răspuns de proprietar, 2026-07-04.
+
+### Q5: Prețul topping-urilor pe mărimi
+
+**Answer:** Diferă — fiecare mărime de pizza are propriul preț pentru același
+topping (ex: mozzarella extra costă altfel la 30cm decât la XXL). Modelul de
+date primește prețuri de topping per mărime — actualizat în `05-data-model.md`
+în aceeași sesiune. Răspuns de proprietar, 2026-07-04.
+
+### Q6: Ordinea categoriilor
+
+**Answer:** Se păstrează ordinea de pe site-ul vechi (Pizza primele).
+Răspuns de proprietar, 2026-07-04.
+
 ## Open Questions
 
-- **Q3 — Fotografii:** Aveți fotografii proprii pentru produse, sau lansăm cu
-  placeholder-e elegante până faceți poze? (Pozele de pe site-ul vechi ar putea
-  avea drepturi de autor ale platformei — de verificat înainte să le refolosim.)
-- **Q4 — Produse indisponibile:** Un produs temporar indisponibil (ex: s-a
-  terminat un ingredient) dispare complet din meniu sau apare cu eticheta
-  "indisponibil"? (Propunere: apare gri cu eticheta — clientul nu crede că
-  meniul e alt meniu.)
-- **Q5 — Prețul topping-urilor:** Un topping extra costă la fel la toate
-  mărimile de pizza, sau diferă (ex: mozzarella extra la 30cm vs XXL)? Pe
-  site-ul vechi cum e configurat?
-- **Q6 — Ordinea categoriilor:** Păstrăm ordinea de pe site-ul vechi (Pizza
-  primele) sau vreți altă ordine?
-
-(Feature-ul rămâne `not-started`; devine `blocked` doar dacă întrebările sunt
-încă deschise când începe implementarea. Q3–Q6 nu blochează modelul de date —
-blochează doar detalii de afișare și seed.)
+(none — toate întrebările sunt rezolvate; feature-ul poate începe)
 
 ## Notes For Future Changes
 
-- Răspunsurile despre topping-uri (Q5) devin critice la feature-ul de coș —
-  acolo se calculează prețul final. De răspuns înainte de a începe coșul.
+- Q5 (prețuri topping per mărime) devine operațională la feature-ul de coș —
+  acolo se calculează prețul final al unei pizza cu topping-uri. Modelul de
+  date e pregătit de pe acum (`topping_prices` per mărime).
+- Direcția "canale conversaționale" (chat LLM pe site, WhatsApp/Telegram),
+  anunțată de proprietar pe 2026-07-04, e consemnată în
+  `harness/docs/DECISIONS.md` și în roadmap (feat-008/009). Nu afectează acest
+  feature dincolo de regula: datele de meniu se expun prin repository/API, nu
+  se leagă de UI.

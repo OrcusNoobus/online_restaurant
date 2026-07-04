@@ -29,6 +29,13 @@
 
 ## Decisions
 
+## [2026-07-04]: Channel-agnostic ordering core (conversational commerce ready)
+- Decision: Every business capability (menu queries, cart pricing, order placement, order status) is implemented in the services layer and exposed through the API — never inside web UI components. The web shop is just the FIRST consumer; an on-site LLM chat assistant that can answer questions and place orders on the customer's behalf, and external channels (WhatsApp, Telegram), are planned consumers of the SAME services (roadmap: feat-008, feat-009).
+- Reason: The owner wants conversational ordering as a first-class channel. If ordering logic is baked into the web UI, every new channel means a rewrite; behind a service/API boundary, a new channel is just a new adapter. LLM tool-calling also needs exactly this: clean, well-described, validated service endpoints.
+- Rejected alternatives: Build web-first and extract services later (extraction is always more expensive than starting clean); separate backend per channel (duplicated business rules, prices drifting apart between channels).
+- Constraints created: `src/server/services` is the single entry point for business operations; API contracts (06-contracts/) are written as if a non-browser client will call them — because one will. The backend runs as a persistent server (already true: VPS + Docker, no serverless).
+- Supersedes / superseded by: —
+
 ## [2026-07-04]: Money is integer bani everywhere
 - Decision: All prices, totals, and discounts are safe integers in bani (1 leu = 100 bani), formatted only at the display edge via `src/lib/money.ts`.
 - Reason: Floating-point arithmetic corrupts money totals; an order system cannot round wrong.

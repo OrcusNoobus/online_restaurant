@@ -74,8 +74,27 @@ pizza"). Modeled and seeded now; UI selection arrives with the cart feature.
 | `id` | serial | yes | auto | |
 | `groupId` | integer FK → ToppingGroup | yes | — | on delete: cascade |
 | `name` | text | yes | — | "Mozzarella extra" |
-| `priceBani` | integer | yes | — | >= 0; flat per topping in v1 (02-clarify.md Q5 open) |
 | `active` | boolean | yes | true | |
+
+Prices do NOT live here — a topping's price depends on the product size
+(02-clarify.md Q5, resolved 2026-07-04): mozzarella extra costs differently on
+a 30cm pizza than on an XXL.
+
+## Entity: ToppingPrice
+
+The price of one topping for one size label.
+
+### Fields
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `id` | serial | yes | auto | |
+| `toppingId` | integer FK → Topping | yes | — | on delete: cascade |
+| `sizeName` | text | no | null | matches `ProductVariant.name` ("30 cm", "40 cm", "60x40 cm"); null = the product's single/default variant |
+| `priceBani` | integer | yes | — | >= 0; integer bani |
+
+Unique on (`toppingId`, `sizeName`). The cart feature resolves a topping's
+price by the chosen variant's `name`.
 
 ## Entity: ProductToppingGroup (join)
 
@@ -91,8 +110,9 @@ pizza"). Modeled and seeded now; UI selection arrives with the cart feature.
 ### Validation Rules
 
 - `slug` values are unique per table, lowercase, `[a-z0-9-]+`.
-- `priceBani` is a positive safe integer (toppings: non-negative).
+- `priceBani` is a positive safe integer (topping prices: non-negative).
 - A `Product` MUST have >= 1 `ProductVariant` (enforced by seed + repository test).
+- `ToppingPrice` is unique per (`toppingId`, `sizeName`).
 
 ### Lifecycle
 

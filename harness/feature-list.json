@@ -51,6 +51,46 @@
       "status": "not-started",
       "evidence": "",
       "spec": ""
+    },
+    {
+      "id": "feat-006",
+      "name": "Coș și plasare comandă",
+      "behavior": "Un client alege produse (cu mărime și topping-uri), vede coșul cu totalul calculat pe server, completează datele de livrare și plasează o comandă cu plata la livrare; comanda apare în baza de date. Ordering-ul se implementează ca serviciu, apelabil de orice canal (DECISIONS.md 2026-07-04)",
+      "verification": "(defined at spec time) integration tests: add-to-cart pricing per size+toppings, order placement happy path + validation failures",
+      "dependencies": ["feat-002"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "Panou admin: produse și comenzi",
+      "behavior": "Personalul restaurantului se autentifică, vede comenzile noi în timp real, le schimbă starea (preluată/în livrare/finalizată) și editează produse, prețuri și disponibilitate",
+      "verification": "(defined at spec time) integration tests + manual quickstart flow",
+      "dependencies": ["feat-006"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-008",
+      "name": "Asistent AI pe site (chat)",
+      "behavior": "Un client deschide chat-ul de pe site, întreabă în limbaj natural despre meniu (ex: 'ce pizza picantă aveți?') și poate plasa o comandă prin conversație; asistentul folosește EXCLUSIV serviciile existente (meniu, coș, comenzi) prin tool-calling. Probabil se sparge în sub-feature-uri la spec time",
+      "verification": "(defined at spec time) scripted conversation flows: menu Q&A + end-to-end order placed via chat",
+      "dependencies": ["feat-006"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
+    },
+    {
+      "id": "feat-009",
+      "name": "Canale externe: WhatsApp / Telegram",
+      "behavior": "Un client scrie restaurantului pe WhatsApp sau Telegram și primește același asistent conversațional (meniu, întrebări, plasare comandă) — adaptoare noi peste același nucleu de servicii, fără logică duplicată",
+      "verification": "(defined at spec time) adapter integration tests + manual conversation on each channel",
+      "dependencies": ["feat-008"],
+      "status": "not-started",
+      "evidence": "",
+      "spec": ""
     }
   ]
 }
