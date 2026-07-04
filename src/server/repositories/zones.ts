@@ -28,3 +28,19 @@ export async function getActiveZones(): Promise<DeliveryZoneRow[]> {
     .where(eq(deliveryZones.active, true))
     .orderBy(asc(deliveryZones.sortOrder), asc(deliveryZones.id));
 }
+
+/** Includes inactive zones — pricing tells "inactive" apart from "unknown". */
+export async function getZoneBySlug(slug: string): Promise<(DeliveryZoneRow & { active: boolean }) | null> {
+  const rows = await db
+    .select({
+      id: deliveryZones.id,
+      slug: deliveryZones.slug,
+      name: deliveryZones.name,
+      feeBani: deliveryZones.feeBani,
+      freeFromBani: deliveryZones.freeFromBani,
+      active: deliveryZones.active,
+    })
+    .from(deliveryZones)
+    .where(eq(deliveryZones.slug, slug));
+  return rows[0] ?? null;
+}

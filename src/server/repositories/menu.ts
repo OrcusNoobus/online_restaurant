@@ -4,7 +4,7 @@
  * >= 1 variant; products carry their topping groups for the options UI
  * (preview prices only — the cart quote is authoritative).
  */
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "../db/client";
 import {
@@ -58,6 +58,134 @@ export interface MenuCategory {
   slug: string;
   name: string;
   products: MenuProduct[];
+}
+
+/** Everything the pricing service needs to validate + price one product. */
+export interface CatalogTopping {
+  id: number;
+  name: string;
+  active: boolean;
+  sgrDepositBani: number;
+  /** priceBani by ProductVariant.name (null = single/default variant). */
+  prices: MenuToppingPrice[];
+}
+
+export interface CatalogGroup {
+  id: number;
+  name: string;
+  required: boolean;
+  toppings: CatalogTopping[];
+}
+
+export interface CatalogVariant {
+  id: number;
+  name: string | null;
+  priceBani: number;
+}
+
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  active: boolean;
+  variants: CatalogVariant[];
+  groups: CatalogGroup[];
+}
+
+/**
+ * Catalog rows for the given product ids, INCLUDING inactive products and
+ * toppings — the pricing service tells "inactive" apart from "not allowed"
+ * (002 06-contracts reason codes). Missing ids are simply absent from the map.
+ */
+export async function getCatalogForProducts(productIds: number[]): Promise<Map<number, CatalogProduct>> {
+  if (productIds.length === 0) return new Map();
+
+  const productRows = await db
+    .select({ id: products.id, name: products.name, active: products.active })
+    .from(products)
+    .where(inArray(products.id, productIds));
+
+  const variantRows = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      priceBani: productVariants.priceBani,
+    })
+    .from(productVariants)
+    .where(inArray(productVariants.productId, productIds));
+
+  const linkRows = await db
+    .select({ productId: productToppingGroups.productId, groupId: productToppingGroups.groupId })
+    .from(productToppingGroups)
+    .where(inArray(productToppingGroups.productId, productIds));
+  const groupIds = [...new Set(linkRows.map(({ groupId }) => groupId))];
+
+  const groupRows = groupIds.length
+    ? await db
+        .select({
+          id: toppingGroups.id,
+          name: toppingGroups.name,
+          required: toppingGroups.required,
+        })
+        .from(toppingGroups)
+        .where(inArray(toppingGroups.id, groupIds))
+        .orderBy(asc(toppingGroups.sortOrder), asc(toppingGroups.id))
+    : [];
+
+  const toppingRows = groupIds.length
+    ? await db
+        .select({
+          id: toppings.id,
+          groupId: toppings.groupId,
+          name: toppings.name,
+          active: toppings.active,
+          sgrDepositBani: toppings.sgrDepositBani,
+        })
+        .from(toppings)
+        .where(inArray(toppings.groupId, groupIds))
+        .orderBy(asc(toppings.id))
+    : [];
+  const toppingIds = toppingRows.map(({ id }) => id);
+
+  const priceRows = toppingIds.length
+    ? await db
+        .select({
+          toppingId: toppingPrices.toppingId,
+          sizeName: toppingPrices.sizeName,
+          priceBani: toppingPrices.priceBani,
+        })
+        .from(toppingPrices)
+        .where(inArray(toppingPrices.toppingId, toppingIds))
+    : [];
+
+  const pricesByTopping = new Map<number, MenuToppingPrice[]>();
+  for (const { toppingId, ...price } of priceRows) {
+    const list = pricesByTopping.get(toppingId) ?? [];
+    list.push(price);
+    pricesByTopping.set(toppingId, list);
+  }
+
+  const toppingsByGroup = new Map<number, CatalogTopping[]>();
+  for (const { groupId, ...topping } of toppingRows) {
+    const list = toppingsByGroup.get(groupId) ?? [];
+    list.push({ ...topping, prices: pricesByTopping.get(topping.id) ?? [] });
+    toppingsByGroup.set(groupId, list);
+  }
+
+  const groupsById = new Map<number, CatalogGroup>(
+    groupRows.map((group) => [group.id, { ...group, toppings: toppingsByGroup.get(group.id) ?? [] }]),
+  );
+
+  const catalog = new Map<number, CatalogProduct>(
+    productRows.map((product) => [product.id, { ...product, variants: [], groups: [] }]),
+  );
+  for (const { productId, ...variant } of variantRows) catalog.get(productId)?.variants.push(variant);
+  for (const { productId, groupId } of linkRows) {
+    const group = groupsById.get(groupId);
+    if (group) catalog.get(productId)?.groups.push(group);
+  }
+
+  return catalog;
 }
 
 export async function getMenu(): Promise<MenuCategory[]> {

@@ -52,11 +52,15 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       active toppings, per-size prices); empty groups omitted (rule added to
       contract); tests cover Ambalaj radio/required, SGR deposit 50 + zeroed
       prices, inactive-topping hiding; 28/28 tests.
-- [ ] T05 — Pricing service: `src/lib/order-schemas.ts` (zod, shared),
+- [x] T05 — Pricing service: `src/lib/order-schemas.ts` (zod, shared),
       `services/pricing.ts` `quoteCart()` + `POST /api/cart/quote`;
       integration tests: per-size topping price, required groups, SGR sum,
       zone fee below/at threshold on ≥ 2 zones, pickup = no fee, every 422
       reason code (source: 01-spec FR1–FR3, 06-contracts)
+      — done 2026-07-04: getCatalogForProducts() repository read; 10 new
+      integration tests incl. threshold edge (=freeFrom → free) and
+      inactive-vs-not-allowed distinction; contract gained
+      topping_price_missing + shape caps; 38/38 tests.
 - [ ] T06 — Order tables (orders, order_items, order_item_options + enums +
       CHECKs) + migration + `repositories/orders.ts` transactional insert
       (source: 05-data-model)
