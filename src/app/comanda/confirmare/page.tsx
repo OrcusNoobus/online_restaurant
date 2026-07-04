@@ -10,7 +10,7 @@ import { useSyncExternalStore } from "react";
 
 import { formatBani } from "@/lib/money";
 import type { PlacedOrderView } from "@/lib/quote-types";
-import { RESTAURANT_ADDRESS } from "@/lib/restaurant-config";
+import { RESTAURANT_ADDRESS, RESTAURANT_PHONE } from "@/lib/restaurant-config";
 
 const noop = () => () => {};
 
@@ -66,7 +66,7 @@ export default function ConfirmationPage() {
 
             <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
               Plata se face la {order.mode === "delivery" ? "livrare" : "restaurant"}. Păstrează numărul comenzii:{" "}
-              <strong>{order.orderNumber}</strong>.
+              <strong>{order.orderNumber}</strong>. Întrebări? Sună-ne: {RESTAURANT_PHONE}.
             </p>
           </>
         ) : (
