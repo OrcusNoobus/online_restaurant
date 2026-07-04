@@ -49,6 +49,9 @@ are unchanged; feat-002 consumers keep working.
 
 - Only `active` toppings appear; `prices` resolve by the chosen variant's
   `name` (`sizeName: null` = the single/default variant).
+- A group whose toppings are ALL inactive is omitted entirely — a required
+  group the customer cannot satisfy must never render; the pricing service
+  applies the same rule when enforcing required groups.
 - The UI uses these prices for PREVIEW only; the authoritative numbers come
   from `/api/cart/quote`.
 
