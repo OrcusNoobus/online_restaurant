@@ -1,0 +1,11 @@
+{
+  "note": "Delivery zones per 002-cos-comanda/02-clarify.md Q8 (owner, 2026-07-04). Money in integer bani. feeBani is charged only while (subtotal + SGR) < freeFromBani; at or above, delivery is free. The owner may hand-edit values; re-seed applies them.",
+  "zones": [
+    { "slug": "santana-de-mures", "name": "Sântana de Mureș", "feeBani": 2000, "freeFromBani": 4000 },
+    { "slug": "targu-mures", "name": "Târgu Mureș", "feeBani": 2000, "freeFromBani": 4000 },
+    { "slug": "sancraiu-de-mures", "name": "Sâncraiu de Mureș", "feeBani": 3000, "freeFromBani": 5000 },
+    { "slug": "sangeorgiu-de-mures", "name": "Sângeorgiu de Mureș", "feeBani": 4000, "freeFromBani": 20000 },
+    { "slug": "livezeni", "name": "Livezeni", "feeBani": 4000, "freeFromBani": 18000 },
+    { "slug": "corunca", "name": "Corunca", "feeBani": 3000, "freeFromBani": 9000 }
+  ]
+}
