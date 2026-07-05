@@ -38,8 +38,8 @@
       "behavior": "Personalul restaurantului se autentifică (roluri admin/angajat), vede comenzile noi în timp real cu semnal sonor până la preluare, le duce prin stări (preluată / în livrare / gata de ridicare / finalizată / anulată cu motiv, cu undo), reglează estimarea per comandă la preluare și administrează meniul (disponibilitate — și angajat; prețuri, produse/categorii noi, ingrediente/alergeni — admin), zonele de livrare și orarul (admin); seed-ul nu mai suprascrie modificările din panou",
       "verification": "npm test -- tests/admin",
       "dependencies": ["feat-006"],
-      "status": "in-progress",
-      "evidence": "",
+      "status": "done",
+      "evidence": "commits d0732be..063f629 + T15 on feat/007-panou-admin (T01 schema 0004, T02-T03 auth+shell, T04-T05 status graph+order services, T06 DB settings, T07-T10 catalog/zones admin API, T11 seed guard, T12-T14 UI); npm test -- tests/admin: 46/46 passing 2026-07-05 (auth+sessions+rate limit, Q14 role matrix both directions, transitions+estimate+cancel+undo, two-devices race 409, catalog edits vs menu/quotes, zones, settings, seed guard both directions with real seed runs); full suite 112/112, ./init.sh green; 08-quickstart.md flows 1-9 executed live in browser 2026-07-05 (orders #275 pickup and #276 delivery through full lifecycle incl. cancel+undo, race order #325, price/text/availability edits reflected in shop, new product ordered end-to-end, zone fee change in next quote, schedule edit live in GET /api/schedule, staff vs admin walk); remaining human check: hear the actual alert tone on the restaurant device",
       "spec": "harness/specs/003-panou-admin/"
     },
     {
