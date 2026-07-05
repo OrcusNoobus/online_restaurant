@@ -122,7 +122,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 - [x] T14 — Zones + settings UI (admin-only pages): `/admin/zone` (list,
       edit fee/threshold, add, deactivate), `/admin/setari` (schedule +
       estimates form with validation) (source: spec in-scope, Q9/Q10).
-- [ ] T15 — Write `08-quickstart.md` and execute it: place order → hear/see
+- [x] T15 — Write `08-quickstart.md` and execute it: place order → hear/see
       alert → accept with adjusted estimate → walk both mode flows to
       completed; cancel with reason + undo; two-device race sanity check;
       staff vs admin permission walk; price/availability edit reflected in
