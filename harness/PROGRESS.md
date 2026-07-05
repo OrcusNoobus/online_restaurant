@@ -6,19 +6,20 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-05 (feat-008 T03 done)
+- **Last updated:** 2026-07-05 (feat-008 T04 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
   complete and approved; implementation in progress. T01 (LLM module) DONE
   @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
-  T03 (assistant service core + read tools + fake provider) DONE, all on
-  branch `claude/distracted-jang-33b090` (worktree). feat-007 remains DONE
-  on `feat/007-panou-admin` @ 19c6d45, still NOT merged into main — merge
+  T03 (assistant service core + read tools + fake provider) DONE
+  @ 259678a; T04 (cart bridge + update_cart) DONE, all on branch
+  `claude/distracted-jang-33b090` (worktree). feat-007 remains DONE on
+  `feat/007-panou-admin` @ 19c6d45, still NOT merged into main — merge
   + push stays the human's call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
   migrate incl. 0005, lint, typecheck, boundary checks, build); full test
-  suite 133/133 incl. tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03
-  integration on real Postgres with the scripted fake provider); feature
-  verification `npm test -- tests/assistant` passing 21/21.
+  suite 138/138 incl. tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03
+  + 5 T04 integration on real Postgres with the scripted fake provider);
+  feature verification `npm test -- tests/assistant` passing 26/26.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -48,19 +49,22 @@
 
 - feat-008 Asistent AI — T01 done (LLM module); T02 done (migration 0005 +
   `repositories/assistant.ts`); T03 done (`services/assistant.ts`: bounded
-  tool loop max 6 rounds with full-transcript persistence + usage, stable
-  system prompt Q3/Q5/Q6/Q7/Q12 + guardrails, read tools `get_menu` /
-  `get_delivery_zones` / `get_schedule` off real repositories,
-  unknown-conversation → fresh, history cap 30 with user-boundary trim;
-  `tests/helpers/fake-llm.ts`; 6 integration tests). Next task: T04
-  (cart bridge + `update_cart` tool).
+  tool loop, system prompt, read tools, fake provider); T04 done (cart
+  bridge: request carries the site cart, `update_cart` tool zod-validates
+  with `quoteRequestSchema` and prices via `quoteCart`, QuoteResult goes
+  to the model VERBATIM, working copy commits only on a priced cart,
+  response returns final cart + `QuoteView` (zone stripped, same as the
+  quote route); 5 integration tests). Next task: T05 (`place_order` tool
+  + confirmation flow).
 
 ## Next Steps
 
-1. feat-008 T04 — cart bridge: working-copy cart from the request,
-   `update_cart` tool priced via `quoteCart` returning `QuoteResult`
-   verbatim; response carries final cart + `quote`; tests per 07-tasks.
-2. Then T05–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T05 — `place_order` tool: full `OrderRequest` through
+   `placeOrder` (IP context, same 422 codes), `placedOrder` in the
+   response; tests: scripted happy path lands a DB order identical to a
+   web order, no-confirmation scenario places NOTHING, failure reasons
+   round-trip (source: spec FR3/FR4; Q5).
+2. Then T06–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -93,6 +97,13 @@
   last 30 rows, then trims to a user-message boundary so a sliced tool
   round can never reach the wire. Zones tool exposes `freeOverBani`
   (008 contract name) mapped from the repo's `freeFromBani`.
+- T04 implementation-level: a failed quote (`ok:false` reasons) is a
+  NORMAL tool result the model reads and corrects — `isError` is reserved
+  for malformed tool input (zod issues) and unknown tool names. The
+  working cart commits ONLY on a successful quote: the response cart is
+  written verbatim into the site store, which must never hold an
+  unpriceable cart. `update_cart` input is validated with the existing
+  `quoteRequestSchema` — the tool's JSON Schema mirrors it for the model.
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -106,12 +117,13 @@
 - src/server/db/schema.ts (+assistant tables/enum) +
   migrations/0005_feat008_assistant.sql + meta (T02)
 - src/server/repositories/assistant.ts (new — T02)
-- src/server/services/assistant.ts (new — T03)
+- src/server/services/assistant.ts (new T03; T04 adds the cart bridge +
+  update_cart)
 - tests/helpers/fake-llm.ts (new — T03)
-- tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03 integration)
+- tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03 + 5 T04 integration)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01–T03 ticked), harness/PROGRESS.md
+- harness/specs/004-asistent-ai/07-tasks.md (T01–T04 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
