@@ -108,7 +108,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       protected section, the other section still seeds, SEED_FORCE
       restores; test cleanup resets flags
       (source: 03-research D7, spec FR10; review point 8).
-- [ ] T12 — Admin orders UI: `/admin` day view — 5s polling, new-order
+- [x] T12 — Admin orders UI: `/admin` day view — 5s polling, new-order
       highlight + repeating Web Audio tone with visible sound state, status
       filters, day browser, totals bar; detail panel with valid-action
       buttons from the graph, accept-with-estimate input, cancel dialog
