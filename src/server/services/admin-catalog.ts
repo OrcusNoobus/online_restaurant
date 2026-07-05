@@ -23,9 +23,33 @@ import {
   type ToppingPatch,
   type VariantPatch,
 } from "@/server/repositories/catalog-admin";
+import {
+  type AdminZoneRow,
+  createZone,
+  type CreateZoneResult,
+  listAllZones,
+  type NewZoneInput,
+  patchZone,
+  type ZonePatch,
+} from "@/server/repositories/zones";
 
 export async function getCatalog(): Promise<AdminCatalog> {
   return getAdminCatalog();
+}
+
+// --- Zones (admin only; deactivate, never delete — RESTRICT FKs) -------------
+
+export async function getZones(): Promise<AdminZoneRow[]> {
+  return listAllZones();
+}
+
+export async function addZone(input: NewZoneInput): Promise<CreateZoneResult> {
+  return createZone(input);
+}
+
+export async function updateZone(id: number, patch: ZonePatch): Promise<PatchResult<AdminZoneRow>> {
+  const row = await patchZone(id, patch);
+  return row ? { ok: true, entity: row } : { ok: false, error: "not_found" };
 }
 
 export async function addCategory(input: NewCategoryInput): Promise<CreateCategoryResult> {

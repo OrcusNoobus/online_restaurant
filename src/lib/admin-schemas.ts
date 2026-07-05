@@ -152,6 +152,27 @@ export const adminToppingPatchSchema = z
   .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
 export type AdminToppingPatch = z.infer<typeof adminToppingPatchSchema>;
 
+// --- Zones (003 06-contracts Zones — admin only) -----------------------------
+
+export const zoneCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  feeBani: z.number().int().min(0),
+  freeFromBani: z.number().int().min(0),
+  sortOrder: z.number().int().optional(),
+});
+export type ZoneCreate = z.infer<typeof zoneCreateSchema>;
+
+export const zonePatchSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
+    feeBani: z.number().int().min(0).optional(),
+    freeFromBani: z.number().int().min(0).optional(),
+    sortOrder: z.number().int().optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+export type ZonePatchBody = z.infer<typeof zonePatchSchema>;
+
 // --- Settings (003 06-contracts Settings; CHECK rules from 05-data-model) ---
 
 export const settingsUpdateSchema = z
