@@ -95,7 +95,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       ingredients, allergens) appears in `GET /api/menu` and is orderable
       end-to-end via quote + place; duplicate name → `name_taken`
       (source: 06-contracts Catalog, spec FR7).
-- [ ] T10 — Zones admin: `GET/POST /api/admin/zones`, `PATCH
+- [x] T10 — Zones admin: `GET/POST /api/admin/zones`, `PATCH
       /api/admin/zones/:id` (admin only); integration tests: fee/threshold
       edit changes the next quote, new zone selectable at checkout
       (public `GET /api/zones`), deactivated zone disappears from public

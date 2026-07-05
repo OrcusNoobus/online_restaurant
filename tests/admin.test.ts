@@ -24,7 +24,10 @@ import { PATCH as patchProductRoute } from "@/app/api/admin/products/[id]/route"
 import { GET as getAdminSettingsRoute, PUT as putAdminSettingsRoute } from "@/app/api/admin/settings/route";
 import { PATCH as patchToppingRoute } from "@/app/api/admin/toppings/[id]/route";
 import { PATCH as patchVariantRoute } from "@/app/api/admin/variants/[id]/route";
+import { GET as getAdminZonesRoute, POST as postZoneRoute } from "@/app/api/admin/zones/route";
+import { PATCH as patchZoneRoute } from "@/app/api/admin/zones/[id]/route";
 import { GET as getMenuRoute } from "@/app/api/menu/route";
+import { GET as getZonesRoute } from "@/app/api/zones/route";
 import { GET as getScheduleRoute } from "@/app/api/schedule/route";
 import { orderRequestSchema } from "@/lib/order-schemas";
 import type { ScheduleConfig } from "@/lib/restaurant-config";
@@ -1147,6 +1150,102 @@ describe.skipIf(skipDb)("create product + category (T09)", () => {
       jsonPost(adminToken, { categoryId: category.id, name: "Test T09 Fără Variante", variants: [] }),
     );
     expect(noVariants.status).toBe(400);
+  });
+});
+
+describe.skipIf(skipDb)("zones admin (T10)", () => {
+  let adminToken: string;
+  let staffToken: string;
+
+  function jsonRequest(method: string, token: string, body: unknown): Request {
+    return new Request("http://localhost/x", {
+      method,
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeAll(async () => {
+    await db.delete(deliveryZones).where(like(deliveryZones.name, "Test T10%"));
+    resetLoginRateLimiter();
+    const staffLogin = await login("test-staff", PASSWORD, "10.0.7.1");
+    const adminLogin = await login("test-admin", PASSWORD, "10.0.7.1");
+    if (!staffLogin.ok || !adminLogin.ok) throw new Error("fixture login failed");
+    staffToken = staffLogin.token;
+    adminToken = adminLogin.token;
+  });
+
+  afterAll(async () => {
+    if (staffToken) await logout(staffToken);
+    if (adminToken) await logout(adminToken);
+    await db.delete(deliveryZones).where(like(deliveryZones.name, "Test T10%"));
+  });
+
+  it("zones surface is admin-only (staff → 403 on list, create, patch)", async () => {
+    expect((await getAdminZonesRoute(requestWithCookie(staffToken))).status).toBe(403);
+    expect(
+      (await postZoneRoute(jsonRequest("POST", staffToken, { name: "Test T10 X", feeBani: 1, freeFromBani: 1 }))).status,
+    ).toBe(403);
+    expect((await patchZoneRoute(jsonRequest("PATCH", staffToken, { feeBani: 1 }), ctxFor(1))).status).toBe(403);
+  });
+
+  it("create → checkout-visible; fee edit hits the next quote; deactivation hides it from public only", async () => {
+    const created = await postZoneRoute(
+      jsonRequest("POST", adminToken, { name: "Test T10 Zonă Nouă", feeBani: 400, freeFromBani: 100_000, sortOrder: 900 }),
+    );
+    expect(created.status).toBe(201);
+    const { zone } = (await created.json()) as { zone: { id: number; slug: string } };
+    expect(zone.slug).toBe("test-t10-zona-noua");
+
+    // selectable at checkout: the public zones route lists it
+    const publicZones = await getZonesRoute();
+    const publicBody = (await publicZones.json()) as { zones: { slug: string }[] };
+    expect(publicBody.zones.some(({ slug }) => slug === zone.slug)).toBe(true);
+
+    // the fee lands on a delivery quote (any seeded product, threshold far away)
+    const [variant] = await db
+      .select({ id: productVariants.id, productId: productVariants.productId })
+      .from(productVariants)
+      .where(eq(productVariants.active, true))
+      .limit(1);
+    // required groups would block a bare item — select one topping per required group
+    const catalog = await getCatalogForProducts([variant.productId]);
+    const entry = catalog.get(variant.productId)!;
+    const toppingIds = entry.groups
+      .filter((group) => group.required && group.toppings.some(({ active }) => active))
+      .map((group) => group.toppings.find(({ active }) => active)!.id);
+    const items = [{ productId: variant.productId, variantId: variant.id, quantity: 1, toppingIds }];
+
+    const quoted = await quoteCart({ mode: "delivery", zoneSlug: zone.slug, items });
+    expect(quoted.ok).toBe(true);
+    if (quoted.ok) expect(quoted.quote.deliveryFeeBani).toBe(400);
+
+    const patched = await patchZoneRoute(jsonRequest("PATCH", adminToken, { feeBani: 700 }), ctxFor(zone.id));
+    expect(patched.status).toBe(200);
+    const requoted = await quoteCart({ mode: "delivery", zoneSlug: zone.slug, items });
+    expect(requoted.ok).toBe(true);
+    if (requoted.ok) expect(requoted.quote.deliveryFeeBani).toBe(700);
+
+    // deactivate: public list drops it, quote refuses it, the admin list keeps it
+    const deactivated = await patchZoneRoute(jsonRequest("PATCH", adminToken, { active: false }), ctxFor(zone.id));
+    expect(deactivated.status).toBe(200);
+    const publicAfter = (await (await getZonesRoute()).json()) as { zones: { slug: string }[] };
+    expect(publicAfter.zones.some(({ slug }) => slug === zone.slug)).toBe(false);
+
+    const refused = await quoteCart({ mode: "delivery", zoneSlug: zone.slug, items });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.reasons.map(({ code }) => code)).toContain("zone_inactive");
+
+    const adminList = await getAdminZonesRoute(requestWithCookie(adminToken));
+    const adminBody = (await adminList.json()) as { zones: { slug: string; active: boolean }[] };
+    expect(adminBody.zones.find(({ slug }) => slug === zone.slug)).toMatchObject({ active: false });
+
+    // duplicate name → 422
+    const duplicate = await postZoneRoute(
+      jsonRequest("POST", adminToken, { name: "test t10 zonă nouă", feeBani: 1, freeFromBani: 1 }),
+    );
+    expect(duplicate.status).toBe(422);
+    expect(await duplicate.json()).toEqual({ error: "name_taken" });
   });
 });
 
