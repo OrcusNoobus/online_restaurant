@@ -26,6 +26,7 @@ import {
   products,
   productToppingGroups,
   productVariants,
+  restaurantSettings,
   toppingGroups,
   toppingPrices,
   toppings,
@@ -133,22 +134,66 @@ async function main(): Promise<void> {
 
   const counts = { categories: 0, products: 0, variants: 0, groups: 0, toppings: 0, prices: 0, links: 0, zones: 0 };
 
+  // Seed-ownership guard (003 research D7): once an admin edits a domain in
+  // the panel, the DB owns it and the seed must not overwrite that section.
+  // SEED_FORCE=1 is the deliberate human override — it resets the flags too.
+  if (process.env.SEED_FORCE === "1") {
+    await db
+      .update(restaurantSettings)
+      .set({ catalogProtectedSince: null, zonesProtectedSince: null })
+      .where(eq(restaurantSettings.id, 1));
+    console.log("SEED_FORCE=1: ownership flags reset — seeding every section.");
+  }
+  const flagRows = await db
+    .select({
+      catalogProtectedSince: restaurantSettings.catalogProtectedSince,
+      zonesProtectedSince: restaurantSettings.zonesProtectedSince,
+    })
+    .from(restaurantSettings)
+    .where(eq(restaurantSettings.id, 1));
+  const flags = flagRows[0] ?? { catalogProtectedSince: null, zonesProtectedSince: null };
+  const seedZonesSection = flags.zonesProtectedSince === null;
+  const seedCatalogSection = flags.catalogProtectedSince === null;
+  if (!seedZonesSection) {
+    console.error(
+      `SKIPPED zones section: delivery zones are admin-owned since ` +
+        `${flags.zonesProtectedSince!.toISOString()} (edited in the panel). ` +
+        `Run SEED_FORCE=1 npm run db:seed to overwrite them anyway.`,
+    );
+  }
+  if (!seedCatalogSection) {
+    console.error(
+      `SKIPPED catalog section: the menu is admin-owned since ` +
+        `${flags.catalogProtectedSince!.toISOString()} (edited in the panel). ` +
+        `Run SEED_FORCE=1 npm run db:seed to overwrite it anyway.`,
+    );
+  }
+  if (!seedZonesSection && !seedCatalogSection) {
+    console.error("Nothing to seed — both sections are admin-owned.");
+    await db.$client.end();
+    return;
+  }
+
   await db.transaction(async (tx) => {
     // Delivery zones: upsert by slug; `active` only on insert (admin may hide zones).
-    for (const [zoneIndex, zone] of zoneSeed.zones.entries()) {
-      const zoneValues = {
-        slug: zone.slug,
-        name: zone.name,
-        feeBani: zone.feeBani,
-        freeFromBani: zone.freeFromBani,
-        sortOrder: zoneIndex,
-      };
-      await tx
-        .insert(deliveryZones)
-        .values(zoneValues)
-        .onConflictDoUpdate({ target: deliveryZones.slug, set: zoneValues });
-      counts.zones += 1;
+    if (seedZonesSection) {
+      for (const [zoneIndex, zone] of zoneSeed.zones.entries()) {
+        const zoneValues = {
+          slug: zone.slug,
+          name: zone.name,
+          feeBani: zone.feeBani,
+          freeFromBani: zone.freeFromBani,
+          sortOrder: zoneIndex,
+        };
+        await tx
+          .insert(deliveryZones)
+          .values(zoneValues)
+          .onConflictDoUpdate({ target: deliveryZones.slug, set: zoneValues });
+        counts.zones += 1;
+      }
     }
+
+    if (!seedCatalogSection) return;
 
     // Topping groups + toppings + per-size prices; groups matched by name
     // (the JSON `key` is not stored — 05-data-model.md defines only `name`).

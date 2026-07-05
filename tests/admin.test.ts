@@ -50,11 +50,13 @@ import {
 } from "@/server/db/schema";
 import { getCatalogForProducts, type MenuCategory } from "@/server/repositories/menu";
 import { insertOrder, type NewOrder } from "@/server/repositories/orders";
+import { resetProtectionFlags } from "@/server/repositories/settings";
 import { createUser, findSessionByTokenHash } from "@/server/repositories/staff";
+import { updateVariant, updateZone } from "@/server/services/admin-catalog";
 import { getDetail, listDay, transition, undo } from "@/server/services/admin-orders";
 import { placeOrder } from "@/server/services/orders";
 import { quoteCart } from "@/server/services/pricing";
-import { getScheduleConfig, updateSettings } from "@/server/services/settings";
+import { getScheduleConfig, getSettings, updateSettings } from "@/server/services/settings";
 import {
   hashPassword,
   login,
@@ -99,6 +101,9 @@ afterAll(async () => {
   }
   // cascades staff_sessions
   await db.delete(staffUsers).where(like(staffUsers.username, "test-%"));
+  // this suite's catalog/zone mutations stamped the seed-ownership flags —
+  // hand the data back to the seed for the suites that run after (T11 rule)
+  await resetProtectionFlags();
 });
 
 /** Minimal valid order against seeded catalog rows — pre-priced like the service would. */
@@ -1382,6 +1387,106 @@ describe.skipIf(skipDb)("settings (003 research D6)", () => {
       await logout(adminLogin.token);
     }
   });
+});
+
+describe.skipIf(skipDb)("seed guard (T11, research D7)", () => {
+  function runSeed(command: string): string {
+    return execSync(`${command} 2>&1`, { stdio: "pipe" }).toString();
+  }
+
+  afterAll(async () => {
+    // hand everything back to the seed and undo any leftover tampering
+    await resetProtectionFlags();
+    runSeed("npm run db:seed");
+  });
+
+  it("a catalog edit protects ONLY the catalog section; SEED_FORCE hands it back", async () => {
+    await resetProtectionFlags();
+
+    // any successful catalog mutation stamps the flag (same-value toggle is enough)
+    const [variant] = await db
+      .select({ id: productVariants.id })
+      .from(productVariants)
+      .orderBy(asc(productVariants.id))
+      .limit(1);
+    await updateVariant(variant.id, { active: true });
+    let settings = await getSettings();
+    expect(settings.catalogProtectedSince).not.toBeNull();
+    expect(settings.zonesProtectedSince).toBeNull();
+
+    // tamper both domains straight in the DB
+    const [product] = await db
+      .select({ id: products.id, name: products.name })
+      .from(products)
+      .where(eq(products.slug, "pizza-bambini"));
+    await db.update(products).set({ name: `${product.name} EDITAT` }).where(eq(products.id, product.id));
+    const [zone] = await db
+      .select({ id: deliveryZones.id, feeBani: deliveryZones.feeBani })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.slug, "corunca"));
+    await db.update(deliveryZones).set({ feeBani: zone.feeBani + 111 }).where(eq(deliveryZones.id, zone.id));
+
+    // plain seed: catalog section refused loudly, zones section still seeds
+    const output = runSeed("npm run db:seed");
+    expect(output).toContain("SKIPPED catalog section");
+    expect(output).not.toContain("SKIPPED zones section");
+    const [productAfter] = await db.select({ name: products.name }).from(products).where(eq(products.id, product.id));
+    expect(productAfter.name).toBe(`${product.name} EDITAT`); // admin-owned, untouched
+    const [zoneAfter] = await db
+      .select({ feeBani: deliveryZones.feeBani })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.id, zone.id));
+    expect(zoneAfter.feeBani).toBe(zone.feeBani); // seed reverted the tampering
+
+    // deliberate human override: everything reseeds, flags reset
+    const forced = runSeed("SEED_FORCE=1 npm run db:seed");
+    expect(forced).toContain("ownership flags reset");
+    const [productForced] = await db.select({ name: products.name }).from(products).where(eq(products.id, product.id));
+    expect(productForced.name).toBe(product.name);
+    settings = await getSettings();
+    expect(settings.catalogProtectedSince).toBeNull();
+    expect(settings.zonesProtectedSince).toBeNull();
+  }, 240_000);
+
+  it("a zone edit protects ONLY the zones section", async () => {
+    await resetProtectionFlags();
+
+    const [zone] = await db
+      .select({ id: deliveryZones.id, feeBani: deliveryZones.feeBani, sortOrder: deliveryZones.sortOrder })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.slug, "corunca"));
+    await updateZone(zone.id, { sortOrder: zone.sortOrder });
+    const settings = await getSettings();
+    expect(settings.zonesProtectedSince).not.toBeNull();
+    expect(settings.catalogProtectedSince).toBeNull();
+
+    // tamper both domains again
+    await db.update(deliveryZones).set({ feeBani: zone.feeBani + 222 }).where(eq(deliveryZones.id, zone.id));
+    const [product] = await db
+      .select({ id: products.id, name: products.name })
+      .from(products)
+      .where(eq(products.slug, "pizza-bambini"));
+    await db.update(products).set({ name: `${product.name} EDITAT2` }).where(eq(products.id, product.id));
+
+    const output = runSeed("npm run db:seed");
+    expect(output).toContain("SKIPPED zones section");
+    expect(output).not.toContain("SKIPPED catalog section");
+    const [zoneAfter] = await db
+      .select({ feeBani: deliveryZones.feeBani })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.id, zone.id));
+    expect(zoneAfter.feeBani).toBe(zone.feeBani + 222); // admin-owned, untouched
+    const [productAfter] = await db.select({ name: products.name }).from(products).where(eq(products.id, product.id));
+    expect(productAfter.name).toBe(product.name); // seed reverted the tampering
+
+    const forced = runSeed("SEED_FORCE=1 npm run db:seed");
+    expect(forced).toContain("ownership flags reset");
+    const [zoneForced] = await db
+      .select({ feeBani: deliveryZones.feeBani })
+      .from(deliveryZones)
+      .where(eq(deliveryZones.id, zone.id));
+    expect(zoneForced.feeBani).toBe(zone.feeBani);
+  }, 240_000);
 });
 
 describe.skipIf(skipDb)("role guards (Q14 matrix)", () => {
