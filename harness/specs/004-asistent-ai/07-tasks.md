@@ -27,7 +27,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       training memory); `.env.example` entries. Unit test: adapter is not
       constructible without a key; provider types round-trip
       (source: 03-research D1/D2, 06-contracts provider interface).
-- [ ] T02 — Schema migration 0005: `assistant_conversations` +
+- [x] T02 — Schema migration 0005: `assistant_conversations` +
       `assistant_messages` (+ `assistant_role` enum) per 05-data-model;
       `repositories/assistant.ts` (create/load conversation, append
       message with usage, user-message counters per conversation and per

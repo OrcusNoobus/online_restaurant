@@ -1,7 +1,9 @@
 /**
- * Menu + ordering + admin schema — mirrors harness/specs/001-meniu-catalog/05-data-model.md,
- * harness/specs/002-cos-comanda/05-data-model.md and
- * harness/specs/003-panou-admin/05-data-model.md.
+ * Menu + ordering + admin + assistant schema — mirrors
+ * harness/specs/001-meniu-catalog/05-data-model.md,
+ * harness/specs/002-cos-comanda/05-data-model.md,
+ * harness/specs/003-panou-admin/05-data-model.md and
+ * harness/specs/004-asistent-ai/05-data-model.md.
  * If they disagree, one of them is a bug.
  * Prices are integer bani everywhere (see harness/docs/ARCHITECTURE.md).
  */
@@ -10,7 +12,9 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -18,6 +22,7 @@ import {
   text,
   timestamp,
   unique,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const categories = pgTable("categories", {
@@ -355,4 +360,58 @@ export const restaurantSettings = pgTable(
     ),
     check("restaurant_settings_delivery_estimate_positive", sql`${t.deliveryEstimateMinutes} > 0`),
   ],
+);
+
+export const assistantRoleEnum = pgEnum("assistant_role", ["user", "assistant", "tool"]);
+
+/**
+ * jsonb shapes per role (004 05-data-model):
+ * - user: text; assistant: text OR toolCalls (intermediate tool round);
+ * - tool: one tool execution result, isError set only when the run failed.
+ */
+export type AssistantMessageContent =
+  | { text: string }
+  | { toolCalls: { id: string; name: string; input: unknown }[] }
+  | { toolCallId: string; name: string; result: unknown; isError?: true };
+
+/**
+ * One chat conversation on one device (004 05-data-model). The uuid is
+ * server-issued and unguessable — it doubles as the access token to the
+ * transcript, so it must never be sequential. Deleted (with messages,
+ * CASCADE) by retention once last_activity_at is older than 30 days.
+ */
+export const assistantConversations = pgTable(
+  "assistant_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // same normalization as orders.client_ip; drives the per-IP daily limit
+    clientIp: text("client_ip").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // bumped on every appended message; retention scans this index
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("assistant_conversations_last_activity_idx").on(t.lastActivityAt)],
+);
+
+/**
+ * One transcript entry — user text, assistant text/tool-calls, or a tool
+ * result (004 05-data-model). content is jsonb, shape per role, validated
+ * in code (repositories/assistant.ts). Token counts are observability only
+ * (DECISIONS 2026-07-05) and live on assistant rows.
+ */
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: serial("id").primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => assistantConversations.id, { onDelete: "cascade" }),
+    role: assistantRoleEnum("role").notNull(),
+    content: jsonb("content").$type<AssistantMessageContent>().notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // transcript reads and the per-conversation counter go by (conversation, id)
+  (t) => [index("assistant_messages_conversation_id_idx").on(t.conversationId, t.id)],
 );
