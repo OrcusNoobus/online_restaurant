@@ -114,7 +114,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       buttons from the graph, accept-with-estimate input, cancel dialog
       (mandatory reason), undo, stale-state refetch on 409; PC-first layout
       usable at 375px (source: spec FR2–FR4, NFR; 03-research D3).
-- [ ] T13 — Admin catalog UI + shop display: `/admin/produse` — tree from
+- [x] T13 — Admin catalog UI + shop display: `/admin/produse` — tree from
       `GET /api/admin/catalog`, availability toggles (staff view), price
       cells + texts + ingredients/allergens + new product/category forms
       (admin view), role-aware rendering; options sheet in the shop shows
