@@ -101,7 +101,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       (public `GET /api/zones`), deactivated zone disappears from public
       but stays in admin list, staff → 403
       (source: 06-contracts Zones, spec FR8).
-- [ ] T11 — Seed guard: catalog mutations set `catalog_protected_since`,
+- [x] T11 — Seed guard: catalog mutations set `catalog_protected_since`,
       zone mutations set `zones_protected_since`; `scripts/seed.ts` checks
       each flag before its section and exits loudly; `SEED_FORCE=1`
       override resets flags; integration tests: seed refuses only the

@@ -3,7 +3,7 @@
  * migration 0004, id always 1. Reads are one indexed SELECT per request; no
  * cache, so an admin edit applies to the very next checkout (spec FR9).
  */
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import type { ScheduleConfig } from "@/lib/restaurant-config";
 
@@ -43,4 +43,30 @@ export async function updateSettingsRow(config: ScheduleConfig): Promise<Restaur
     .set({ ...config, updatedAt: new Date() })
     .where(eq(restaurantSettings.id, SETTINGS_ROW_ID));
   return getSettingsRow();
+}
+
+// --- Seed-ownership flags (003 research D7) ----------------------------------
+// The FIRST admin mutation of a domain stamps its flag; the seed then refuses
+// that section until a human runs SEED_FORCE=1 (which resets the flags).
+
+export async function markCatalogProtected(now: Date): Promise<void> {
+  await db
+    .update(restaurantSettings)
+    .set({ catalogProtectedSince: now })
+    .where(and(eq(restaurantSettings.id, SETTINGS_ROW_ID), isNull(restaurantSettings.catalogProtectedSince)));
+}
+
+export async function markZonesProtected(now: Date): Promise<void> {
+  await db
+    .update(restaurantSettings)
+    .set({ zonesProtectedSince: now })
+    .where(and(eq(restaurantSettings.id, SETTINGS_ROW_ID), isNull(restaurantSettings.zonesProtectedSince)));
+}
+
+/** SEED_FORCE path + test cleanup — hands the data back to the seed. */
+export async function resetProtectionFlags(): Promise<void> {
+  await db
+    .update(restaurantSettings)
+    .set({ catalogProtectedSince: null, zonesProtectedSince: null })
+    .where(eq(restaurantSettings.id, SETTINGS_ROW_ID));
 }
