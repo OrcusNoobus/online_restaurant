@@ -93,6 +93,37 @@ export interface CatalogData {
   toppingGroups: CatalogToppingGroup[];
 }
 
+// --- Zones + settings admin (003 06-contracts Zones/Settings) ----------------
+
+export interface ZoneRow {
+  id: number;
+  slug: string;
+  name: string;
+  feeBani: number;
+  freeFromBani: number;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface SettingsPayload {
+  openMinutes: number;
+  closeMinutes: number;
+  earliestFulfillmentMinutes: number;
+  deliveryEstimateMinutes: number;
+  pickupEstimateOptionsMinutes: number[];
+  catalogProtectedSince: string | null;
+  zonesProtectedSince: string | null;
+  updatedAt: string;
+}
+
+export interface SettingsUpdateUi {
+  openMinutes: number;
+  closeMinutes: number;
+  earliestFulfillmentMinutes: number;
+  deliveryEstimateMinutes: number;
+  pickupEstimateOptionsMinutes: number[];
+}
+
 export interface OrderDetailPayload {
   order: {
     id: number;

@@ -119,7 +119,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       cells + texts + ingredients/allergens + new product/category forms
       (admin view), role-aware rendering; options sheet in the shop shows
       ingredients/allergens (source: spec in-scope, Q7/Q14; 06-contracts).
-- [ ] T14 — Zones + settings UI (admin-only pages): `/admin/zone` (list,
+- [x] T14 — Zones + settings UI (admin-only pages): `/admin/zone` (list,
       edit fee/threshold, add, deactivate), `/admin/setari` (schedule +
       estimates form with validation) (source: spec in-scope, Q9/Q10).
 - [ ] T15 — Write `08-quickstart.md` and execute it: place order → hear/see
