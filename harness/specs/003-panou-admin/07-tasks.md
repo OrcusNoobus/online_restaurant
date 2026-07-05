@@ -60,7 +60,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       transitions — one winner), estimate rules, totals math excl. canceled,
       staff attribution on events
       (source: 06-contracts Orders, spec FR2–FR4, FR11; review points 5/6).
-- [ ] T06 — Settings to DB: `repositories/settings.ts` + `services/settings.ts`,
+- [x] T06 — Settings to DB: `repositories/settings.ts` + `services/settings.ts`,
       `GET/PUT /api/admin/settings` (admin only) + public
       `GET /api/schedule`; `restaurant-config.ts` slims to types/defaults/
       timezone/address, `schedule.ts` takes config as a parameter, pricing +

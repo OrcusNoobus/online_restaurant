@@ -47,3 +47,23 @@ export type TransitionRequestBody = z.infer<typeof transitionRequestSchema>;
 
 /** Path ids arrive as strings; every admin entity id is a positive integer. */
 export const idParamSchema = z.coerce.number().int().positive();
+
+// --- Settings (003 06-contracts Settings; CHECK rules from 05-data-model) ---
+
+export const settingsUpdateSchema = z
+  .object({
+    openMinutes: z.number().int().min(0).max(1440),
+    closeMinutes: z.number().int().min(0).max(1440),
+    earliestFulfillmentMinutes: z.number().int().min(0).max(1440),
+    deliveryEstimateMinutes: z.number().int().positive(),
+    pickupEstimateOptionsMinutes: z.array(z.number().int().positive()).min(1).max(10),
+  })
+  .refine((value) => value.openMinutes < value.closeMinutes, {
+    path: ["closeMinutes"],
+    message: "closing must be after opening",
+  })
+  .refine((value) => value.earliestFulfillmentMinutes >= value.openMinutes, {
+    path: ["earliestFulfillmentMinutes"],
+    message: "earliest fulfillment cannot be before opening",
+  });
+export type SettingsUpdate = z.infer<typeof settingsUpdateSchema>;
