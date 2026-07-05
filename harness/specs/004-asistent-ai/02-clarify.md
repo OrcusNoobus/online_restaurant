@@ -18,95 +18,93 @@
 
 ## Resolved Questions
 
-(în așteptare — vezi Open Questions)
-
-## Open Questions
-
 ### Q1: Livrăm totul odată sau în etape (sub-feature-uri)?
 
-Feature-list-ul anticipează spargerea în sub-feature-uri. Variante:
-(a) un singur feature: Q&A meniu + comandă prin chat, live împreună;
-(b) etapizat: 008a doar Q&A meniu (live mai devreme, risc mic), apoi 008b
-comanda prin conversație. Recomandarea agentului: (b) — Q&A e valoros
-singur și validează costurile/comportamentul înainte să dăm AI-ului voie
-să plaseze comenzi.
+**Answer:** **Într-o singură etapă** — Q&A meniu + comandă prin chat live
+împreună; nu se sparge în sub-feature-uri. Proprietarul a decis totodată că
+asistentul se construiește pe **API-urile Anthropic** („cred că sunt cele
+mai bune modele"). Modelul exact și parametrii sunt decizie tehnică la
+research. Răspuns de proprietar, 2026-07-05.
 
 ### Q2: Furnizor LLM, cont și buget lunar
 
-Asistentul are nevoie de un API plătit (recomandare: Anthropic Claude —
-tool-calling matur; modelul exact e decizie tehnică la research). Cine
-face contul și plata (proprietar / dezvoltator)? Există un plafon lunar
-acceptat (ordin de mărime: la trafic mic, zeci de lei/lună; limită hard
-configurabilă)? Peste plafon, chat-ul se oprește politicos, magazinul
-web nu e afectat.
+**Answer:** Cont **propriu al proprietarului** la Anthropic (dezvoltatorul
+îl ghidează la creare); cheia API stă exclusiv în `.env` pe server.
+**Plafon mic** de pornire: ordin de mărime ~50 lei/lună, aplicat ca limită
+hard configurabilă — peste plafon chat-ul se oprește politicos, magazinul
+web nu e afectat. Răspuns de proprietar, 2026-07-05.
 
 ### Q3: În ce limbi răspunde asistentul?
 
-Doar română? Sau și maghiară (zona Mureș are mulți vorbitori) și/sau
-engleză? Meniul e stocat în română — asistentul poate conversa în alte
-limbi păstrând denumirile de produse în română.
+**Answer:** **Română + maghiară + engleză** — asistentul răspunde în limba
+în care i se scrie; denumirile produselor rămân în română (meniul e stocat
+în română). Răspuns de proprietar, 2026-07-05.
 
 ### Q4: Cum se finalizează comanda prin chat?
 
-(a) totul în conversație: asistentul cere adresă/telefon/mod în chat și
-plasează comanda direct; (b) hibrid: asistentul construiește coșul, apoi
-predă clientul către pagina de checkout existentă (datele deja validate
-acolo). Recomandarea agentului: (a) cap-coadă în chat — ăsta e sensul
-feature-ului și pregătește feat-009 (pe WhatsApp nu există checkout page);
-(b) rămâne fallback UX („preferi să termini în site?").
+**Answer:** **Cap-coadă în chat** — asistentul cere datele de
+livrare/ridicare în conversație (ca la guest checkout) și plasează comanda
+direct, cu confirmarea explicită de la Q5. Pregătește feat-009, unde nu
+există pagină de checkout. Răspuns de proprietar, 2026-07-05.
 
 ### Q5: Confirmarea explicită înainte de plasare
 
-Propunere de default: sumar complet (produse, cantități, total cu SGR +
-taxă, mod + adresă, estimare) + confirmare explicită („da, plasează").
-Fără confirmare, nimic nu se plasează. De confirmat.
+**Answer:** Default acceptat: sumar complet (produse, cantități, total cu
+SGR + taxă, mod + adresă, estimare) + confirmare explicită. Fără
+confirmare, nimic nu se plasează. Răspuns de proprietar, 2026-07-05.
 
 ### Q6: Comportamentul în afara orarului
 
-Când restaurantul e închis: (a) chat-ul răspunde la întrebări de meniu
-dar refuză plasarea, oferind programarea pentru orele de deschidere
-(checkout-ul web suportă deja ora programată); (b) chat-ul e complet
-indisponibil. Recomandarea agentului: (a) cu ofertă de programare.
+**Answer:** Chat-ul **răspunde la întrebări de meniu și oferă programare**:
+în afara orarului poate plasa comenzi programate pentru orele de deschidere
+(serviciul de comenzi suportă deja ora programată). Plasarea imediată
+(ASAP) rămâne blocată de aceleași validări ca în web. Răspuns de
+proprietar, 2026-07-05.
 
 ### Q7: Formularea pentru alergii
 
-Propunere de default: asistentul citează doar alergenii introduși în
-panou; dacă produsul nu are date, spune explicit că nu are informația;
-în ambele cazuri adaugă recomandarea de a suna restaurantul pentru
-alergii serioase. De confirmat formularea (răspundere).
+**Answer:** Default acceptat: asistentul citează doar alergenii introduși
+în panou; dacă produsul nu are date, spune explicit că nu are informația;
+în ambele cazuri recomandă telefonul restaurantului pentru alergii
+serioase. Răspuns de proprietar, 2026-07-05.
 
 ### Q8: Plasare în UI și istoric per dispozitiv
 
-Propunere de default: buton flotant de chat pe paginile shop-ului (nu pe
-/admin, nu în checkout-ul deja început), istoric păstrat per dispozitiv
-cât durează sesiunea de browsing (revenirea după închiderea tab-ului
-pornește conversație nouă). De confirmat.
+**Answer:** Default acceptat: buton flotant de chat pe paginile shop-ului
+(nu pe /admin, nu în checkout-ul deja început), istoric păstrat per
+dispozitiv cât durează sesiunea de browsing; revenirea după închiderea
+tab-ului pornește conversație nouă. Răspuns de proprietar, 2026-07-05.
 
 ### Q9: Stocăm conversațiile pe server?
 
-(a) da — proprietarul le poate revedea (ce întreabă clienții, unde se
-blochează), retenție limitată (ex. 30 zile), menționat în politica de
-confidențialitate; (b) nu — doar comanda rezultată rămâne, conversația e
-efemeră. Recomandarea agentului: (a) cu retenție scurtă — feedback-ul
-real e singurul mod de a îmbunătăți asistentul.
+**Answer:** **Da, cu retenție 30 de zile** — proprietarul le poate revedea
+(ce întreabă clienții, unde se blochează asistentul); ștergere automată
+după 30 de zile; menționat în politica de confidențialitate. Răspuns de
+proprietar, 2026-07-05.
 
 ### Q10: Limite de utilizare (cost/abuz)
 
-Propunere de default: limită de mesaje per conversație și per IP/zi
-(valorile exacte la plan), lungime maximă de mesaj; peste limită, mesaj
-politicos + numărul de telefon. De confirmat principiul.
+**Answer:** Default acceptat: limită de mesaje per conversație și per
+IP/zi (valorile exacte la plan), lungime maximă de mesaj; peste limită,
+mesaj politicos + numărul de telefon. Se adaugă plafonul lunar de la Q2.
+Răspuns de proprietar, 2026-07-05.
 
 ### Q11: Coșul din chat e același cu coșul site-ului?
 
-(a) da — ce adaugă asistentul se vede în coșul normal al site-ului
-(clientul poate verifica/edita vizual); (b) separat — conversația își
-ține comanda proprie până la plasare. Recomandarea agentului: (a) pentru
-transparență pe site; pe canalele viitoare (feat-009) va fi oricum (b).
+**Answer:** **Da, același coș** — ce adaugă asistentul apare în coșul
+normal al site-ului; clientul poate verifica și edita vizual oricând.
+(Pe canalele viitoare din feat-009 coșul va fi oricum doar conversațional.)
+Răspuns de proprietar, 2026-07-05.
 
 ### Q12: „Unde e comanda mea?" prin chat
 
-Draft-ul de spec o lasă out of scope în v1 (răspuns politicos: sunați
-restaurantul). De confirmat că e acceptabil pentru v1.
+**Answer:** Confirmat out of scope în v1 — asistentul răspunde politicos
+că statusul se află telefonic. De înregistrat ca feature viitor la
+momentul potrivit. Răspuns de proprietar, 2026-07-05.
+
+## Open Questions
+
+(none — toate întrebările sunt rezolvate)
 
 ## Notes
 
@@ -116,3 +114,7 @@ restaurantul). De confirmat că e acceptabil pentru v1.
 - Decizia channel-agnostic core (DECISIONS.md 2026-07-04) a fost luată
   exact pentru acest feature; contractele din 002/006-contracts sunt
   scrise pentru consumatori non-browser.
+- Alegerea Anthropic ca furnizor (Q1) e candidat de promovare în
+  DECISIONS.md la research, împreună cu mecanismul de plafon (Q2).
+- Viitor (nu v1), de înregistrat la momentul potrivit: status comandă
+  prin chat (Q12); live-chat cu personalul; canale externe (feat-009).
