@@ -6,15 +6,16 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-05 (feat-007 DONE on its branch)
-- **Active feature:** none — feat-007 (Panou admin) DONE with evidence on
-  branch `feat/007-panou-admin` @ 19c6d45 (16 commits, T01–T15 + doc chain
-  01–09 complete). NOT yet merged into main — merge + push is the human's
-  call (main is still at the feat-006 merge, green).
-- **Verification status:** on the branch: ./init.sh fully green (build,
-  112/112 tests, lint, boundary checks); feature verification
-  `npm test -- tests/admin` 46/46; 08-quickstart.md flows 1–9 executed live
-  in the browser 2026-07-05 (desktop + 375px).
+- **Last updated:** 2026-07-05 (feat-008 T01 done)
+- **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
+  complete and approved; implementation started. T01 (LLM module) DONE
+  @ cf446ea on branch `claude/distracted-jang-33b090` (worktree). feat-007
+  remains DONE on `feat/007-panou-admin` @ 19c6d45, still NOT merged into
+  main — merge + push stays the human's call.
+- **Verification status:** ./init.sh fully green on this branch (Postgres,
+  migrate, lint, typecheck, boundary checks, build); full test suite
+  120/120 incl. the new tests/assistant.test.ts (8 unit tests, no network);
+  feature verification `npm test -- tests/assistant` passing.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -42,21 +43,20 @@
 
 ## In Progress
 
-- (nothing mid-flight)
+- feat-008 Asistent AI — T01 done (LLM module: `src/server/llm/provider.ts`
+  interface + `anthropic.ts` adapter, env contract in .env.example, 8 unit
+  tests). Next task: T02 (schema migration 0005 + assistant repository).
 
 ## Next Steps
 
-1. **Human decision:** merge `feat/007-panou-admin` into main (fast-forward)
-   and push — after that the shop is functionally ready to take real orders
-   (orders were the go-live blocker, clarify Q6).
-2. **Human check (one item):** hear the actual new-order tone on the
-   restaurant device with speakers (visible sound state + unlock-on-click
-   verified in browser; tone is Web Audio, no asset).
-3. Small spun-off cleanup (chip exists): hide the shop's floating cart
-   button on /admin routes — it renders from the root layout there.
-4. Next feature candidates: feat-008 (Asistent AI chat, depends 006),
-   feat-010/011/012 per owner priority. Also still pending long-term:
-   lawyer-reviewed T&C/GDPR texts.
+1. feat-008 T02 — migration 0005: `assistant_conversations` +
+   `assistant_messages` (+ enum) per 05-data-model; `repositories/assistant.ts`
+   with counters + retention; integration tests.
+2. Then T03–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+3. **Human decision (still open):** merge `feat/007-panou-admin` into main
+   and push — after that the shop can take real orders. Also still open:
+   hear the new-order tone on the restaurant device; hide the shop cart FAB
+   on /admin routes (parked chip); lawyer-reviewed T&C/GDPR texts.
 
 ## Blockers / Risks
 
@@ -65,20 +65,26 @@
 
 ## Decisions Made This Session
 
-- (implementation-level only; no new product decisions — D1–D10 from
-  03-research were executed as approved on 2026-07-05)
+- Implementation-level only: SDK errors map to LlmUnavailableError
+  wholesale (any `Anthropic.APIError`, incl. connection errors) — from the
+  customer's side the assistant is unavailable either way; the original
+  error travels as `cause` for the log. Adapter constructor takes an
+  injectable env record so tests cover the no-key path without touching
+  process.env.
+- Worktree note: the dev Postgres container `royal-db` belongs to compose
+  project `magazin_online`; in this worktree `./init.sh` needs
+  `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
+  locally, docker compose picks it up) or `docker compose up` conflicts on
+  the container name.
 
 ## Files Modified This Session
 
-- scripts/seed.ts (ownership guard), src/server/repositories/settings.ts
-  (protection flags), src/server/services/admin-catalog.ts (flag stamping)
-- src/app/admin/(panel)/{page,produse/page,zone/page,setari/page}.tsx
-- src/components/admin/* (12 files: orders day view + detail, catalog tree,
-  price cells, toggles, forms, types, formatting)
-- src/components/cart/OptionsSheet.tsx (ingredients/allergens block)
-- tests/admin.test.ts (+seed-guard integration tests → 46)
-- harness/specs/003-panou-admin/{07-tasks,08-quickstart,09-debug}.md,
-  harness/feature-list.json (evidence)
+- package.json / package-lock.json (+@anthropic-ai/sdk 0.110.0)
+- src/server/llm/{provider,anthropic}.ts (new — T01)
+- tests/assistant.test.ts (new — 8 unit tests, no network)
+- .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
+  ASSISTANT_MAX_REPLY_TOKENS)
+- harness/specs/004-asistent-ai/07-tasks.md (T01 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
