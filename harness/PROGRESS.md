@@ -6,32 +6,39 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-04 (feat-006 merged to main and pushed)
-- **Active feature:** none — feat-006 (Coș și plasare comandă) DONE, merged
-  fast-forward into main @ cf3d2a6, pushed to GitHub; merged local branches
-  deleted.
-- **Verification status:** ./init.sh fully green ON MAIN after the merge
-  (47/47 tests, build, boundary checks); quickstart flows 1–5 executed live
-  (orders #13 delivery / #19 pickup in the dev DB).
-- **Owner inputs received (2026-07-04):** restaurant address + phone
-  (Str. Principală nr. 2, Sântana de Mureș · 0371 717 177) now in
-  `src/lib/restaurant-config.ts`; T&C + GDPR pages carry owner-approved
-  PRELIMINARY texts — replace with lawyer-reviewed versions before real
-  marketing pushes.
+- **Last updated:** 2026-07-05 (feat-007 DONE on its branch)
+- **Active feature:** none — feat-007 (Panou admin) DONE with evidence on
+  branch `feat/007-panou-admin` @ 19c6d45 (16 commits, T01–T15 + doc chain
+  01–09 complete). NOT yet merged into main — merge + push is the human's
+  call (main is still at the feat-006 merge, green).
+- **Verification status:** on the branch: ./init.sh fully green (build,
+  112/112 tests, lint, boundary checks); feature verification
+  `npm test -- tests/admin` 46/46; 08-quickstart.md flows 1–9 executed live
+  in the browser 2026-07-05 (desktop + 375px).
+- **Dev DB state:** catalog/zones force-reseeded clean; protection flags
+  NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
+  (passwords not recorded — recreate via scripts/create-staff-user.ts if
+  needed); test orders #275/#276 completed, #325 accepted, plus older ones —
+  harmless history for the day views.
 
 ## Done
 
-- [x] feat-001 Project setup; feat-002 Meniu produse (see git history)
-- [x] feat-006 Coș și plasare comandă — full document chain (01–09) + T01–T10:
-  - stable variant ids (natural-key upsert), topping-group flags, SGR as
-    sgr_deposit_bani (transform in seed; JSON snapshot untouched)
-  - delivery_zones (6 zones, Q8 values) + GET /api/zones
-  - pure schedule module (Europe/Bucharest, 11:00–22:30, floor 11:30)
-  - quoteCart() + POST /api/cart/quote (fee below threshold, free at/above,
-    freeDeliveryGapBani hint) and placeOrder() + POST /api/orders (atomic,
-    snapshots, +40 phone, client IP)
-  - UI: options sheet, localStorage cart (useSyncExternalStore), /cos,
-    /comanda (mode/zone/schedule/payment/T&C), confirmation, legal placeholders
+- [x] feat-001 Project setup; feat-002 Meniu produse; feat-006 Coș și
+  plasare comandă (merged to main @ cf3d2a6)
+- [x] feat-007 Panou admin — full chain 01–09 + T01–T15 on feat/007-panou-admin:
+  - staff auth: scrypt + DB sessions, rolling 7d, proxy presence check +
+    real verify in layout, login rate limit, create-staff-user CLI
+  - order lifecycle: pure status graph, journal table with undo, conditional
+    UPDATE → 409 stale_state, day view + totals, 5s polling UI with Web
+    Audio alert (visible on/off/blocked state), detail panel, cancel dialog
+    (mandatory reason), estimate-at-accept
+  - catalog admin: full read (inactive incl.), availability toggles (staff),
+    prices/texts/create category+product (admin), server-side slugs,
+    ingredients/allergens now shown in the shop options sheet
+  - zones + settings admin pages; schedule/estimates live from the DB
+    settings row (checkout reads GET /api/schedule)
+  - seed-ownership guard: first panel write stamps the domain flag, seed
+    skips that section loudly, SEED_FORCE=1 resets
 
 ## In Progress
 
@@ -39,53 +46,50 @@
 
 ## Next Steps
 
-1. feat-007 (Panou admin: produse și comenzi) — starts at spec time with the
-   owner. Known seeds for its spec: staff auth, live order list + status
-   transitions (enum already in DB: new → accepted → in_delivery →
-   completed / canceled), dispatcher-adjustable delivery estimate (002
-   clarify Q10 note), zone fee/threshold editing, product/topping
-   activate-deactivate (soft hide already respected by menu + pricing).
-2. Alternative next: feat-010/011/012 exist in the list but depend on or are
-   smaller than feat-007; feat-007 unlocks going live (orders only in DB).
-3. Later: replace the preliminary legal texts with lawyer-reviewed versions.
+1. **Human decision:** merge `feat/007-panou-admin` into main (fast-forward)
+   and push — after that the shop is functionally ready to take real orders
+   (orders were the go-live blocker, clarify Q6).
+2. **Human check (one item):** hear the actual new-order tone on the
+   restaurant device with speakers (visible sound state + unlock-on-click
+   verified in browser; tone is Web Audio, no asset).
+3. Small spun-off cleanup (chip exists): hide the shop's floating cart
+   button on /admin routes — it renders from the root layout there.
+4. Next feature candidates: feat-008 (Asistent AI chat, depends 006),
+   feat-010/011/012 per owner priority. Also still pending long-term:
+   lawyer-reviewed T&C/GDPR texts.
 
 ## Blockers / Risks
 
-- None technical. The shop must NOT go live before feat-007 (nobody sees
-  orders otherwise — clarify Q6 decision).
+- None technical. Go-live still needs: feature merged, staff accounts
+  created on the real host, owner walk-through of the panel.
 
 ## Decisions Made This Session
 
-- Delivery fee model (owner): per-zone fee applies only BELOW the zone's
-  free-delivery threshold; at/above → free; orders are never blocked.
-  Threshold base = subtotal + SGR. Future (not v1): degressive fee.
-- Ordering window v1 (owner): placement only while open, same-day scheduling
-  ≥ max(now + estimate, 11:30). Future: next-day scheduling.
-- SGR applies to drink add-ons too (owner, Q15) — seed-data reversible.
-- New features recorded per owner: feat-010 accounts + social login,
-  feat-011 coupons, feat-012 online card payment.
-- Technical: client-held cart + stateless quote/place services (03-research
-  D1); schedule config in src/lib until feat-007 (D3); order status +
-  payment enums defined once (D6); useSyncExternalStore for browser-storage
-  state (09-debug.md).
+- (implementation-level only; no new product decisions — D1–D10 from
+  03-research were executed as approved on 2026-07-05)
 
 ## Files Modified This Session
 
-- harness/specs/002-cos-comanda/* (full chain 01–09), feature-list.json
-- src/server/db/schema.ts + migrations 0001–0003, scripts/seed.ts,
-  data/delivery-zones.json
-- src/lib/{restaurant-config,schedule,order-schemas,cart,quote-types}.ts
-- src/server/repositories/{menu,zones,orders}.ts, src/server/services/{pricing,orders}.ts
-- src/app/api/{zones,cart/quote,orders}/route.ts
-- src/components/cart/*, src/components/menu/ProductCard.tsx, src/app/layout.tsx
-- src/app/{cos,comanda,comanda/confirmare,termeni,confidentialitate}/page.tsx
-- tests/{menu,orders,schedule}.test.ts
+- scripts/seed.ts (ownership guard), src/server/repositories/settings.ts
+  (protection flags), src/server/services/admin-catalog.ts (flag stamping)
+- src/app/admin/(panel)/{page,produse/page,zone/page,setari/page}.tsx
+- src/components/admin/* (12 files: orders day view + detail, catalog tree,
+  price cells, toggles, forms, types, formatting)
+- src/components/cart/OptionsSheet.tsx (ingredients/allergens block)
+- tests/admin.test.ts (+seed-guard integration tests → 46)
+- harness/specs/003-panou-admin/{07-tasks,08-quickstart,09-debug}.md,
+  harness/feature-list.json (evidence)
 
 ## Notes for the Next Session
 
 This project uses the long-track harness. Read AGENTS.md first, always.
 Docker Desktop must be running before ./init.sh (it starts the db container).
-Integration tests self-migrate and self-seed (they need the Docker db up).
-Topping names are unique only within their group — always scope lookups by
-(group, name) (09-debug.md). The boundary check greps for the server-import
-string even in comments — don't write it literally in src/components files.
+Integration tests self-migrate and self-seed; the admin suite runs the REAL
+seed via execSync and resets the protection flags in cleanup.
+After manual panel testing on dev: clean up created test entities, then
+`SEED_FORCE=1 npm run db:seed` (see 003 09-debug.md).
+React 19 lint patterns for admin UI (set-state-in-effect, key remounts,
+AudioContext narrowing) are documented in 003-panou-admin/09-debug.md.
+Topping names are unique only within their group — scope lookups by
+(group, name). The boundary check greps the server-import string even in
+comments in src/components — do not write it literally there.

@@ -26,6 +26,33 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-05] — feat-007 Panou admin complete (T01–T15, done with evidence)
+- Status: Completed
+- Action: Finished the admin panel across two sessions on feat/007-panou-admin
+  (16 commits, d0732be..19c6d45): T11 seed-ownership guard (first panel write
+  stamps catalog/zones flags; seed skips protected sections loudly;
+  SEED_FORCE=1 resets — integration-tested by running the REAL seed via
+  execSync in both directions), T12 orders day-view UI (5s poll, client-side
+  status filters so the alert can't go blind, Web Audio two-tone with visible
+  on/off/blocked state, detail panel driven by the pure status graph, cancel
+  dialog with mandatory reason, undo, 409 refetch), T13 catalog UI + shop
+  ingredients/allergens block, T14 zones/settings pages, T15 quickstart flows
+  1–9 executed live in the browser (both order lifecycles to completed, race
+  order one-winner, panel edits live in the public shop within one request).
+  46/46 admin tests, 112/112 suite, ./init.sh green. NOT merged to main yet.
+- Challenge: (1) React 19 `set-state-in-effect` lint rejected the natural
+  effect-based selection/reconcile wiring. (2) `key={updatedAt}` on the
+  settings form remounted it on every save and silently swallowed the
+  success notice — only found by driving the real browser. (3) Preview
+  tooling couldn't operate React controlled inputs (login form), which
+  looked like an app bug but wasn't.
+- Solution: (1) selection moved into handlers; cross-device reconcile lives
+  inside refreshList reading a detailRef; async IIFE pattern for initial
+  fetches. (2) removed the key; forms seed from props once on mount. (3)
+  native value setters + dispatched input events; session cookie set
+  directly for scripted verification. All three captured in
+  003-panou-admin/09-debug.md for future UI work.
+
 ## [2026-07-04] — feat-006 Coș și plasare comandă complete (spec → done, one session)
 - Status: Completed
 - Action: Full document chain (spec + 16 clarify Q&A with the owner, research
