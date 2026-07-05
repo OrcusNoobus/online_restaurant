@@ -7,8 +7,6 @@
  */
 import { z } from "zod";
 
-import { PICKUP_ESTIMATE_OPTIONS_MINUTES } from "./restaurant-config";
-
 export const cartItemSchema = z.object({
   productId: z.number().int().positive(),
   variantId: z.number().int().positive(),
@@ -43,14 +41,10 @@ export const orderRequestSchema = quoteRequestSchema
     addressStreet: z.string().trim().min(1).max(300).nullish(),
     notes: z.string().trim().max(1000).nullish(),
     scheduledFor: z.iso.datetime({ offset: true }).nullish(),
-    pickupEstimateMinutes: z
-      .union(
-        PICKUP_ESTIMATE_OPTIONS_MINUTES.map((minutes) => z.literal(minutes)) as [
-          z.ZodLiteral<number>,
-          z.ZodLiteral<number>,
-        ],
-      )
-      .nullish(),
+    // shape only — membership in the CURRENT settings options is a semantic
+    // rule checked by the order service (422 invalid_pickup_estimate), because
+    // the option set is DB-live since feat-007 (003 06-contracts)
+    pickupEstimateMinutes: z.number().int().positive().nullish(),
     paymentMethod: z.enum(["cash", "card_delivery", "card_restaurant"]),
     termsAccepted: z.literal(true),
   })

@@ -1,17 +1,11 @@
 /**
- * Pure schedule rules (002 02-clarify.md Q10/Q16): no I/O, no implicit "now" —
- * callers pass the clock, tests pass fixed instants. All comparisons happen
- * in the restaurant's timezone via Intl, so a UTC server clock cannot skew
- * open/closed decisions.
+ * Pure schedule rules (002 02-clarify.md Q10/Q16): no I/O, no implicit "now",
+ * no implicit config — callers pass both; production reads the config from
+ * the settings service (003 research D6), tests pass fixed values. All
+ * comparisons happen in the restaurant's timezone via Intl, so a UTC server
+ * clock cannot skew open/closed decisions.
  */
-import {
-  CLOSE_MINUTES,
-  DELIVERY_ESTIMATE_MINUTES,
-  EARLIEST_FULFILLMENT_MINUTES,
-  OPEN_MINUTES,
-  PICKUP_ESTIMATE_OPTIONS_MINUTES,
-  RESTAURANT_TIMEZONE,
-} from "./restaurant-config";
+import { RESTAURANT_TIMEZONE, type ScheduleConfig } from "./restaurant-config";
 
 export type OrderMode = "delivery" | "pickup";
 
@@ -46,26 +40,38 @@ export function localDateKey(instant: Date): string {
 }
 
 /** Can an order be placed right now? (placement window = opening hours) */
-export function isOpenAt(instant: Date): boolean {
+export function isOpenAt(config: ScheduleConfig, instant: Date): boolean {
   const { minutesOfDay } = localParts(instant);
-  return minutesOfDay >= OPEN_MINUTES && minutesOfDay <= CLOSE_MINUTES;
+  return minutesOfDay >= config.openMinutes && minutesOfDay <= config.closeMinutes;
 }
 
-/** The estimate quoted for an ASAP order; pickupChoice must be 15 or 25 (zod-enforced upstream). */
-export function estimateMinutesFor(mode: OrderMode, pickupChoice?: number): number {
-  if (mode === "delivery") return DELIVERY_ESTIMATE_MINUTES;
-  return pickupChoice ?? PICKUP_ESTIMATE_OPTIONS_MINUTES[0];
+/** The estimate quoted for an ASAP order; pickupChoice membership is checked by the order service. */
+export function estimateMinutesFor(config: ScheduleConfig, mode: OrderMode, pickupChoice?: number): number {
+  if (mode === "delivery") return config.deliveryEstimateMinutes;
+  return pickupChoice ?? config.pickupEstimateOptionsMinutes[0];
 }
 
 /**
  * A scheduled order is valid iff (Q16): same restaurant-time day as `now`,
- * not before max(now + estimate, 11:30), and not after closing.
+ * not before max(now + estimate, earliest fulfillment), and not after closing.
  */
-export function isValidScheduledFor(scheduledFor: Date, now: Date, estimateMinutes: number): boolean {
+export function isValidScheduledFor(
+  config: ScheduleConfig,
+  scheduledFor: Date,
+  now: Date,
+  estimateMinutes: number,
+): boolean {
   const scheduled = localParts(scheduledFor);
   const current = localParts(now);
   if (scheduled.dateKey !== current.dateKey) return false;
-  if (scheduled.minutesOfDay < EARLIEST_FULFILLMENT_MINUTES) return false;
-  if (scheduled.minutesOfDay > CLOSE_MINUTES) return false;
+  if (scheduled.minutesOfDay < config.earliestFulfillmentMinutes) return false;
+  if (scheduled.minutesOfDay > config.closeMinutes) return false;
   return scheduledFor.getTime() >= now.getTime() + estimateMinutes * 60_000;
+}
+
+/** "660" → "11:00" — display edge for schedule minutes. */
+export function formatMinutesAsTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }

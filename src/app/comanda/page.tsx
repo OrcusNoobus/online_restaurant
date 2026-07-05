@@ -15,21 +15,14 @@ import { useQuote } from "@/components/cart/useQuote";
 import { formatBani } from "@/lib/money";
 import { type InvalidCartReason, type PlacedOrderView, type ZoneView } from "@/lib/quote-types";
 import {
-  DELIVERY_ESTIMATE_MINUTES,
-  PICKUP_ESTIMATE_OPTIONS_MINUTES,
+  DEFAULT_SCHEDULE_CONFIG,
   RESTAURANT_ADDRESS,
   RESTAURANT_PHONE,
+  type ScheduleConfig,
 } from "@/lib/restaurant-config";
-import { isOpenAt } from "@/lib/schedule";
+import { formatMinutesAsTime, isOpenAt } from "@/lib/schedule";
 
 type Mode = "delivery" | "pickup";
-
-const ORDER_REASON_MESSAGES: Record<string, string> = {
-  shop_closed: "Suntem închiși momentan. Program zilnic: 11:00–22:30.",
-  schedule_out_of_hours:
-    "Ora aleasă nu este disponibilă. Comenzile se onorează azi, între 11:30 și 22:30, cu timpul de pregătire inclus.",
-  payment_not_allowed_for_mode: "Metoda de plată aleasă nu este disponibilă pentru acest tip de comandă.",
-};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -40,7 +33,11 @@ export default function CheckoutPage() {
   const [zoneSlug, setZoneSlug] = useState<string | undefined>(undefined);
   const [address, setAddress] = useState("");
   const [when, setWhen] = useState<"asap" | "scheduled">("asap");
-  const [pickupEstimate, setPickupEstimate] = useState<number>(PICKUP_ESTIMATE_OPTIONS_MINUTES[0]);
+  // live values arrive from GET /api/schedule; defaults render until then
+  const [schedule, setSchedule] = useState<ScheduleConfig>(DEFAULT_SCHEDULE_CONFIG);
+  const [pickupEstimate, setPickupEstimate] = useState<number>(
+    DEFAULT_SCHEDULE_CONFIG.pickupEstimateOptionsMinutes[0],
+  );
   const [scheduledTime, setScheduledTime] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -52,7 +49,17 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const open = isOpenAt(new Date());
+  const open = isOpenAt(schedule, new Date());
+  const openLabel = formatMinutesAsTime(schedule.openMinutes);
+  const closeLabel = formatMinutesAsTime(schedule.closeMinutes);
+  const earliestLabel = formatMinutesAsTime(schedule.earliestFulfillmentMinutes);
+
+  const orderReasonMessages: Record<string, string> = {
+    shop_closed: `Suntem închiși momentan. Program zilnic: ${openLabel}–${closeLabel}.`,
+    schedule_out_of_hours: `Ora aleasă nu este disponibilă. Comenzile se onorează azi, între ${earliestLabel} și ${closeLabel}, cu timpul de pregătire inclus.`,
+    payment_not_allowed_for_mode: "Metoda de plată aleasă nu este disponibilă pentru acest tip de comandă.",
+    invalid_pickup_estimate: "Opțiunea de ridicare aleasă nu mai este disponibilă. Alege alta și reîncearcă.",
+  };
 
   const { quote, loading, failed } = useQuote({
     items,
@@ -71,6 +78,21 @@ export default function CheckoutPage() {
       })
       .catch((error: Error) => {
         if (error.name !== "AbortError") setZones([]);
+      });
+    fetch("/api/schedule", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`schedule failed: ${response.status}`);
+        const body = (await response.json()) as { schedule: ScheduleConfig };
+        setSchedule(body.schedule);
+        // the default selection may have been edited away in the admin panel
+        setPickupEstimate((current) =>
+          body.schedule.pickupEstimateOptionsMinutes.includes(current)
+            ? current
+            : body.schedule.pickupEstimateOptionsMinutes[0],
+        );
+      })
+      .catch(() => {
+        // defaults keep rendering; the server re-validates at placement anyway
       });
     return () => controller.abort();
   }, []);
@@ -151,7 +173,7 @@ export default function CheckoutPage() {
       const body = (await response.json()) as { error?: string; reasons?: InvalidCartReason[] };
       if (response.status === 422 && body.reasons?.length) {
         const messages = body.reasons.map(
-          (reason) => ORDER_REASON_MESSAGES[reason.code] ?? "Comanda nu a putut fi validată. Verifică datele.",
+          (reason) => orderReasonMessages[reason.code] ?? "Comanda nu a putut fi validată. Verifică datele.",
         );
         setSubmitError([...new Set(messages)].join(" "));
       } else if (response.status === 400) {
@@ -181,7 +203,7 @@ export default function CheckoutPage() {
 
         {!open && (
           <p className="mt-4 rounded-xl bg-red-100 p-3 text-sm font-medium text-red-900 dark:bg-red-950 dark:text-red-200">
-            Suntem închiși momentan. Comenzile se pot plasa zilnic între 11:00 și 22:30.
+            Suntem închiși momentan. Comenzile se pot plasa zilnic între {openLabel} și {closeLabel}.
           </p>
         )}
 
@@ -276,12 +298,12 @@ export default function CheckoutPage() {
                   />
                   Cât mai curând posibil
                   <span className="ml-auto text-zinc-500 dark:text-zinc-400">
-                    ~{mode === "delivery" ? DELIVERY_ESTIMATE_MINUTES : pickupEstimate} min
+                    ~{mode === "delivery" ? schedule.deliveryEstimateMinutes : pickupEstimate} min
                   </span>
                 </label>
                 {mode === "pickup" && when === "asap" && (
                   <div className="flex gap-2 pl-4">
-                    {PICKUP_ESTIMATE_OPTIONS_MINUTES.map((minutes) => (
+                    {schedule.pickupEstimateOptionsMinutes.map((minutes) => (
                       <label
                         key={minutes}
                         className="flex cursor-pointer items-center gap-2 rounded-full border border-zinc-300 px-3 py-1.5 text-sm has-checked:border-amber-500 has-checked:bg-amber-50 dark:border-zinc-700 dark:has-checked:border-amber-400 dark:has-checked:bg-amber-950"
@@ -309,8 +331,8 @@ export default function CheckoutPage() {
                   La o oră anume (azi)
                   <input
                     type="time"
-                    min="11:30"
-                    max="22:30"
+                    min={earliestLabel}
+                    max={closeLabel}
                     value={scheduledTime}
                     onChange={(event) => {
                       setScheduledTime(event.target.value);

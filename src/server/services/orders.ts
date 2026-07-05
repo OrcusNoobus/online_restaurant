@@ -8,9 +8,10 @@ import type { OrderRequest } from "@/lib/order-schemas";
 import { estimateMinutesFor, isOpenAt, isValidScheduledFor } from "@/lib/schedule";
 import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { type QuoteReason, quoteCart } from "@/server/services/pricing";
+import { getScheduleConfig } from "@/server/services/settings";
 
 export interface OrderReason {
-  code: "shop_closed" | "schedule_out_of_hours" | "payment_not_allowed_for_mode";
+  code: "shop_closed" | "schedule_out_of_hours" | "payment_not_allowed_for_mode" | "invalid_pickup_estimate";
   detail?: string;
 }
 
@@ -55,18 +56,31 @@ export async function placeOrder(request: OrderRequest, context: PlaceOrderConte
     reasons.push({ code: "payment_not_allowed_for_mode", detail: request.paymentMethod });
   }
 
-  if (!isOpenAt(now)) reasons.push({ code: "shop_closed" });
+  // live values from restaurant_settings — an admin edit applies to the very
+  // next order, no cache (003 research D6, spec FR9)
+  const schedule = await getScheduleConfig();
+
+  if (!isOpenAt(schedule, now)) reasons.push({ code: "shop_closed" });
+
+  // zod checked only the shape; membership in the CURRENT option set is
+  // semantic and lives here (003 06-contracts — invalid_pickup_estimate)
+  if (
+    request.pickupEstimateMinutes != null &&
+    !schedule.pickupEstimateOptionsMinutes.includes(request.pickupEstimateMinutes)
+  ) {
+    reasons.push({ code: "invalid_pickup_estimate", detail: String(request.pickupEstimateMinutes) });
+  }
 
   const scheduledFor = request.scheduledFor ? new Date(request.scheduledFor) : null;
   let estimateMinutes: number | null = null;
   if (scheduledFor) {
-    const leadMinutes = estimateMinutesFor(request.mode, request.pickupEstimateMinutes ?? undefined);
-    if (!isValidScheduledFor(scheduledFor, now, leadMinutes)) {
+    const leadMinutes = estimateMinutesFor(schedule, request.mode, request.pickupEstimateMinutes ?? undefined);
+    if (!isValidScheduledFor(schedule, scheduledFor, now, leadMinutes)) {
       reasons.push({ code: "schedule_out_of_hours" });
     }
   } else {
     // ASAP: the quoted estimate is part of the order record (02-clarify Q10)
-    estimateMinutes = estimateMinutesFor(request.mode, request.pickupEstimateMinutes ?? undefined);
+    estimateMinutes = estimateMinutesFor(schedule, request.mode, request.pickupEstimateMinutes ?? undefined);
   }
 
   if (reasons.length > 0) return { ok: false, error: "invalid_order", reasons };

@@ -5,7 +5,7 @@
  */
 import { execSync } from "node:child_process";
 
-import { eq, like } from "drizzle-orm";
+import { asc, eq, like } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -16,13 +16,20 @@ import { GET as getAdminOrdersRoute } from "@/app/api/admin/orders/route";
 import { GET as getAdminOrderRoute } from "@/app/api/admin/orders/[id]/route";
 import { POST as postTransitionRoute } from "@/app/api/admin/orders/[id]/transition/route";
 import { POST as postUndoRoute } from "@/app/api/admin/orders/[id]/undo/route";
+import { GET as getAdminSettingsRoute, PUT as putAdminSettingsRoute } from "@/app/api/admin/settings/route";
+import { GET as getScheduleRoute } from "@/app/api/schedule/route";
+import { orderRequestSchema } from "@/lib/order-schemas";
+import type { ScheduleConfig } from "@/lib/restaurant-config";
 import { localDateKey } from "@/lib/schedule";
 import { proxy } from "@/proxy";
 import { db } from "@/server/db/client";
-import { deliveryZones, orders, productVariants, staffSessions, staffUsers } from "@/server/db/schema";
+import { deliveryZones, orders, products, productVariants, staffSessions, staffUsers } from "@/server/db/schema";
+import { getCatalogForProducts } from "@/server/repositories/menu";
 import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { createUser, findSessionByTokenHash } from "@/server/repositories/staff";
 import { getDetail, listDay, transition, undo } from "@/server/services/admin-orders";
+import { placeOrder } from "@/server/services/orders";
+import { getScheduleConfig, updateSettings } from "@/server/services/settings";
 import {
   hashPassword,
   login,
@@ -613,6 +620,141 @@ describe.skipIf(skipDb)("admin orders HTTP boundary", () => {
       expect(missing.status).toBe(404);
     } finally {
       await logout(token);
+    }
+  });
+});
+
+describe.skipIf(skipDb)("settings (003 research D6)", () => {
+  /** A cart that passes quoteCart: first active product, first variant, required groups satisfied. */
+  async function buildValidItems() {
+    const [product] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.active, true))
+      .orderBy(asc(products.id))
+      .limit(1);
+    const catalog = await getCatalogForProducts([product.id]);
+    const entry = catalog.get(product.id)!;
+    const toppingIds = entry.groups
+      .filter((group) => group.required && group.toppings.some(({ active }) => active))
+      .map((group) => group.toppings.find(({ active }) => active)!.id);
+    return [{ productId: entry.id, variantId: entry.variants[0].id, quantity: 1, toppingIds }];
+  }
+
+  function pickupRequest(items: Awaited<ReturnType<typeof buildValidItems>>, estimate: number) {
+    return orderRequestSchema.parse({
+      mode: "pickup",
+      items,
+      customer: { firstName: "Test", lastName: "Setari", phone: "0712345678" },
+      paymentMethod: "cash",
+      termsAccepted: true,
+      pickupEstimateMinutes: estimate,
+    });
+  }
+
+  // 15:00 restaurant time in summer — safely inside opening hours
+  const openNow = new Date("2026-07-04T12:00:00Z");
+
+  it("pickup option membership is checked against the LIVE settings row", async () => {
+    const original: ScheduleConfig = await getScheduleConfig();
+    expect(original.pickupEstimateOptionsMinutes).not.toContain(7);
+    const items = await buildValidItems();
+
+    try {
+      // 7 is not an option → invalid_pickup_estimate
+      const rejected = await placeOrder(pickupRequest(items, 7), { clientIp: null, now: openNow });
+      expect(rejected.ok).toBe(false);
+      if (!rejected.ok && rejected.error === "invalid_order") {
+        expect(rejected.reasons.map(({ code }) => code)).toContain("invalid_pickup_estimate");
+      } else {
+        expect.fail(`expected invalid_order, got ${JSON.stringify(rejected)}`);
+      }
+
+      // admin adds 7 → the very next order accepts it, no cache
+      await updateSettings({
+        ...original,
+        pickupEstimateOptionsMinutes: [...original.pickupEstimateOptionsMinutes, 7],
+      });
+
+      const scheduleResponse = await getScheduleRoute();
+      expect(scheduleResponse.status).toBe(200);
+      const { schedule } = (await scheduleResponse.json()) as { schedule: ScheduleConfig };
+      expect(schedule.pickupEstimateOptionsMinutes).toContain(7);
+
+      const accepted = await placeOrder(pickupRequest(items, 7), { clientIp: null, now: openNow });
+      expect(accepted.ok).toBe(true);
+      if (accepted.ok) {
+        testOrderIds.push(accepted.order.orderId);
+        expect(accepted.order.estimateMinutes).toBe(7);
+      }
+
+      // removed again → rejected again
+      await updateSettings(original);
+      const rejectedAgain = await placeOrder(pickupRequest(items, 7), { clientIp: null, now: openNow });
+      expect(rejectedAgain.ok).toBe(false);
+    } finally {
+      await updateSettings(original);
+    }
+  });
+
+  it("settings routes: staff gets 403, admin round-trips GET/PUT, invalid PUT → 400", async () => {
+    resetLoginRateLimiter();
+    const staffLogin = await login("test-staff", PASSWORD, "10.0.4.1");
+    const adminLogin = await login("test-admin", PASSWORD, "10.0.4.1");
+    expect(staffLogin.ok && adminLogin.ok).toBe(true);
+    if (!staffLogin.ok || !adminLogin.ok) return;
+    const original: ScheduleConfig = await getScheduleConfig();
+
+    try {
+      expect((await getAdminSettingsRoute(requestWithCookie(staffLogin.token))).status).toBe(403);
+      expect(
+        (
+          await putAdminSettingsRoute(
+            new Request("http://localhost/x", {
+              method: "PUT",
+              headers: { cookie: `${SESSION_COOKIE_NAME}=${staffLogin.token}`, "content-type": "application/json" },
+              body: JSON.stringify(original),
+            }),
+          )
+        ).status,
+      ).toBe(403);
+
+      const getResponse = await getAdminSettingsRoute(requestWithCookie(adminLogin.token));
+      expect(getResponse.status).toBe(200);
+      const getBody = (await getResponse.json()) as { settings: ScheduleConfig & { updatedAt: string } };
+      expect(getBody.settings).toMatchObject({
+        openMinutes: original.openMinutes,
+        closeMinutes: original.closeMinutes,
+        pickupEstimateOptionsMinutes: original.pickupEstimateOptionsMinutes,
+      });
+
+      // semantic zod refinement: closing before opening is malformed input
+      const invalidPut = await putAdminSettingsRoute(
+        new Request("http://localhost/x", {
+          method: "PUT",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${adminLogin.token}`, "content-type": "application/json" },
+          body: JSON.stringify({ ...original, openMinutes: 1400, closeMinutes: 700 }),
+        }),
+      );
+      expect(invalidPut.status).toBe(400);
+
+      const validPut = await putAdminSettingsRoute(
+        new Request("http://localhost/x", {
+          method: "PUT",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${adminLogin.token}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            ...original,
+            pickupEstimateOptionsMinutes: [...original.pickupEstimateOptionsMinutes, 7],
+          }),
+        }),
+      );
+      expect(validPut.status).toBe(200);
+      const putBody = (await validPut.json()) as { settings: ScheduleConfig };
+      expect(putBody.settings.pickupEstimateOptionsMinutes).toContain(7);
+    } finally {
+      await updateSettings(original);
+      await logout(staffLogin.token);
+      await logout(adminLogin.token);
     }
   });
 });
