@@ -35,8 +35,8 @@
     {
       "id": "feat-007",
       "name": "Panou admin: produse și comenzi",
-      "behavior": "Personalul restaurantului se autentifică, vede comenzile noi în timp real, le schimbă starea (preluată/în livrare/finalizată) și editează produse, prețuri și disponibilitate",
-      "verification": "(to finalize with spec approval) npm test -- tests/admin + manual quickstart flow",
+      "behavior": "Personalul restaurantului se autentifică (roluri admin/angajat), vede comenzile noi în timp real cu semnal sonor până la preluare, le duce prin stări (preluată / în livrare / gata de ridicare / finalizată / anulată cu motiv, cu undo), reglează estimarea per comandă la preluare și administrează meniul (disponibilitate — și angajat; prețuri, produse/categorii noi, ingrediente/alergeni — admin), zonele de livrare și orarul (admin); seed-ul nu mai suprascrie modificările din panou",
+      "verification": "npm test -- tests/admin",
       "dependencies": ["feat-006"],
       "status": "in-progress",
       "evidence": "",
