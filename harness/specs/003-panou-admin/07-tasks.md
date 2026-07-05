@@ -29,7 +29,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `product_variants.active`, `ALTER TYPE order_status ADD VALUE
       'ready_for_pickup'`; verify the enum extension applies cleanly on the
       feat-006-shaped dev DB (source: 05-data-model; 03-research D4–D8).
-- [ ] T02 — Auth core: `repositories/staff.ts` (users, sessions:
+- [x] T02 — Auth core: `repositories/staff.ts` (users, sessions:
       create/lookup-by-token-hash/rolling-renew/delete/sweep),
       `services/auth.ts` (scrypt hash+verify constant-time, login/logout,
       `verifySession`, `requireStaff`/`requireAdmin`, per-IP+username rate
