@@ -29,6 +29,20 @@
 
 ## Decisions
 
+## [2026-07-05]: LLM access is provider-agnostic behind our own interface; the model is configuration
+- Decision: All LLM calls go through a minimal self-owned `LlmProvider` interface (`src/server/llm/`); the Anthropic SDK adapter is the first implementation and the only file importing the vendor SDK. The model id is a single env config (`ASSISTANT_MODEL`, default `claude-opus-4-8`) read in one place — swapping models is a config edit, swapping providers is a new adapter, never a rewrite of the assistant.
+- Reason: Owner requirement (2026-07-05): change models freely as real usage data arrives, and keep the door open to other providers. Also enables deterministic testing — the test suite injects a scripted fake through the same interface, so `./init.sh` stays green offline without secrets.
+- Rejected alternatives: direct SDK calls in services (vendor types leak, rewrite on provider change); third-party abstraction frameworks like LangChain (heavy dependency to avoid a dependency; our tool surface is 5 tools).
+- Constraints created: `src/server/llm` may import only `src/lib`; services import the interface, never the SDK; the agentic tool loop is OUR code in the services layer. No LLM calls from the client, ever.
+- Supersedes / superseded by: —
+
+## [2026-07-05]: LLM cost governance lives in the provider console, not in code
+- Decision: The monthly spend cap is set and adjusted by the owner in the provider's platform (Anthropic Console spend limit). The application implements NO budget accounting; it translates provider errors/unavailability into a polite "assistant unavailable" state that never affects the shop. Code keeps only anti-abuse limits (message length, messages per conversation, per-IP daily cap) and LOGS token usage per message for visibility.
+- Reason: Owner decision (2026-07-05). The console limit is authoritative and cannot drift from the bill; in-code accounting would duplicate it with estimate error and maintenance cost.
+- Rejected alternatives: in-code monthly budget counter with hard stop (drift, duplicate source of truth).
+- Constraints created: assistant features must degrade gracefully on any provider error; the web shop must be fully functional with the assistant down or unconfigured (no API key → chat hidden/disabled).
+- Supersedes / superseded by: —
+
 ## [2026-07-04]: Channel-agnostic ordering core (conversational commerce ready)
 - Decision: Every business capability (menu queries, cart pricing, order placement, order status) is implemented in the services layer and exposed through the API — never inside web UI components. The web shop is just the FIRST consumer; an on-site LLM chat assistant that can answer questions and place orders on the customer's behalf, and external channels (WhatsApp, Telegram), are planned consumers of the SAME services (roadmap: feat-008, feat-009).
 - Reason: The owner wants conversational ordering as a first-class channel. If ordering logic is baked into the web UI, every new channel means a rewrite; behind a service/API boundary, a new channel is just a new adapter. LLM tool-calling also needs exactly this: clean, well-described, validated service endpoints.
