@@ -1,11 +1,13 @@
 /**
- * Menu + ordering schema — mirrors harness/specs/001-meniu-catalog/05-data-model.md
- * and harness/specs/002-cos-comanda/05-data-model.md.
+ * Menu + ordering + admin schema — mirrors harness/specs/001-meniu-catalog/05-data-model.md,
+ * harness/specs/002-cos-comanda/05-data-model.md and
+ * harness/specs/003-panou-admin/05-data-model.md.
  * If they disagree, one of them is a bug.
  * Prices are integer bani everywhere (see harness/docs/ARCHITECTURE.md).
  */
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   integer,
@@ -34,6 +36,9 @@ export const products = pgTable("products", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
+  // free text, admin-edited (003 research D8); shown in the options sheet when present
+  ingredients: text("ingredients"),
+  allergens: text("allergens"),
   imageUrl: text("image_url"),
   sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
@@ -54,6 +59,8 @@ export const productVariants = pgTable(
     name: text("name"),
     priceBani: integer("price_bani").notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
+    // availability per size (003 05-data-model): menu omits inactive variants, pricing rejects them
+    active: boolean("active").notNull().default(true),
   },
   (t) => [
     check("product_variants_price_positive", sql`${t.priceBani} > 0`),
@@ -146,11 +153,16 @@ export const productToppingGroups = pgTable(
 );
 
 export const orderModeEnum = pgEnum("order_mode", ["delivery", "pickup"]);
-/** Full lifecycle defined once (002 03-research D6); feat-006 only creates 'new'. */
+/**
+ * Full lifecycle defined once (002 03-research D6); feat-006 only creates 'new'.
+ * 'ready_for_pickup' added by feat-007 (003 05-data-model): pickup orders go
+ * new → accepted → ready_for_pickup → completed instead of in_delivery.
+ */
 export const orderStatusEnum = pgEnum("order_status", [
   "new",
   "accepted",
   "in_delivery",
+  "ready_for_pickup",
   "completed",
   "canceled",
 ]);
@@ -246,5 +258,101 @@ export const orderItemOptions = pgTable(
   (t) => [
     check("order_item_options_price_non_negative", sql`${t.priceBani} >= 0`),
     check("order_item_options_sgr_non_negative", sql`${t.sgrDepositBani} >= 0`),
+  ],
+);
+
+export const staffRoleEnum = pgEnum("staff_role", ["admin", "staff"]);
+
+/**
+ * Restaurant staff accounts (003 05-data-model). Created only by
+ * scripts/create-staff-user.ts at install — no signup, no management UI in v1.
+ */
+export const staffUsers = pgTable("staff_users", {
+  id: serial("id").primaryKey(),
+  // stored lowercase — uniqueness is case-insensitive by construction
+  username: text("username").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  // scrypt, format scrypt:N:r:p:salt:hash (base64url); NEVER plaintext
+  passwordHash: text("password_hash").notNull(),
+  role: staffRoleEnum("role").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One logged-in device (003 research D1). The opaque token lives only in the
+ * httpOnly cookie; the DB stores its SHA-256, so a DB leak yields no usable tokens.
+ */
+export const staffSessions = pgTable("staff_sessions", {
+  id: serial("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  staffUserId: integer("staff_user_id")
+    .notNull()
+    .references(() => staffUsers.id, { onDelete: "cascade" }),
+  // rolling: extended to now + 7 days on authenticated use
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Journal of every status change (003 research D4). orders.status stays the
+ * authoritative current state; events are history, attribution, cancel
+ * reasons and the undo source. Append-only — undo writes a compensating
+ * event, it never deletes.
+ */
+export const orderStatusEvents = pgTable("order_status_events", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  fromStatus: orderStatusEnum("from_status").notNull(),
+  toStatus: orderStatusEnum("to_status").notNull(),
+  // REQUIRED when toStatus='canceled' — service-enforced
+  reason: text("reason"),
+  staffUserId: integer("staff_user_id")
+    .notNull()
+    .references(() => staffUsers.id, { onDelete: "restrict" }),
+  // set on compensating (undo) events → the event being reverted; an event
+  // with this set can NOT itself be undone (no redo ping-pong)
+  undoOfEventId: integer("undo_of_event_id").references((): AnyPgColumn => orderStatusEvents.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Live schedule/estimate configuration + per-domain seed-protection flags
+ * (003 research D6/D7). Exactly one row, id = 1 — created by migration 0004
+ * from the former src/lib/restaurant-config.ts constants. Timezone and
+ * address/phone stay in code, not here.
+ */
+export const restaurantSettings = pgTable(
+  "restaurant_settings",
+  {
+    id: integer("id").primaryKey(),
+    // minutes after local midnight (Europe/Bucharest)
+    openMinutes: integer("open_minutes").notNull(),
+    closeMinutes: integer("close_minutes").notNull(),
+    earliestFulfillmentMinutes: integer("earliest_fulfillment_minutes").notNull(),
+    deliveryEstimateMinutes: integer("delivery_estimate_minutes").notNull(),
+    // non-empty, each > 0 — enforced by zod at the boundary (array CHECK is app-level)
+    pickupEstimateOptionsMinutes: integer("pickup_estimate_options_minutes").array().notNull(),
+    // null = seed may write the CATALOG section; set by the first admin
+    // mutation of categories/products/variants/toppings (SEED_FORCE=1 resets)
+    catalogProtectedSince: timestamp("catalog_protected_since", { withTimezone: true }),
+    // same, for the ZONES seed section; settings edits set NEITHER flag
+    zonesProtectedSince: timestamp("zones_protected_since", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("restaurant_settings_single_row", sql`${t.id} = 1`),
+    check(
+      "restaurant_settings_hours_valid",
+      sql`${t.openMinutes} >= 0 AND ${t.closeMinutes} <= 1440 AND ${t.openMinutes} < ${t.closeMinutes}`,
+    ),
+    check(
+      "restaurant_settings_earliest_after_open",
+      sql`${t.earliestFulfillmentMinutes} >= ${t.openMinutes}`,
+    ),
+    check("restaurant_settings_delivery_estimate_positive", sql`${t.deliveryEstimateMinutes} > 0`),
   ],
 );
