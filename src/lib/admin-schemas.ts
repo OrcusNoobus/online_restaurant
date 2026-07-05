@@ -64,6 +64,48 @@ export const categoryPatchSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
 
+/**
+ * Server-side slug base (003 plan: diacritics stripped; the repository adds a
+ * numeric suffix when two names collide to the same slug).
+ */
+export function slugify(name: string): string {
+  const base = name
+    .normalize("NFD")
+    // combining diacritical marks left over after NFD (ă → a + U+0306, ș → s + U+0326 …)
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return base || "produs";
+}
+
+export const categoryCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  sortOrder: z.number().int().optional(),
+});
+export type CategoryCreate = z.infer<typeof categoryCreateSchema>;
+
+export const productCreateSchema = z.object({
+  categoryId: z.number().int().positive(),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).nullish(),
+  ingredients: z.string().trim().max(2000).nullish(),
+  allergens: z.string().trim().max(2000).nullish(),
+  sortOrder: z.number().int().optional(),
+  // >= 1 variant; single-size products send one entry with name null
+  variants: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(120).nullable(),
+        priceBani: z.number().int().positive(),
+      }),
+    )
+    .min(1)
+    .max(20),
+  toppingGroupIds: z.array(z.number().int().positive()).max(20).default([]),
+});
+export type ProductCreate = z.infer<typeof productCreateSchema>;
+
 // Admin-only patches (T08): every field optional, at least one required.
 // Nullable text fields accept null to CLEAR a value.
 

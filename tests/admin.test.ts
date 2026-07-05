@@ -13,11 +13,13 @@ import { POST as postLoginRoute } from "@/app/api/admin/auth/login/route";
 import { POST as postLogoutRoute } from "@/app/api/admin/auth/logout/route";
 import { GET as getMeRoute } from "@/app/api/admin/auth/me/route";
 import { GET as getAdminCatalogRoute } from "@/app/api/admin/catalog/route";
+import { POST as postCategoryRoute } from "@/app/api/admin/categories/route";
 import { PATCH as patchCategoryRoute } from "@/app/api/admin/categories/[id]/route";
 import { GET as getAdminOrdersRoute } from "@/app/api/admin/orders/route";
 import { GET as getAdminOrderRoute } from "@/app/api/admin/orders/[id]/route";
 import { POST as postTransitionRoute } from "@/app/api/admin/orders/[id]/transition/route";
 import { POST as postUndoRoute } from "@/app/api/admin/orders/[id]/undo/route";
+import { POST as postProductRoute } from "@/app/api/admin/products/route";
 import { PATCH as patchProductRoute } from "@/app/api/admin/products/[id]/route";
 import { GET as getAdminSettingsRoute, PUT as putAdminSettingsRoute } from "@/app/api/admin/settings/route";
 import { PATCH as patchToppingRoute } from "@/app/api/admin/toppings/[id]/route";
@@ -980,6 +982,171 @@ describe.skipIf(skipDb)("admin catalog + availability (T07)", () => {
     expect(on.status).toBe(200);
     const restored = await menuCategories();
     expect(restored.some(({ id }) => id === categoryId)).toBe(true);
+  });
+});
+
+describe.skipIf(skipDb)("create product + category (T09)", () => {
+  let adminToken: string;
+  let staffToken: string;
+
+  function jsonPost(token: string, body: unknown): Request {
+    return new Request("http://localhost/x", {
+      method: "POST",
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function removeCreateFixtures() {
+    const created = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(like(products.name, "Test T09%"));
+    for (const { id } of created) {
+      const orphanOrders = await db
+        .selectDistinct({ orderId: orderItems.orderId })
+        .from(orderItems)
+        .where(eq(orderItems.productId, id));
+      for (const { orderId } of orphanOrders) await db.delete(orders).where(eq(orders.id, orderId));
+      await db.delete(products).where(eq(products.id, id));
+    }
+    await db.delete(categories).where(like(categories.name, "Test T09%"));
+  }
+
+  beforeAll(async () => {
+    await removeCreateFixtures();
+    resetLoginRateLimiter();
+    const staffLogin = await login("test-staff", PASSWORD, "10.0.6.1");
+    const adminLogin = await login("test-admin", PASSWORD, "10.0.6.1");
+    if (!staffLogin.ok || !adminLogin.ok) throw new Error("fixture login failed");
+    staffToken = staffLogin.token;
+    adminToken = adminLogin.token;
+  });
+
+  afterAll(async () => {
+    if (staffToken) await logout(staffToken);
+    if (adminToken) await logout(adminToken);
+    await removeCreateFixtures();
+  });
+
+  it("staff cannot create anything (403)", async () => {
+    expect((await postCategoryRoute(jsonPost(staffToken, { name: "Test T09 Refuzat" }))).status).toBe(403);
+    expect(
+      (
+        await postProductRoute(
+          jsonPost(staffToken, { categoryId: 1, name: "Test T09 Refuzat", variants: [{ name: null, priceBani: 100 }] }),
+        )
+      ).status,
+    ).toBe(403);
+  });
+
+  it("admin creates a category + product that lands in the menu and is orderable end-to-end", async () => {
+    const categoryResponse = await postCategoryRoute(jsonPost(adminToken, { name: "Test T09 Deserturi", sortOrder: 998 }));
+    expect(categoryResponse.status).toBe(201);
+    const { category } = (await categoryResponse.json()) as { category: { id: number; slug: string } };
+    expect(category.slug).toBe("test-t09-deserturi");
+
+    const productResponse = await postProductRoute(
+      jsonPost(adminToken, {
+        categoryId: category.id,
+        name: "Test T09 Papanași cu Smântână",
+        description: "Cu dulceață de afine",
+        ingredients: "făină, brânză, smântână",
+        allergens: "gluten, lactoză, ou",
+        variants: [
+          { name: "1 porție", priceBani: 1800 },
+          { name: "2 porții", priceBani: 3200 },
+        ],
+        toppingGroupIds: [],
+      }),
+    );
+    expect(productResponse.status).toBe(201);
+    const { product } = (await productResponse.json()) as {
+      product: { id: number; slug: string; variants: { id: number; priceBani: number }[] };
+    };
+    // diacritics stripped server-side
+    expect(product.slug).toBe("test-t09-papanasi-cu-smantana");
+    expect(product.variants).toHaveLength(2);
+
+    // it shows up on the public menu with its texts
+    const menuResponse = await getMenuRoute();
+    const menu = ((await menuResponse.json()) as { categories: MenuCategory[] }).categories;
+    const menuProduct = menu
+      .find(({ id }) => id === category.id)
+      ?.products.find(({ id }) => id === product.id);
+    expect(menuProduct).toMatchObject({
+      name: "Test T09 Papanași cu Smântână",
+      ingredients: "făină, brânză, smântână",
+      allergens: "gluten, lactoză, ou",
+    });
+
+    // …and a customer can order it end-to-end: quote + place
+    const items = [{ productId: product.id, variantId: product.variants[0].id, quantity: 2, toppingIds: [] }];
+    const quote = await quoteCart({ mode: "pickup", items });
+    expect(quote.ok).toBe(true);
+    if (quote.ok) expect(quote.quote.totalBani).toBe(3600);
+
+    const placed = await placeOrder(
+      orderRequestSchema.parse({
+        mode: "pickup",
+        items,
+        customer: { firstName: "Client", lastName: "T09", phone: "0712345678" },
+        paymentMethod: "cash",
+        termsAccepted: true,
+        pickupEstimateMinutes: 15,
+      }),
+      { clientIp: null, now: new Date("2026-07-04T12:00:00Z") },
+    );
+    expect(placed.ok).toBe(true);
+    if (placed.ok) {
+      testOrderIds.push(placed.order.orderId);
+      expect(placed.order.totalBani).toBe(3600);
+    }
+
+    // duplicate names → 422 name_taken (both entities, case-insensitive)
+    const duplicateCategory = await postCategoryRoute(jsonPost(adminToken, { name: "test t09 deserturi" }));
+    expect(duplicateCategory.status).toBe(422);
+    expect(await duplicateCategory.json()).toEqual({ error: "name_taken" });
+    const duplicateProduct = await postProductRoute(
+      jsonPost(adminToken, {
+        categoryId: category.id,
+        name: "TEST T09 PAPANAȘI CU SMÂNTÂNĂ",
+        variants: [{ name: null, priceBani: 100 }],
+      }),
+    );
+    expect(duplicateProduct.status).toBe(422);
+    expect(await duplicateProduct.json()).toEqual({ error: "name_taken" });
+  });
+
+  it("referential 422s: unknown category / unknown topping group; empty variants → 400", async () => {
+    const noCategory = await postProductRoute(
+      jsonPost(adminToken, {
+        categoryId: 999_999_999,
+        name: "Test T09 Orfan",
+        variants: [{ name: null, priceBani: 100 }],
+      }),
+    );
+    expect(noCategory.status).toBe(422);
+    expect(await noCategory.json()).toEqual({ error: "category_not_found" });
+
+    const categoryResponse = await postCategoryRoute(jsonPost(adminToken, { name: "Test T09 Temp" }));
+    const { category } = (await categoryResponse.json()) as { category: { id: number } };
+
+    const noGroup = await postProductRoute(
+      jsonPost(adminToken, {
+        categoryId: category.id,
+        name: "Test T09 Grup Lipsă",
+        variants: [{ name: null, priceBani: 100 }],
+        toppingGroupIds: [999_999_999],
+      }),
+    );
+    expect(noGroup.status).toBe(422);
+    expect(await noGroup.json()).toEqual({ error: "topping_group_not_found" });
+
+    const noVariants = await postProductRoute(
+      jsonPost(adminToken, { categoryId: category.id, name: "Test T09 Fără Variante", variants: [] }),
+    );
+    expect(noVariants.status).toBe(400);
   });
 });
 

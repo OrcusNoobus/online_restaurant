@@ -7,7 +7,13 @@ import {
   type AdminCatalog,
   type CategoryPatch,
   type CategoryRow,
+  createCategory,
+  type CreateCategoryResult,
+  createProduct,
+  type CreateProductResult,
   getAdminCatalog,
+  type NewCategoryInput,
+  type NewProductInput,
   patchCategory,
   patchProduct,
   patchTopping,
@@ -20,6 +26,14 @@ import {
 
 export async function getCatalog(): Promise<AdminCatalog> {
   return getAdminCatalog();
+}
+
+export async function addCategory(input: NewCategoryInput): Promise<CreateCategoryResult> {
+  return createCategory(input);
+}
+
+export async function addProduct(input: NewProductInput): Promise<CreateProductResult> {
+  return createProduct(input);
 }
 
 type PatchResult<T> = { ok: true; entity: T } | { ok: false; error: "not_found" };

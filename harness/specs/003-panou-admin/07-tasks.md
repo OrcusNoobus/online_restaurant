@@ -89,7 +89,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       directions (staff → 403 on every edit field), price edit → next quote
       changes & pre-existing order snapshot untouched, texts round-trip to
       the public menu (source: 06-contracts Catalog, spec FR6/FR7 partial).
-- [ ] T09 — Create product + category (admin): `POST /api/admin/categories`,
+- [x] T09 — Create product + category (admin): `POST /api/admin/categories`,
       `POST /api/admin/products` (≥ 1 variant, server-side slugs, topping
       group links); integration tests: new product (new category,
       ingredients, allergens) appears in `GET /api/menu` and is orderable
