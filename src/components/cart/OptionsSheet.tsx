@@ -34,6 +34,9 @@ export interface SheetToppingGroup {
 export interface SheetProduct {
   id: number;
   name: string;
+  // shown as an info block since feat-007 (003 spec Q7) — may be absent
+  ingredients: string | null;
+  allergens: string | null;
   variants: { id: number; name: string | null; priceBani: number }[];
   toppingGroups: SheetToppingGroup[];
 }
@@ -134,6 +137,23 @@ export function OptionsSheet({ product, onClose, onAdd }: OptionsSheetProps) {
         </header>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-4">
+          {(product.ingredients || product.allergens) && (
+            <div className="space-y-1 rounded-xl bg-zinc-100 p-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {product.ingredients && (
+                <p>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-50">Ingrediente:</span>{" "}
+                  {product.ingredients}
+                </p>
+              )}
+              {product.allergens && (
+                <p>
+                  <span className="font-semibold text-zinc-900 dark:text-zinc-50">Alergeni:</span>{" "}
+                  {product.allergens}
+                </p>
+              )}
+            </div>
+          )}
+
           {product.variants.length > 1 && (
             <fieldset>
               <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">

@@ -34,6 +34,65 @@ export interface DayView {
   totals: DayTotals;
 }
 
+// --- Catalog admin (003 06-contracts Catalog) --------------------------------
+
+export type StaffRole = "admin" | "staff";
+
+export interface CatalogVariant {
+  id: number;
+  name: string | null;
+  priceBani: number;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  description: string | null;
+  ingredients: string | null;
+  allergens: string | null;
+  active: boolean;
+  sortOrder: number;
+  variants: CatalogVariant[];
+  toppingGroupIds: number[];
+}
+
+export interface CatalogCategory {
+  id: number;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  products: CatalogProduct[];
+}
+
+export interface CatalogToppingPrice {
+  sizeName: string | null;
+  priceBani: number;
+}
+
+export interface CatalogTopping {
+  id: number;
+  name: string;
+  sgrDepositBani: number;
+  active: boolean;
+  prices: CatalogToppingPrice[];
+}
+
+export interface CatalogToppingGroup {
+  id: number;
+  name: string;
+  required: boolean;
+  displayType: string;
+  sortOrder: number;
+  toppings: CatalogTopping[];
+}
+
+export interface CatalogData {
+  categories: CatalogCategory[];
+  toppingGroups: CatalogToppingGroup[];
+}
+
 export interface OrderDetailPayload {
   order: {
     id: number;

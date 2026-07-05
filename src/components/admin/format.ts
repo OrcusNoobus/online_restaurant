@@ -46,3 +46,22 @@ export function shiftDateKey(dateKey: string, days: number): string {
   noonUtc.setUTCDate(noonUtc.getUTCDate() + days);
   return noonUtc.toISOString().slice(0, 10);
 }
+
+/** Integer bani → plain "37,50" for price INPUT values (no "lei" suffix). */
+export function baniToLeiInput(bani: number): string {
+  const lei = Math.trunc(bani / 100);
+  const rest = bani % 100;
+  return rest === 0 ? String(lei) : `${lei},${String(rest).padStart(2, "0")}`;
+}
+
+/**
+ * "37" / "37,5" / "37.50" → integer bani; null when the text is not a valid
+ * non-negative price with at most two decimals (money is NEVER floats).
+ */
+export function parseLeiToBani(text: string): number | null {
+  const match = /^(\d{1,6})(?:[.,](\d{1,2}))?$/.exec(text.trim());
+  if (!match) return null;
+  const lei = Number(match[1]);
+  const rest = match[2] ? Number(match[2].padEnd(2, "0")) : 0;
+  return lei * 100 + rest;
+}
