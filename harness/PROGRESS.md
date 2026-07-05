@@ -6,16 +6,18 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-05 (feat-008 T01 done)
+- **Last updated:** 2026-07-05 (feat-008 T02 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
-  complete and approved; implementation started. T01 (LLM module) DONE
-  @ cf446ea on branch `claude/distracted-jang-33b090` (worktree). feat-007
+  complete and approved; implementation in progress. T01 (LLM module) DONE
+  @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10,
+  both on branch `claude/distracted-jang-33b090` (worktree). feat-007
   remains DONE on `feat/007-panou-admin` @ 19c6d45, still NOT merged into
   main — merge + push stays the human's call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
-  migrate, lint, typecheck, boundary checks, build); full test suite
-  120/120 incl. the new tests/assistant.test.ts (8 unit tests, no network);
-  feature verification `npm test -- tests/assistant` passing.
+  migrate incl. 0005, lint, typecheck, boundary checks, build); full test
+  suite 127/127 incl. tests/assistant.test.ts (8 T01 unit + 7 T02
+  integration on real Postgres); feature verification
+  `npm test -- tests/assistant` passing 15/15.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -43,16 +45,20 @@
 
 ## In Progress
 
-- feat-008 Asistent AI — T01 done (LLM module: `src/server/llm/provider.ts`
-  interface + `anthropic.ts` adapter, env contract in .env.example, 8 unit
-  tests). Next task: T02 (schema migration 0005 + assistant repository).
+- feat-008 Asistent AI — T01 done (LLM module); T02 done (migration 0005:
+  `assistant_conversations` + `assistant_messages` + `assistant_role` enum;
+  `repositories/assistant.ts`: create/load conversation, transactional
+  append that bumps `last_activity_at`, user-message counters per
+  conversation and per IP/24h, retention delete; 7 integration tests).
+  Next task: T03 (assistant service core + read tools + fake provider).
 
 ## Next Steps
 
-1. feat-008 T02 — migration 0005: `assistant_conversations` +
-   `assistant_messages` (+ enum) per 05-data-model; `repositories/assistant.ts`
-   with counters + retention; integration tests.
-2. Then T03–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T03 — `services/assistant.ts` with the bounded tool loop (max
+   6 rounds), system prompt (RO/HU/EN, allergens Q7, confirmation Q5,
+   guardrails), tools `get_menu` / `get_delivery_zones` / `get_schedule`;
+   `tests/helpers/fake-llm.ts`; integration tests with the fake.
+2. Then T04–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -71,6 +77,12 @@
   error travels as `cause` for the log. Adapter constructor takes an
   injectable env record so tests cover the no-key path without touching
   process.env.
+- T02 implementation-level: `AssistantMessageContent` union lives in
+  `db/schema.ts` (jsonb `.$type<>`), re-exported by the repository — typed
+  end-to-end without a cast; time math (24h window, retention cutoff,
+  activity bump) runs DB-side (`now()`, `make_interval`) so app and DB
+  clocks cannot disagree; thresholds (40/60/30d) stay OUT of the
+  repository — they are service policy (T06).
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -81,10 +93,13 @@
 
 - package.json / package-lock.json (+@anthropic-ai/sdk 0.110.0)
 - src/server/llm/{provider,anthropic}.ts (new — T01)
-- tests/assistant.test.ts (new — 8 unit tests, no network)
+- src/server/db/schema.ts (+assistant tables/enum) +
+  migrations/0005_feat008_assistant.sql + meta (T02)
+- src/server/repositories/assistant.ts (new — T02)
+- tests/assistant.test.ts (8 T01 unit + 7 T02 integration)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01 ticked), harness/PROGRESS.md
+- harness/specs/004-asistent-ai/07-tasks.md (T01+T02 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
