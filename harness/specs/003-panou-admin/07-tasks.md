@@ -36,7 +36,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       limit), `scripts/create-staff-user.ts`; integration tests: good/bad/
       deactivated login, expiry + rolling renewal, role guard
       (source: 03-research D1, 05-data-model StaffUser/StaffSession).
-- [ ] T03 — Auth HTTP boundary: `/api/admin/auth/{login,logout,me}` routes;
+- [x] T03 — Auth HTTP boundary: `/api/admin/auth/{login,logout,me}` routes;
       `src/proxy.ts` optimistic redirect for `/admin/:path*` with
       `/admin/login` explicitly passed through (no redirect loop); route
       group `(panel)` so the protected shell (nav, user, logout) never wraps

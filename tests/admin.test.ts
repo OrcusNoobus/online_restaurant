@@ -6,8 +6,13 @@
 import { execSync } from "node:child_process";
 
 import { eq, like } from "drizzle-orm";
+import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { POST as postLoginRoute } from "@/app/api/admin/auth/login/route";
+import { POST as postLogoutRoute } from "@/app/api/admin/auth/logout/route";
+import { GET as getMeRoute } from "@/app/api/admin/auth/me/route";
+import { proxy } from "@/proxy";
 import { db } from "@/server/db/client";
 import { staffSessions, staffUsers } from "@/server/db/schema";
 import { createUser, findSessionByTokenHash } from "@/server/repositories/staff";
@@ -213,6 +218,98 @@ describe.skipIf(skipDb)("sessions", () => {
     } finally {
       await logout(result.token);
     }
+  });
+});
+
+describe.skipIf(skipDb)("auth HTTP boundary", () => {
+  function loginRequest(body: unknown): Request {
+    return new Request("http://localhost/api/admin/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("a protected route answers 401 without a cookie", async () => {
+    const response = await getMeRoute(requestWithCookie(null));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthenticated" });
+  });
+
+  it("login sets the httpOnly session cookie and returns the user", async () => {
+    resetLoginRateLimiter();
+    const response = await postLoginRoute(loginRequest({ username: "test-admin", password: PASSWORD }));
+    expect(response.status).toBe(200);
+    const cookie = response.headers.get("set-cookie");
+    expect(cookie).toContain(`${SESSION_COOKIE_NAME}=`);
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("SameSite=Lax");
+    expect(cookie).toContain("Path=/");
+    const body = (await response.json()) as { user: { username: string; role: string } };
+    expect(body.user).toMatchObject({ username: "test-admin", role: "admin" });
+
+    const token = cookie!.split(";")[0].split("=")[1];
+    await logout(token);
+  });
+
+  it("login with bad credentials → 401, malformed body → 400", async () => {
+    resetLoginRateLimiter();
+    const bad = await postLoginRoute(loginRequest({ username: "test-admin", password: "wrong" }));
+    expect(bad.status).toBe(401);
+    expect(await bad.json()).toEqual({ error: "invalid_credentials" });
+
+    const malformed = await postLoginRoute(loginRequest({ username: "test-admin" }));
+    expect(malformed.status).toBe(400);
+    const body = (await malformed.json()) as { error: string };
+    expect(body.error).toBe("validation");
+    resetLoginRateLimiter();
+  });
+
+  it("me → logout → me round-trip: 200, 204 + cleared cookie, then 401", async () => {
+    resetLoginRateLimiter();
+    const loginResponse = await postLoginRoute(loginRequest({ username: "test-staff", password: PASSWORD }));
+    expect(loginResponse.status).toBe(200);
+    const token = loginResponse.headers.get("set-cookie")!.split(";")[0].split("=")[1];
+
+    const me = await getMeRoute(requestWithCookie(token));
+    expect(me.status).toBe(200);
+    const meBody = (await me.json()) as { user: { username: string } };
+    expect(meBody.user.username).toBe("test-staff");
+
+    const logoutResponse = await postLogoutRoute(requestWithCookie(token));
+    expect(logoutResponse.status).toBe(204);
+    const cleared = logoutResponse.headers.get("set-cookie");
+    expect(cleared).toContain(`${SESSION_COOKIE_NAME}=;`);
+    expect(cleared).toContain("Max-Age=0");
+
+    const meAfter = await getMeRoute(requestWithCookie(token));
+    expect(meAfter.status).toBe(401);
+
+    // idempotent: logging out again still answers 204
+    const again = await postLogoutRoute(requestWithCookie(token));
+    expect(again.status).toBe(204);
+  });
+});
+
+describe("proxy (optimistic redirect, no DB)", () => {
+  it("redirects /admin without a cookie to /admin/login", () => {
+    const response = proxy(new NextRequest("http://localhost/admin"));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/admin/login");
+  });
+
+  it("passes /admin/login through even without a cookie — no redirect loop", () => {
+    const response = proxy(new NextRequest("http://localhost/admin/login"));
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("passes /admin through when the session cookie is present", () => {
+    const response = proxy(
+      new NextRequest("http://localhost/admin", {
+        headers: { cookie: `${SESSION_COOKIE_NAME}=some-token` },
+      }),
+    );
+    expect(response.headers.get("location")).toBeNull();
   });
 });
 

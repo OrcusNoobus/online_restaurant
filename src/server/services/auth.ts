@@ -7,6 +7,7 @@
  */
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
+import { SESSION_COOKIE_NAME } from "@/lib/admin-schemas";
 import {
   createSession,
   deleteSessionById,
@@ -19,7 +20,7 @@ import {
   sweepExpiredSessions,
 } from "@/server/repositories/staff";
 
-export const SESSION_COOKIE_NAME = "rf_admin_session";
+export { SESSION_COOKIE_NAME };
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Skip the renewal write when the session was touched this recently — the 5s poller must not write on every tick. */
 const RENEWAL_MIN_INTERVAL_MS = 60 * 1000;
@@ -192,7 +193,7 @@ export type GuardResult =
   | { ok: false; status: 401; error: "unauthenticated" }
   | { ok: false; status: 403; error: "forbidden_role" };
 
-function tokenFromRequest(request: Request): string | null {
+export function sessionTokenFromRequest(request: Request): string | null {
   const header = request.headers.get("cookie");
   if (!header) return null;
   for (const part of header.split(";")) {
@@ -202,8 +203,19 @@ function tokenFromRequest(request: Request): string | null {
   return null;
 }
 
+/** Set-Cookie values — contract: httpOnly, SameSite=Lax, Secure in production, path /. */
+export function sessionCookie(token: string, expiresAt: Date): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Expires=${expiresAt.toUTCString()}${secure}`;
+}
+
+export function clearedSessionCookie(): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+}
+
 export async function requireStaff(request: Request, now: Date = new Date()): Promise<GuardResult> {
-  const token = tokenFromRequest(request);
+  const token = sessionTokenFromRequest(request);
   if (!token) return { ok: false, status: 401, error: "unauthenticated" };
   const user = await verifySession(token, now);
   if (!user) return { ok: false, status: 401, error: "unauthenticated" };
