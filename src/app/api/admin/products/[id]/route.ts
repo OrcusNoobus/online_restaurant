@@ -1,8 +1,9 @@
 /**
  * PATCH /api/admin/products/:id — Q14: staff may toggle {active} and NOTHING
- * else (any other key → 403 forbidden_role); admin field edits arrive in T08.
+ * else (any other key → 403 forbidden_role); admin edits any subset of
+ * name/description/ingredients/allergens/categoryId/sortOrder/active.
  */
-import { availabilityPatchSchema, idParamSchema } from "@/lib/admin-schemas";
+import { adminProductPatchSchema, availabilityPatchSchema, idParamSchema } from "@/lib/admin-schemas";
 import { updateProduct } from "@/server/services/admin-catalog";
 import { requireStaff } from "@/server/services/auth";
 
@@ -34,7 +35,8 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/admin/prod
       }
     }
 
-    const parsed = availabilityPatchSchema.safeParse(body);
+    const schema = guard.user.role === "admin" ? adminProductPatchSchema : availabilityPatchSchema;
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: "validation", issues: parsed.error.issues }, { status: 400 });
     }

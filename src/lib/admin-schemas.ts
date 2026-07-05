@@ -64,6 +64,52 @@ export const categoryPatchSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
 
+// Admin-only patches (T08): every field optional, at least one required.
+// Nullable text fields accept null to CLEAR a value.
+
+export const adminProductPatchSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(2000).nullable().optional(),
+    ingredients: z.string().trim().max(2000).nullable().optional(),
+    allergens: z.string().trim().max(2000).nullable().optional(),
+    categoryId: z.number().int().positive().optional(),
+    sortOrder: z.number().int().optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+export type AdminProductPatch = z.infer<typeof adminProductPatchSchema>;
+
+export const adminVariantPatchSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).nullable().optional(),
+    priceBani: z.number().int().positive().optional(),
+    sortOrder: z.number().int().optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+export type AdminVariantPatch = z.infer<typeof adminVariantPatchSchema>;
+
+/** `prices` upserts by (topping, sizeName); sizeName null = the single/default variant. */
+export const adminToppingPatchSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(200).optional(),
+    sgrDepositBani: z.number().int().min(0).optional(),
+    active: z.boolean().optional(),
+    prices: z
+      .array(
+        z.object({
+          sizeName: z.string().trim().min(1).max(120).nullable(),
+          priceBani: z.number().int().min(0),
+        }),
+      )
+      .min(1)
+      .max(20)
+      .optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+export type AdminToppingPatch = z.infer<typeof adminToppingPatchSchema>;
+
 // --- Settings (003 06-contracts Settings; CHECK rules from 05-data-model) ---
 
 export const settingsUpdateSchema = z

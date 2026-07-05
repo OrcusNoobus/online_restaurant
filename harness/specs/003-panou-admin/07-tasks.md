@@ -82,7 +82,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       cart quote, admin catalog still shows it, categories NOT togglable by
       staff (403)
       (source: 06-contracts Catalog, spec FR5; review points 1/2).
-- [ ] T08 — Catalog edits (admin): prices (variant `priceBani`, topping
+- [x] T08 — Catalog edits (admin): prices (variant `priceBani`, topping
       `prices[]` upsert by size, `sgrDepositBani`), names/descriptions/
       ingredients/allergens; menu payload gains `ingredients`/`allergens`
       (additive contract change); integration tests: role matrix both

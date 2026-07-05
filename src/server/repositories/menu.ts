@@ -49,6 +49,9 @@ export interface MenuProduct {
   slug: string;
   name: string;
   description: string | null;
+  // additive since feat-007 (003 research D8) — shown in the options sheet
+  ingredients: string | null;
+  allergens: string | null;
   imageUrl: string | null;
   variants: MenuVariant[];
   toppingGroups: MenuToppingGroup[];
@@ -206,6 +209,8 @@ export async function getMenu(): Promise<MenuCategory[]> {
       slug: products.slug,
       name: products.name,
       description: products.description,
+      ingredients: products.ingredients,
+      allergens: products.allergens,
       imageUrl: products.imageUrl,
     })
     .from(products)

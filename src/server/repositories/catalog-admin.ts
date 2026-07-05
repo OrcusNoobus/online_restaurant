@@ -214,6 +214,12 @@ export async function patchCategory(id: number, patch: CategoryPatch): Promise<C
 }
 
 export interface ProductPatch {
+  name?: string;
+  description?: string | null;
+  ingredients?: string | null;
+  allergens?: string | null;
+  categoryId?: number;
+  sortOrder?: number;
   active?: boolean;
 }
 
@@ -245,6 +251,9 @@ export async function patchProduct(id: number, patch: ProductPatch): Promise<Pro
 }
 
 export interface VariantPatch {
+  name?: string | null;
+  priceBani?: number;
+  sortOrder?: number;
   active?: boolean;
 }
 
@@ -261,22 +270,56 @@ export async function patchVariant(id: number, patch: VariantPatch): Promise<(Ad
 }
 
 export interface ToppingPatch {
+  name?: string;
+  sgrDepositBani?: number;
   active?: boolean;
+  /** Upserted by (topping, sizeName) — existing sizes not listed here stay untouched. */
+  prices?: AdminToppingPrice[];
 }
 
 export async function patchTopping(id: number, patch: ToppingPatch): Promise<(AdminTopping & { groupId: number }) | null> {
-  const rows = await db.update(toppings).set(patch).where(eq(toppings.id, id)).returning({
-    id: toppings.id,
-    groupId: toppings.groupId,
-    name: toppings.name,
-    sgrDepositBani: toppings.sgrDepositBani,
-    active: toppings.active,
+  const { prices: priceUpserts, ...fields } = patch;
+
+  const row = await db.transaction(async (tx) => {
+    const rows = Object.keys(fields).length
+      ? await tx.update(toppings).set(fields).where(eq(toppings.id, id)).returning({
+          id: toppings.id,
+          groupId: toppings.groupId,
+          name: toppings.name,
+          sgrDepositBani: toppings.sgrDepositBani,
+          active: toppings.active,
+        })
+      : await tx
+          .select({
+            id: toppings.id,
+            groupId: toppings.groupId,
+            name: toppings.name,
+            sgrDepositBani: toppings.sgrDepositBani,
+            active: toppings.active,
+          })
+          .from(toppings)
+          .where(eq(toppings.id, id));
+    if (!rows[0]) return null;
+
+    if (priceUpserts?.length) {
+      for (const price of priceUpserts) {
+        await tx
+          .insert(toppingPrices)
+          .values({ toppingId: id, sizeName: price.sizeName, priceBani: price.priceBani })
+          .onConflictDoUpdate({
+            target: [toppingPrices.toppingId, toppingPrices.sizeName],
+            set: { priceBani: price.priceBani },
+          });
+      }
+    }
+    return rows[0];
   });
-  if (!rows[0]) return null;
+  if (!row) return null;
+
   const prices = await db
     .select({ sizeName: toppingPrices.sizeName, priceBani: toppingPrices.priceBani })
     .from(toppingPrices)
     .where(eq(toppingPrices.toppingId, id))
     .orderBy(asc(toppingPrices.id));
-  return { ...rows[0], prices };
+  return { ...row, prices };
 }
