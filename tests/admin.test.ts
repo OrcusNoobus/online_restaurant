@@ -32,6 +32,7 @@ import { db } from "@/server/db/client";
 import {
   categories,
   deliveryZones,
+  orderItems,
   orders,
   products,
   productToppingGroups,
@@ -667,7 +668,24 @@ describe.skipIf(skipDb)("admin catalog + availability (T07)", () => {
     return ((await response.json()) as { categories: MenuCategory[] }).categories;
   }
 
+  /** Idempotent — safe to run before AND after; orders first (RESTRICT FKs). */
+  async function removeCatalogFixtures() {
+    const orphanOrders = await db
+      .selectDistinct({ orderId: orderItems.orderId })
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .where(eq(products.slug, "test-prod-admin"));
+    for (const { orderId } of orphanOrders) {
+      await db.delete(orders).where(eq(orders.id, orderId));
+    }
+    await db.delete(products).where(eq(products.slug, "test-prod-admin"));
+    await db.delete(toppingGroups).where(eq(toppingGroups.name, "Test Grup Admin"));
+    await db.delete(categories).where(eq(categories.slug, "test-cat-admin"));
+  }
+
   beforeAll(async () => {
+    // a crashed previous run may have left fixtures behind
+    await removeCatalogFixtures();
     const [category] = await db
       .insert(categories)
       .values({ slug: "test-cat-admin", name: "Test Categorie Admin", sortOrder: 999 })
@@ -708,13 +726,9 @@ describe.skipIf(skipDb)("admin catalog + availability (T07)", () => {
   });
 
   afterAll(async () => {
-    await logout(staffToken);
-    await logout(adminToken);
-    // cascades variants + group links
-    await db.delete(products).where(eq(products.id, productId));
-    // cascades toppings + prices
-    await db.delete(toppingGroups).where(eq(toppingGroups.id, groupId));
-    await db.delete(categories).where(eq(categories.id, categoryId));
+    if (staffToken) await logout(staffToken);
+    if (adminToken) await logout(adminToken);
+    await removeCatalogFixtures();
   });
 
   it("GET /api/admin/catalog returns the full tree per contract", async () => {
@@ -816,6 +830,129 @@ describe.skipIf(skipDb)("admin catalog + availability (T07)", () => {
     const restored = await menuCategories();
     const restoredProduct = restored.flatMap(({ products: list }) => list).find(({ id }) => id === productId);
     expect(restoredProduct!.toppingGroups.some(({ id }) => id === groupId)).toBe(true);
+  });
+
+  it("T08: admin edits prices — the next quote changes, old order snapshots stay frozen", async () => {
+    // place an order line against the fixture variant at today's price (1000)
+    const orderId = await insertOrder({
+      mode: "pickup",
+      customerFirstName: "Snapshot",
+      customerLastName: "Test",
+      phone: "+40712345678",
+      email: null,
+      zoneId: null,
+      addressStreet: null,
+      notes: null,
+      scheduledFor: null,
+      estimateMinutes: 15,
+      paymentMethod: "cash",
+      subtotalBani: 1000,
+      sgrBani: 0,
+      deliveryFeeBani: 0,
+      totalBani: 1000,
+      termsAcceptedAt: new Date(),
+      clientIp: null,
+      items: [
+        {
+          productId,
+          variantId: variantSmallId,
+          productName: "Test Produs Admin",
+          variantName: "mică",
+          unitPriceBani: 1000,
+          quantity: 1,
+          lineTotalBani: 1000,
+          options: [],
+        },
+      ],
+    });
+    testOrderIds.push(orderId);
+
+    const priced = await patchVariantRoute(jsonPatch(adminToken, { priceBani: 1500 }), ctxFor(variantSmallId));
+    expect(priced.status).toBe(200);
+    expect(((await priced.json()) as { variant: { priceBani: number } }).variant.priceBani).toBe(1500);
+
+    const quote = await quoteCart({
+      mode: "pickup",
+      items: [{ productId, variantId: variantSmallId, quantity: 1, toppingIds: [] }],
+    });
+    expect(quote.ok).toBe(true);
+    if (quote.ok) expect(quote.quote.subtotalBani).toBe(1500);
+
+    // the placed order still shows what the customer actually paid
+    const detail = await getDetail(orderId);
+    expect(detail!.items[0].unitPriceBani).toBe(1000);
+    expect(detail!.order.totalBani).toBe(1000);
+  });
+
+  it("T08: admin edits topping data — price upsert by size applies to the next quote", async () => {
+    const patched = await patchToppingRoute(
+      jsonPatch(adminToken, {
+        name: "Test Topping Redenumit",
+        sgrDepositBani: 50,
+        prices: [
+          { sizeName: null, priceBani: 300 },
+          { sizeName: "mare", priceBani: 400 },
+        ],
+      }),
+      ctxFor(toppingId),
+    );
+    expect(patched.status).toBe(200);
+    const body = (await patched.json()) as {
+      topping: { name: string; sgrDepositBani: number; prices: { sizeName: string | null; priceBani: number }[] };
+    };
+    expect(body.topping.name).toBe("Test Topping Redenumit");
+    expect(body.topping.prices).toEqual(
+      expect.arrayContaining([
+        { sizeName: null, priceBani: 300 },
+        { sizeName: "mare", priceBani: 400 },
+      ]),
+    );
+
+    // small size falls back to the null row (300); SGR now counts separately
+    const quote = await quoteCart({
+      mode: "pickup",
+      items: [{ productId, variantId: variantSmallId, quantity: 1, toppingIds: [toppingId] }],
+    });
+    expect(quote.ok).toBe(true);
+    if (quote.ok) {
+      expect(quote.quote.subtotalBani).toBe(1500 + 300);
+      expect(quote.quote.sgrBani).toBe(50);
+    }
+  });
+
+  it("T08: admin text edits round-trip to the public menu", async () => {
+    const patched = await patchProductRoute(
+      jsonPatch(adminToken, {
+        description: "Descriere nouă",
+        ingredients: "făină, roșii, mozzarella",
+        allergens: "gluten, lactoză",
+      }),
+      ctxFor(productId),
+    );
+    expect(patched.status).toBe(200);
+
+    const menu = await menuCategories();
+    const menuProduct = menu.flatMap(({ products: list }) => list).find(({ id }) => id === productId);
+    expect(menuProduct).toMatchObject({
+      description: "Descriere nouă",
+      ingredients: "făină, roșii, mozzarella",
+      allergens: "gluten, lactoză",
+    });
+  });
+
+  it("T08: staff gets 403 on every edit field, on every entity", async () => {
+    const attempts: [string, Promise<Response>][] = [
+      ["product name", patchProductRoute(jsonPatch(staffToken, { name: "X" }), ctxFor(productId))],
+      ["product ingredients", patchProductRoute(jsonPatch(staffToken, { ingredients: "X" }), ctxFor(productId))],
+      ["variant price", patchVariantRoute(jsonPatch(staffToken, { priceBani: 1 }), ctxFor(variantSmallId))],
+      ["variant name", patchVariantRoute(jsonPatch(staffToken, { name: "X" }), ctxFor(variantSmallId))],
+      ["topping prices", patchToppingRoute(jsonPatch(staffToken, { prices: [{ sizeName: null, priceBani: 1 }] }), ctxFor(toppingId))],
+      ["topping sgr", patchToppingRoute(jsonPatch(staffToken, { sgrDepositBani: 1 }), ctxFor(toppingId))],
+    ];
+    for (const [label, attempt] of attempts) {
+      const response = await attempt;
+      expect(response.status, label).toBe(403);
+    }
   });
 
   it("role matrix: staff blocked from categories and non-active fields; admin toggles the category", async () => {

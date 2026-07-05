@@ -1,8 +1,8 @@
 /**
  * PATCH /api/admin/toppings/:id — Q14: staff may toggle {active} only; admin
- * field/price edits arrive in T08.
+ * edits name/sgrDepositBani/active and upserts `prices` by (topping, sizeName).
  */
-import { availabilityPatchSchema, idParamSchema } from "@/lib/admin-schemas";
+import { adminToppingPatchSchema, availabilityPatchSchema, idParamSchema } from "@/lib/admin-schemas";
 import { updateTopping } from "@/server/services/admin-catalog";
 import { requireStaff } from "@/server/services/auth";
 
@@ -34,7 +34,8 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/admin/topp
       }
     }
 
-    const parsed = availabilityPatchSchema.safeParse(body);
+    const schema = guard.user.role === "admin" ? adminToppingPatchSchema : availabilityPatchSchema;
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       return Response.json({ error: "validation", issues: parsed.error.issues }, { status: 400 });
     }
