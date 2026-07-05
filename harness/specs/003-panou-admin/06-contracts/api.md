@@ -18,7 +18,8 @@
 - JSON in/out; all prices **integer bani**; timestamps ISO-8601 with offset.
 - Zod-validated bodies/params. Malformed shape → `400
   {"error":"validation","issues":[...]}`. Semantically invalid → `422
-  {"error":"<code>"}` with codes listed per endpoint. Not found → `404
+  {"error":"<code>"}` with codes listed per endpoint. Lost race against a
+  concurrent device → `409 {"error":"stale_state",...}`. Not found → `404
   {"error":"not_found"}`. Unexpected → `500 {"error":"internal"}`.
 - These services back the panel today and the POS integration tomorrow
   (clarify Q12 note) — nothing assumes a browser except the cookie transport.
@@ -98,25 +99,55 @@ Request: `{"to":"accepted","estimateMinutes":45}` |
   order's mode/state), `cancel_reason_required` (to=canceled without a
   non-empty reason), `estimate_not_allowed` (`estimateMinutes` present but
   `to !== "accepted"`).
+- `409 {"error":"stale_state","currentStatus":"..."}` — the order's status
+  changed since the client last read it (concurrent device). The status
+  update is a conditional `UPDATE … WHERE status = <expected from>`; zero
+  rows → 409, nothing written. The UI refetches and re-renders the valid
+  actions.
 - `estimateMinutes` optional on `to="accepted"`: integer > 0; omitted →
   the estimate quoted at placement stays.
 
 ### `POST /api/admin/orders/:id/undo`
 
 Empty body. Reverts the order to the latest event's `fromStatus`, recording a
-compensating event (05-data-model Lifecycle).
+compensating event marked with `undoOfEventId` (05-data-model Lifecycle).
 
 - `200` → updated detail payload.
-- `422 {"error":"nothing_to_undo"}` — order has no events.
+- `422 {"error":"nothing_to_undo"}` — order has no events, or the latest
+  event is itself an undo (an undo cannot be undone — no redo ping-pong;
+  move forward with normal transitions instead).
+- `409 {"error":"stale_state","currentStatus":"..."}` — same conditional
+  rule as transitions.
 
-## Catalog (role rules per Q14 — staff may ONLY toggle `active`)
+## Catalog (role rules per Q14 — staff may ONLY toggle `active` on products / variants / toppings)
+
+### `GET /api/admin/catalog` (staff + admin)
+
+The admin's read view: the FULL catalog including inactive entities — the
+public `GET /api/menu` hides them, so the panel cannot edit from it.
+
+```json
+{
+  "categories": [ { "id": 3, "name": "Pizza", "sortOrder": 10, "active": true,
+    "products": [ { "id": 41, "name": "Pizza Royal", "description": "…",
+      "ingredients": "…", "allergens": "…", "active": true, "sortOrder": 5,
+      "variants": [ { "id": 88, "name": "30 cm", "priceBani": 3500,
+                      "active": true, "sortOrder": 0 } ],
+      "toppingGroupIds": [1, 2] } ] } ],
+  "toppingGroups": [ { "id": 1, "name": "Ambalaj", "required": true,
+    "displayType": "radio", "sortOrder": 0,
+    "toppings": [ { "id": 9, "name": "Cutie", "sgrDepositBani": 0,
+      "active": true, "prices": [ { "sizeName": null, "priceBani": 200 } ] } ] } ]
+}
+```
 
 ### `POST /api/admin/categories` (admin)
 
 `{"name":"Deserturi","sortOrder":90}` → `201 {"category":{...}}` (slug
 generated server-side, unique). `422 name_taken` on duplicate name/slug.
 
-### `PATCH /api/admin/categories/:id` (admin; `active` also staff)
+### `PATCH /api/admin/categories/:id` (admin only — categories are NOT in
+the staff availability matrix, Q14)
 
 Any subset of `{"name","sortOrder","active"}` → `200 {"category":{...}}`.
 
@@ -185,15 +216,30 @@ deactivate, never delete.
 { "settings": { "openMinutes": 660, "closeMinutes": 1350,
   "earliestFulfillmentMinutes": 690, "deliveryEstimateMinutes": 60,
   "pickupEstimateOptionsMinutes": [15, 25],
-  "catalogOwnedByAdminSince": null, "updatedAt": "..." } }
+  "catalogProtectedSince": null, "zonesProtectedSince": null,
+  "updatedAt": "..." } }
 ```
 
 ### `PUT /api/admin/settings`
 
-Full replacement of the five editable fields (everything except
-`catalogOwnedByAdminSince`, which only the system writes). Zod + CHECK rules
-from `05-data-model.md`. → `200 {"settings":{...}}`. Applies to the very next
-checkout request — no cache.
+Full replacement of the five editable fields (the `*ProtectedSince` flags
+are system-written only — see the seed guard in `05-data-model.md`). Zod +
+CHECK rules from `05-data-model.md`. → `200 {"settings":{...}}`. Applies to
+the very next checkout request — no cache.
+
+## New: `GET /api/schedule` (public)
+
+The live schedule/estimate values the checkout UI (and future channels —
+"când sunteți deschiși?") renders and validates against client-side. The
+server remains authoritative; this is display/UX data.
+
+```json
+{ "schedule": { "openMinutes": 660, "closeMinutes": 1350,
+  "earliestFulfillmentMinutes": 690, "deliveryEstimateMinutes": 60,
+  "pickupEstimateOptionsMinutes": [15, 25] } }
+```
+
+No auth, no ownership flags, no cache headers (values must be live).
 
 ## Changed: `GET /api/menu` (public, additive)
 
@@ -202,11 +248,17 @@ checkout request — no cache.
   product with no active variants is omitted entirely, same as `active=false`.
 - Existing consumers keep working — no field changes shape or disappears.
 
-## Changed: checkout schedule values (no shape change)
+## Changed: `POST /api/orders` (one boundary rule moves)
 
-`POST /api/cart/quote` and `POST /api/orders` keep their contracts; the
-schedule/estimate values they validate against now come from
-`restaurant_settings` instead of constants. Same codes (`shop_closed`, etc.).
+The schedule/estimate values quote/place validate against now come from
+`restaurant_settings` instead of constants; existing codes (`shop_closed`,
+etc.) are unchanged. ONE rule moves layers: `pickupEstimateMinutes` was
+zod-validated against the constant `[15, 25]` (a static union in
+`src/lib/order-schemas.ts`); it becomes a plain positive-integer shape check
+in zod, and membership in the CURRENT
+`settings.pickupEstimateOptionsMinutes` is checked in the service →
+`422 {"error":"invalid_pickup_estimate"}`. Semantic rules live in services —
+this restores the file's own stated rule.
 
 ## Logging (observability bar, ARCHITECTURE.md)
 

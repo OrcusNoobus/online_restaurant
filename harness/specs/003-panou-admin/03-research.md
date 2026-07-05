@@ -81,9 +81,14 @@
   POS integration and any dispute will want. Columns-only cannot reconstruct
   two consecutive mistakes.
 - **Shape:** `order_status_events(id, order_id FK, from_status, to_status,
-  reason text NULL, staff_user_id FK, created_at)`. `orders.status` remains
-  the authoritative current state (fast list queries); events are the journal.
-  Transition + event insert + estimate update happen in one transaction.
+  reason text NULL, staff_user_id FK, undo_of_event_id FK NULL, created_at)`.
+  `orders.status` remains the authoritative current state (fast list
+  queries); events are the journal. Transition + event insert + estimate
+  update happen in one transaction, with a CONDITIONAL status update
+  (`WHERE status = <expected>`) so concurrent devices cannot double-apply —
+  loser gets `409 stale_state`. Undo events carry `undo_of_event_id` and can
+  never themselves be undone (review refinement 2026-07-05 — no redo
+  ping-pong).
 
 ## Decision 5: `ready_for_pickup` — enum extension + transition graph in `src/lib`
 
@@ -133,13 +138,16 @@
   that, `npm run db:seed` exits loudly ("catalog is admin-owned since <date>;
   seed skipped") instead of silently destroying the owner's work. B kills the
   dev reseed loop; C is merge machinery v1 doesn't need.
-- **Consequences:** boolean + timestamp on the settings row
-  (`catalog_owned_by_admin_since`); every admin mutation service for
-  catalog/zones/settings sets it; the seed script checks it first. Deliberate
-  override for humans only: `SEED_FORCE=1`, documented in the seed script's
-  error message, resets ownership too. Integration tests run on the dev DB
-  where no admin edit has happened, or clean up after themselves — verified
-  at plan time (T-level detail).
+- **Consequences (refined at review 2026-07-05 — per-domain, not global):**
+  TWO timestamps on the settings row, matching the seed's two sections:
+  `catalog_protected_since` (set by the first admin mutation of
+  categories/products/variants/toppings) and `zones_protected_since` (set by
+  the first admin zone mutation). Schedule/settings edits set NEITHER — the
+  seed never writes settings, and an orar tweak must not block a menu
+  re-seed. The seed checks each flag before its section. Deliberate override
+  for humans only: `SEED_FORCE=1`, documented in the seed script's error
+  message, resets the flags too. Integration tests that flip a flag reset it
+  in cleanup — verified at plan time (T-level detail).
 
 ## Decision 8: Ingredients & allergens — free-text columns, shown in the options sheet
 

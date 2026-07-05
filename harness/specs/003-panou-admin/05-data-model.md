@@ -57,13 +57,15 @@ and the undo source.
 | `toStatus` | enum `order_status` | yes | — | |
 | `reason` | text | no | null | REQUIRED when `toStatus='canceled'` (service-enforced, Q15) |
 | `staffUserId` | integer FK → StaffUser | yes | — | RESTRICT — who pressed it |
+| `undoOfEventId` | integer FK → OrderStatusEvent | no | null | set on compensating (undo) events → points at the event being reverted. An event with this set can NOT itself be undone (no redo ping-pong) |
 | `createdAt` | timestamptz | yes | now() | |
 
 ## Entity: RestaurantSettings (single row)
 
-Live schedule/estimate configuration (03-research D6) + the seed-ownership
-flag (D7). Exactly one row, `id = 1` (CHECK). Created by migration 0004 from
-the current `src/lib/restaurant-config.ts` constants.
+Live schedule/estimate configuration (03-research D6) + the per-domain seed
+protection flags (D7, refined at review 2026-07-05). Exactly one row,
+`id = 1` (CHECK). Created by migration 0004 from the current
+`src/lib/restaurant-config.ts` constants.
 
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
@@ -73,7 +75,8 @@ the current `src/lib/restaurant-config.ts` constants.
 | `earliestFulfillmentMinutes` | integer | yes | 690 | 11:30; CHECK `≥ openMinutes` |
 | `deliveryEstimateMinutes` | integer | yes | 60 | default quoted at placement; CHECK > 0 |
 | `pickupEstimateOptionsMinutes` | integer[] | yes | {15,25} | non-empty, each > 0 (zod; array CHECK is app-level) |
-| `catalogOwnedByAdminSince` | timestamptz | no | null | null = seed may write catalog; set by the FIRST admin mutation of catalog/zones/settings; seed then refuses (SEED_FORCE=1 resets) |
+| `catalogProtectedSince` | timestamptz | no | null | null = seed may write the CATALOG section; set by the first admin mutation of categories/products/variants/toppings; seed then refuses that section (`SEED_FORCE=1` resets) |
+| `zonesProtectedSince` | timestamptz | no | null | same, for the ZONES seed section; set by the first admin zone mutation. Schedule/settings edits set NEITHER flag — seed never writes settings |
 | `updatedAt` | timestamptz | yes | now() | |
 
 Timezone (`Europe/Bucharest`) and restaurant address/phone stay in
@@ -136,11 +139,18 @@ merely hides what the role cannot do.
 - **Cancel:** from any non-final state (`new`, `accepted`, `in_delivery`,
   `ready_for_pickup`) → `canceled`, reason required.
 - **Undo (Q15):** one step back — revert to the latest event's `fromStatus`,
-  recorded as a new compensating event (history is append-only). Works for
-  cancel too. No undo when the order has no events.
+  recorded as a new compensating event with `undoOfEventId` set (history is
+  append-only). Works for cancel too. Refused (`nothing_to_undo`) when the
+  order has no events OR when the latest event is itself an undo — an undo
+  cannot be undone; after a mistaken undo, staff moves forward with normal
+  transitions.
 - **Final states:** `completed`, `canceled` — no forward transitions out;
   only undo of the step that entered them.
-- Every transition = one transaction: `orders.status` update (+ estimate at
-  accept) + event insert.
+- **Concurrency:** every transition/undo updates the status CONDITIONALLY
+  (`UPDATE orders SET status=<to> WHERE id=<id> AND status=<expected from>`);
+  zero affected rows → `409 stale_state`, no event written. Two devices
+  pressing simultaneously → exactly one wins, the other refetches.
+- Every transition = one transaction: conditional `orders.status` update
+  (+ estimate at accept) + event insert.
 - Sessions: created at login, rolling 7-day expiry, deleted at logout /
   user deactivation; expired rows swept opportunistically.
