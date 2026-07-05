@@ -48,9 +48,9 @@
       "behavior": "Un client deschide chat-ul de pe site, întreabă în limbaj natural despre meniu (ex: 'ce pizza picantă aveți?') și poate plasa o comandă prin conversație; asistentul folosește EXCLUSIV serviciile existente (meniu, coș, comenzi) prin tool-calling. Probabil se sparge în sub-feature-uri la spec time",
       "verification": "(defined at spec time) scripted conversation flows: menu Q&A + end-to-end order placed via chat",
       "dependencies": ["feat-006"],
-      "status": "not-started",
+      "status": "in-progress",
       "evidence": "",
-      "spec": ""
+      "spec": "harness/specs/004-asistent-ai/"
     },
     {
       "id": "feat-009",
