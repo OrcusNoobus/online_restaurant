@@ -6,6 +6,7 @@
  * itself). T03 runs the real assistant service + DB with the scripted fake
  * provider: tool wiring on real data, transcript persistence, round cap.
  * T04 covers the cart bridge: update_cart prices through quoteCart only.
+ * T05 covers place_order: same placeOrder as the web, confirmation flow.
  */
 import { execSync } from "node:child_process";
 
@@ -19,6 +20,9 @@ import { db } from "@/server/db/client";
 import {
   assistantConversations,
   assistantMessages,
+  orderItemOptions,
+  orderItems,
+  orders,
   products,
   productVariants,
   toppingGroups,
@@ -41,7 +45,7 @@ import {
 } from "@/server/repositories/assistant";
 import { getMenu } from "@/server/repositories/menu";
 import { getActiveZones } from "@/server/repositories/zones";
-import { runAssistantTurn } from "@/server/services/assistant";
+import { type AssistantTurnOptions, runAssistantTurn } from "@/server/services/assistant";
 import { quoteCart } from "@/server/services/pricing";
 import { getScheduleConfig } from "@/server/services/settings";
 
@@ -235,10 +239,14 @@ async function backdateMessage(messageId: number, hours: number) {
 }
 
 afterAll(async () => {
-  if (skipDb || createdConversationIds.length === 0) return;
-  await db
-    .delete(assistantConversations)
-    .where(inArray(assistantConversations.id, createdConversationIds));
+  if (skipDb) return;
+  // orders placed through the assistant (T05) carry this suite's client IP
+  await db.delete(orders).where(eq(orders.clientIp, TURN_IP));
+  if (createdConversationIds.length > 0) {
+    await db
+      .delete(assistantConversations)
+      .where(inArray(assistantConversations.id, createdConversationIds));
+  }
 });
 
 describe.skipIf(skipDb)("T02 — conversation round-trip and ordering", () => {
@@ -394,8 +402,9 @@ async function runTurn(
   message: string,
   cart: CartItem[] = [],
   conversationId?: string,
+  options: AssistantTurnOptions = {},
 ) {
-  const turn = await runAssistantTurn(provider, { conversationId, message, cart, clientIp: TURN_IP });
+  const turn = await runAssistantTurn(provider, { conversationId, message, cart, clientIp: TURN_IP }, options);
   if (!createdConversationIds.includes(turn.conversationId)) {
     createdConversationIds.push(turn.conversationId);
   }
@@ -447,6 +456,7 @@ describe.skipIf(skipDb)("T03 — menu answers ride on real DB data", () => {
       "get_delivery_zones",
       "get_schedule",
       "update_cart",
+      "place_order",
     ]);
     expect(first.maxTokens).toBe(1000);
     expect(first.messages).toEqual([{ role: "user", text: "ce pizza picantă aveți?" }]);
@@ -719,6 +729,174 @@ describe.skipIf(skipDb)("T04 — cart bridge + update_cart", () => {
 
     expect(turn.cart).toEqual(siteCart);
     expect(turn.quote).toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("T05 — place_order + confirmation flow", () => {
+  // Saturday 2026-07-04, 18:00 restaurant time (EEST) — open; same clock as tests/orders
+  const OPEN_NOW = new Date("2026-07-04T15:00:00Z");
+
+  async function deliveryOrderInput(overrides: Record<string, unknown> = {}) {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    return {
+      mode: "delivery",
+      zoneSlug: "santana-de-mures",
+      items: [{ ...heineken, quantity: 2, toppingIds: [sgrId] }],
+      customer: { firstName: "Ana", lastName: "Chat", phone: "0740999888", email: null },
+      addressStreet: "Str. Teilor 5",
+      notes: null,
+      scheduledFor: null,
+      paymentMethod: "cash",
+      termsAccepted: true,
+      ...overrides,
+    };
+  }
+
+  async function ordersPlacedByThisSuite() {
+    return db.select({ id: orders.id }).from(orders).where(eq(orders.clientIp, TURN_IP));
+  }
+
+  it("without confirmation nothing is placed; after confirmation the order lands like a web order", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    const items = [{ ...heineken, quantity: 2, toppingIds: [sgrId] }];
+
+    // turn 1 — the model quotes and asks for confirmation; NO place_order scripted
+    const fake1 = new FakeLlmProvider([
+      toolCalls([
+        {
+          id: "call_q",
+          name: "update_cart",
+          input: { mode: "delivery", zoneSlug: "santana-de-mures", items },
+        },
+      ]),
+      reply("Sumar: 2 × Heineken 0,5 L, total 43,00 lei cu livrare la Sântana de Mureș. Confirmați?"),
+    ]);
+    const turn1 = await runTurn(fake1, "vreau două heineken la Sântana de Mureș", [], undefined, {
+      now: OPEN_NOW,
+    });
+
+    expect(turn1.placedOrder).toBeNull();
+    expect(await ordersPlacedByThisSuite()).toHaveLength(0);
+    // plan D9: the persisted transcript proves no place_order ran this turn
+    const rows1 = await getConversationMessages(turn1.conversationId);
+    const toolNames1 = rows1
+      .filter((row) => row.role === "tool")
+      .map((row) => ("name" in row.content ? row.content.name : ""));
+    expect(toolNames1).toEqual(["update_cart"]);
+
+    // turn 2 — explicit confirmation → place_order with the full OrderRequest
+    const fake2 = new FakeLlmProvider([
+      toolCalls([{ id: "call_o", name: "place_order", input: await deliveryOrderInput() }]),
+      reply("Comanda a fost plasată! Ajunge în aproximativ 60 de minute."),
+    ]);
+    const turn2 = await runTurn(fake2, "da, confirm comanda", turn1.cart, turn1.conversationId, {
+      now: OPEN_NOW,
+    });
+
+    expect(turn2.placedOrder).toMatchObject({
+      status: "new",
+      mode: "delivery",
+      estimateMinutes: 60,
+      subtotalBani: 2200,
+      sgrBani: 100,
+      deliveryFeeBani: 2000,
+      totalBani: 4300,
+    });
+    const orderId = turn2.placedOrder!.orderId;
+    expect(turn2.placedOrder!.orderNumber).toBe(`#${orderId}`);
+    // the site cart empties on placement — same as the web checkout clear()
+    expect(turn2.cart).toEqual([]);
+    expect(turn2.quote).toBeNull();
+
+    // DB snapshot identical in shape to a web order (see tests/orders happy path)
+    const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+    expect(row).toMatchObject({
+      status: "new",
+      mode: "delivery",
+      phone: "+40740999888",
+      clientIp: TURN_IP,
+      addressStreet: "Str. Teilor 5",
+      estimateMinutes: 60,
+      subtotalBani: 2200,
+      sgrBani: 100,
+      deliveryFeeBani: 2000,
+      totalBani: 4300,
+    });
+    expect(row.zoneId).not.toBeNull();
+    const itemRows = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    expect(itemRows).toHaveLength(1);
+    expect(itemRows[0]).toMatchObject({
+      productName: "Heineken 0,5 L",
+      quantity: 2,
+      unitPriceBani: 1100,
+      lineTotalBani: 2300,
+    });
+    const optionRows = await db
+      .select()
+      .from(orderItemOptions)
+      .where(eq(orderItemOptions.orderItemId, itemRows[0].id));
+    expect(optionRows).toHaveLength(1);
+    expect(optionRows[0]).toMatchObject({ toppingName: "Garanție SGR", priceBani: 0, sgrDepositBani: 50 });
+
+    // the model saw PlaceOrderResult verbatim; the transcript has exactly one place_order
+    expect(parseToolResult(fake2.calls[1])).toMatchObject({
+      ok: true,
+      order: { orderId, orderNumber: `#${orderId}`, totalBani: 4300 },
+    });
+    const rows2 = await getConversationMessages(turn2.conversationId);
+    const placeOrderRows = rows2.filter(
+      (row) => row.role === "tool" && "name" in row.content && row.content.name === "place_order",
+    );
+    expect(placeOrderRows).toHaveLength(1);
+  });
+
+  it("refusal reasons round-trip verbatim and nothing is placed", async () => {
+    const countBefore = (await ordersPlacedByThisSuite()).length;
+    // card at the restaurant is not a delivery payment method → invalid_order
+    const fake = new FakeLlmProvider([
+      toolCalls([
+        {
+          id: "call_bad",
+          name: "place_order",
+          input: await deliveryOrderInput({ paymentMethod: "card_restaurant" }),
+        },
+      ]),
+      reply("La livrare se poate plăti numerar sau cu cardul la curier."),
+    ]);
+    const turn = await runTurn(fake, "confirm, cu cardul la restaurant", [], undefined, { now: OPEN_NOW });
+
+    const result = parseToolResult(fake.calls[1]) as {
+      ok: boolean;
+      error?: string;
+      reasons?: { code: string }[];
+    };
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe("invalid_order");
+    expect(result.reasons!.map(({ code }) => code)).toContain("payment_not_allowed_for_mode");
+    // a refusal is a NORMAL result the model relays — not a tool error
+    const lastEntry = fake.calls[1].messages[fake.calls[1].messages.length - 1];
+    if (lastEntry.role !== "tool_results") throw new Error("expected tool_results");
+    expect(lastEntry.results[0].isError).toBeUndefined();
+
+    expect(turn.placedOrder).toBeNull();
+    expect(await ordersPlacedByThisSuite()).toHaveLength(countBefore);
+  });
+
+  it("answers malformed place_order input with a tool error, nothing placed", async () => {
+    const countBefore = (await ordersPlacedByThisSuite()).length;
+    const fake = new FakeLlmProvider([
+      toolCalls([{ id: "call_junk", name: "place_order", input: { mode: "delivery" } }]),
+      reply("Îmi mai trebuie produsele și datele dumneavoastră."),
+    ]);
+    const turn = await runTurn(fake, "plasează comanda", [], undefined, { now: OPEN_NOW });
+
+    const lastEntry = fake.calls[1].messages[fake.calls[1].messages.length - 1];
+    if (lastEntry.role !== "tool_results") throw new Error("expected tool_results");
+    expect(lastEntry.results[0].isError).toBe(true);
+    expect(turn.placedOrder).toBeNull();
+    expect(await ordersPlacedByThisSuite()).toHaveLength(countBefore);
   });
 });
 

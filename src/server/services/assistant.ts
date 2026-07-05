@@ -11,8 +11,8 @@
  * place_order tool in T05.
  */
 import type { CartItem } from "@/lib/cart";
-import { quoteRequestSchema } from "@/lib/order-schemas";
-import type { QuoteView } from "@/lib/quote-types";
+import { orderRequestSchema, quoteRequestSchema } from "@/lib/order-schemas";
+import type { PlacedOrderView, QuoteView } from "@/lib/quote-types";
 import { RESTAURANT_ADDRESS, RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
 import { formatMinutesAsTime } from "@/lib/schedule";
 import type {
@@ -30,6 +30,7 @@ import {
 } from "@/server/repositories/assistant";
 import { getMenu } from "@/server/repositories/menu";
 import { getActiveZones } from "@/server/repositories/zones";
+import { type PlacedOrder, placeOrder } from "@/server/services/orders";
 import { type Quote, quoteCart } from "@/server/services/pricing";
 import { getScheduleConfig } from "@/server/services/settings";
 
@@ -74,8 +75,11 @@ Coșul:
 - Prezinți exclusiv prețurile calculate de server (quote) — niciodată calcule proprii. Dacă serverul răspunde cu motive de refuz (de exemplu grup obligatoriu lipsă, cum e ambalajul), corectezi coșul și încerci din nou sau explici clientului.
 
 Comenzi:
+- Date necesare: prenume, nume și telefon (email opțional); la livrare, în plus, localitatea (zona de livrare) și adresa. Ceri doar ce lipsește.
+- Plata este DOAR la primire: numerar sau card la curier (livrare), respectiv numerar sau card la restaurant (ridicare). Nu există plată online.
 - Înainte de a plasa orice comandă, prezintă un sumar complet: produse, cantități, total (inclusiv garanția SGR și taxa de livrare), livrare sau ridicare, adresa, estimarea. Plasezi comanda DOAR după ce clientul confirmă explicit sumarul. Fără confirmare explicită, nu plasezi nimic.
 - În afara orarului nu se pot plasa comenzi imediate, dar poți oferi programarea comenzii în orele de deschidere din aceeași zi.
+- După plasare, comunică numărul comenzii și estimarea primite de la server.
 - Starea unei comenzi deja plasate nu o poți afla — îndrumă clientul să sune la ${RESTAURANT_PHONE}.
 
 Limite:
@@ -88,6 +92,23 @@ const NO_INPUT: LlmToolDefinition["inputSchema"] = {
   properties: {},
   additionalProperties: false,
 };
+
+/** Model-facing mirror of cartItemSchema[] — shared by update_cart and place_order. */
+const CART_ITEMS_JSON_SCHEMA = {
+  type: "array",
+  maxItems: 100,
+  items: {
+    type: "object",
+    properties: {
+      productId: { type: "integer" },
+      variantId: { type: "integer" },
+      quantity: { type: "integer", minimum: 1, maximum: 99 },
+      toppingIds: { type: "array", items: { type: "integer" } },
+    },
+    required: ["productId", "variantId", "quantity"],
+    additionalProperties: false,
+  },
+} as const;
 
 /** Stable across requests — part of the cached prefix (see SYSTEM_PROMPT note). */
 const TOOL_DEFINITIONS: LlmToolDefinition[] = [
@@ -117,25 +138,49 @@ const TOOL_DEFINITIONS: LlmToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
-        items: {
-          type: "array",
-          maxItems: 100,
-          items: {
-            type: "object",
-            properties: {
-              productId: { type: "integer" },
-              variantId: { type: "integer" },
-              quantity: { type: "integer", minimum: 1, maximum: 99 },
-              toppingIds: { type: "array", items: { type: "integer" } },
-            },
-            required: ["productId", "variantId", "quantity"],
-            additionalProperties: false,
-          },
-        },
+        items: CART_ITEMS_JSON_SCHEMA,
         mode: { type: "string", enum: ["delivery", "pickup"] },
         zoneSlug: { type: "string", description: "required when mode is delivery" },
       },
       required: ["items", "mode"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "place_order",
+    description:
+      "Places the order for real. Call ONLY after the customer has EXPLICITLY confirmed the full summary: products with quantities, total in lei (including SGR and delivery fee), delivery or pickup with the address, and the time estimate. Never call it without that explicit confirmation. Payment is on receipt only: cash or card_delivery for delivery, cash or card_restaurant for pickup. Send the priced cart lines plus the customer's details; termsAccepted is always true (the chat shows the terms link). Returns the placed order (number, estimate, totals) or refusal reasons.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: { type: "string", enum: ["delivery", "pickup"] },
+        zoneSlug: { type: "string", description: "required for delivery — slug from get_delivery_zones" },
+        items: CART_ITEMS_JSON_SCHEMA,
+        customer: {
+          type: "object",
+          properties: {
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            phone: { type: "string", description: "Romanian phone number, e.g. 07XXXXXXXX" },
+            email: { type: "string" },
+          },
+          required: ["firstName", "lastName", "phone"],
+          additionalProperties: false,
+        },
+        addressStreet: { type: "string", description: "street + number; required for delivery" },
+        notes: { type: "string" },
+        scheduledFor: {
+          type: "string",
+          description: "ISO 8601 with offset — only for orders scheduled later today within opening hours",
+        },
+        pickupEstimateMinutes: {
+          type: "integer",
+          description: "ASAP pickup only: one of the options from get_schedule",
+        },
+        paymentMethod: { type: "string", enum: ["cash", "card_delivery", "card_restaurant"] },
+        termsAccepted: { type: "boolean", const: true },
+      },
+      required: ["mode", "items", "customer", "paymentMethod", "termsAccepted"],
       additionalProperties: false,
     },
   },
@@ -210,6 +255,12 @@ interface TurnState {
   cart: CartItem[];
   /** Last successful server quote of this turn; null when the cart was untouched. */
   quote: Quote | null;
+  /** Set by a successful place_order — surfaces in the response once per turn. */
+  placedOrder: PlacedOrder | null;
+  /** placeOrder context — same shape as the web route (06-contracts). */
+  clientIp: string;
+  /** Injectable clock for deterministic tests (same pattern as placeOrder). */
+  now?: Date;
 }
 
 /**
@@ -233,6 +284,29 @@ async function executeUpdateCart(input: unknown, state: TurnState): Promise<Tool
   return { result: priced };
 }
 
+/**
+ * Full OrderRequest through the SAME placeOrder as the web — identical
+ * validations, identical 422 reason codes, identical DB snapshot; the
+ * assistant has no extra power (04-plan). PlaceOrderResult goes back
+ * verbatim; refusals are normal results the model relays or fixes.
+ * On success the working cart empties — the web checkout clears the
+ * store the same way, and the site cart must not keep ordered items.
+ */
+async function executePlaceOrder(input: unknown, state: TurnState): Promise<ToolExecution> {
+  const parsed = orderRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    return { result: { error: "validation", issues: parsed.error.issues }, isError: true };
+  }
+
+  const placed = await placeOrder(parsed.data, { clientIp: state.clientIp, now: state.now });
+  if (placed.ok) {
+    state.placedOrder = placed.order;
+    state.cart = [];
+    state.quote = null;
+  }
+  return { result: placed };
+}
+
 async function executeTool(name: string, input: unknown, state: TurnState): Promise<ToolExecution> {
   switch (name) {
     case "get_menu":
@@ -243,6 +317,8 @@ async function executeTool(name: string, input: unknown, state: TurnState): Prom
       return { result: await buildSchedulePayload() };
     case "update_cart":
       return executeUpdateCart(input, state);
+    case "place_order":
+      return executePlaceOrder(input, state);
     default:
       // the model can recover from a bad tool name; never crash the turn
       return { result: `Unknown tool: ${name}`, isError: true };
@@ -301,6 +377,8 @@ export interface AssistantTurnRequest {
 export interface AssistantTurnOptions {
   /** Route wires ASSISTANT_MAX_REPLY_TOKENS here; default per 06-contracts. */
   maxReplyTokens?: number;
+  /** Injectable clock for deterministic tests; production passes nothing. */
+  now?: Date;
 }
 
 export interface AssistantTurnResponse {
@@ -310,6 +388,8 @@ export interface AssistantTurnResponse {
   cart: CartItem[];
   /** Present when the turn produced a fresh server quote (06-contracts). */
   quote: QuoteView | null;
+  /** Present only on successful placement (06-contracts). */
+  placedOrder: PlacedOrderView | null;
 }
 
 /**
@@ -324,7 +404,13 @@ export async function runAssistantTurn(
   options: AssistantTurnOptions = {},
 ): Promise<AssistantTurnResponse> {
   const maxTokens = options.maxReplyTokens ?? DEFAULT_MAX_REPLY_TOKENS;
-  const state: TurnState = { cart: request.cart, quote: null };
+  const state: TurnState = {
+    cart: request.cart,
+    quote: null,
+    placedOrder: null,
+    clientIp: request.clientIp,
+    now: options.now,
+  };
 
   const existing = request.conversationId ? await getConversation(request.conversationId) : null;
   const conversation = existing ?? (await createConversation(request.clientIp));
@@ -358,6 +444,7 @@ export async function runAssistantTurn(
         reply: turn.text,
         cart: state.cart,
         quote: state.quote ? toQuoteView(state.quote) : null,
+        placedOrder: state.placedOrder,
       };
     }
 
@@ -404,5 +491,6 @@ export async function runAssistantTurn(
     reply: ROUND_CAP_REPLY,
     cart: state.cart,
     quote: state.quote ? toQuoteView(state.quote) : null,
+    placedOrder: state.placedOrder,
   };
 }

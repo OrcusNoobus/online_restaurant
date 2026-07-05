@@ -48,7 +48,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       lines lands the exact server quote (SGR, zone fee, threshold),
       invalid lines surface existing reason codes, cart round-trips
       unchanged when untouched (source: 03-research D7; 06-contracts).
-- [ ] T05 — `place_order` tool + confirmation flow: full `OrderRequest`
+- [x] T05 — `place_order` tool + confirmation flow: full `OrderRequest`
       through `placeOrder` (IP context, same 422 codes), `placedOrder`
       in the response; tests: scripted happy path places a DB order
       identical in shape to a web order (snapshot totals in bani, phone
