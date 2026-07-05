@@ -21,7 +21,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — Schema migration 0004: `staff_role` enum + `staff_users` +
+- [x] T01 — Schema migration 0004: `staff_role` enum + `staff_users` +
       `staff_sessions`, `order_status_events` (incl. `undo_of_event_id`),
       `restaurant_settings` single row seeded from today's constants with
       `catalog_protected_since` + `zones_protected_since` (CHECKs per
