@@ -13,3 +13,37 @@ export const loginRequestSchema = z.object({
   password: z.string().min(1).max(256),
 });
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+// --- Orders (003 06-contracts Orders) --------------------------------------
+
+export const orderStatusValues = [
+  "new",
+  "accepted",
+  "in_delivery",
+  "ready_for_pickup",
+  "completed",
+  "canceled",
+] as const;
+
+export const adminOrdersQuerySchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
+    .optional(),
+  status: z.enum(orderStatusValues).optional(),
+});
+export type AdminOrdersQuery = z.infer<typeof adminOrdersQuerySchema>;
+
+/**
+ * Shape only — the semantic rules (graph validity, reason-on-cancel,
+ * estimate-only-at-accept) live in src/lib/order-status.ts and the service.
+ */
+export const transitionRequestSchema = z.object({
+  to: z.enum(orderStatusValues),
+  reason: z.string().trim().max(500).optional(),
+  estimateMinutes: z.number().int().positive().optional(),
+});
+export type TransitionRequestBody = z.infer<typeof transitionRequestSchema>;
+
+/** Path ids arrive as strings; every admin entity id is a positive integer. */
+export const idParamSchema = z.coerce.number().int().positive();

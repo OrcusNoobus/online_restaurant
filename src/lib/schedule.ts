@@ -40,6 +40,11 @@ function localParts(instant: Date): LocalParts {
   };
 }
 
+/** The restaurant-local calendar date ("YYYY-MM-DD") of an instant — the admin day view's "today". */
+export function localDateKey(instant: Date): string {
+  return localParts(instant).dateKey;
+}
+
 /** Can an order be placed right now? (placement window = opening hours) */
 export function isOpenAt(instant: Date): boolean {
   const { minutesOfDay } = localParts(instant);

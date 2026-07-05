@@ -50,7 +50,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `tests/order-status.test.ts` unit tests covering both modes, all
       finals, undo-after-cancel, undo-of-undo refused
       (source: 03-research D5, 05-data-model Lifecycle).
-- [ ] T05 — Admin orders service + API: `repositories/orders.ts` day list
+- [x] T05 — Admin orders service + API: `repositories/orders.ts` day list
       (restaurant-local date), totals aggregate, detail with items/options/
       events, transactional CONDITIONAL transition (+estimate at accept) and
       undo; `services/admin-orders.ts`; routes `GET /orders`,
