@@ -6,18 +6,19 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-05 (feat-008 T02 done)
+- **Last updated:** 2026-07-05 (feat-008 T03 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
   complete and approved; implementation in progress. T01 (LLM module) DONE
-  @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10,
-  both on branch `claude/distracted-jang-33b090` (worktree). feat-007
-  remains DONE on `feat/007-panou-admin` @ 19c6d45, still NOT merged into
-  main — merge + push stays the human's call.
+  @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
+  T03 (assistant service core + read tools + fake provider) DONE, all on
+  branch `claude/distracted-jang-33b090` (worktree). feat-007 remains DONE
+  on `feat/007-panou-admin` @ 19c6d45, still NOT merged into main — merge
+  + push stays the human's call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
   migrate incl. 0005, lint, typecheck, boundary checks, build); full test
-  suite 127/127 incl. tests/assistant.test.ts (8 T01 unit + 7 T02
-  integration on real Postgres); feature verification
-  `npm test -- tests/assistant` passing 15/15.
+  suite 133/133 incl. tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03
+  integration on real Postgres with the scripted fake provider); feature
+  verification `npm test -- tests/assistant` passing 21/21.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -45,20 +46,21 @@
 
 ## In Progress
 
-- feat-008 Asistent AI — T01 done (LLM module); T02 done (migration 0005:
-  `assistant_conversations` + `assistant_messages` + `assistant_role` enum;
-  `repositories/assistant.ts`: create/load conversation, transactional
-  append that bumps `last_activity_at`, user-message counters per
-  conversation and per IP/24h, retention delete; 7 integration tests).
-  Next task: T03 (assistant service core + read tools + fake provider).
+- feat-008 Asistent AI — T01 done (LLM module); T02 done (migration 0005 +
+  `repositories/assistant.ts`); T03 done (`services/assistant.ts`: bounded
+  tool loop max 6 rounds with full-transcript persistence + usage, stable
+  system prompt Q3/Q5/Q6/Q7/Q12 + guardrails, read tools `get_menu` /
+  `get_delivery_zones` / `get_schedule` off real repositories,
+  unknown-conversation → fresh, history cap 30 with user-boundary trim;
+  `tests/helpers/fake-llm.ts`; 6 integration tests). Next task: T04
+  (cart bridge + `update_cart` tool).
 
 ## Next Steps
 
-1. feat-008 T03 — `services/assistant.ts` with the bounded tool loop (max
-   6 rounds), system prompt (RO/HU/EN, allergens Q7, confirmation Q5,
-   guardrails), tools `get_menu` / `get_delivery_zones` / `get_schedule`;
-   `tests/helpers/fake-llm.ts`; integration tests with the fake.
-2. Then T04–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T04 — cart bridge: working-copy cart from the request,
+   `update_cart` tool priced via `quoteCart` returning `QuoteResult`
+   verbatim; response carries final cart + `quote`; tests per 07-tasks.
+2. Then T05–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -83,6 +85,14 @@
   activity bump) runs DB-side (`now()`, `make_interval`) so app and DB
   clocks cannot disagree; thresholds (40/60/30d) stay OUT of the
   repository — they are service policy (T06).
+- T03 implementation-level: when the 6-round cap is hit, the service still
+  executes + persists the 6th round's tool results (every stored toolCalls
+  row has its results, so the transcript always replays cleanly next turn),
+  then persists the polite fallback reply (with the restaurant phone) as
+  the assistant message — no 7th provider call. History replay caps at the
+  last 30 rows, then trims to a user-message boundary so a sliced tool
+  round can never reach the wire. Zones tool exposes `freeOverBani`
+  (008 contract name) mapped from the repo's `freeFromBani`.
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -96,10 +106,12 @@
 - src/server/db/schema.ts (+assistant tables/enum) +
   migrations/0005_feat008_assistant.sql + meta (T02)
 - src/server/repositories/assistant.ts (new — T02)
-- tests/assistant.test.ts (8 T01 unit + 7 T02 integration)
+- src/server/services/assistant.ts (new — T03)
+- tests/helpers/fake-llm.ts (new — T03)
+- tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03 integration)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01+T02 ticked), harness/PROGRESS.md
+- harness/specs/004-asistent-ai/07-tasks.md (T01–T03 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
