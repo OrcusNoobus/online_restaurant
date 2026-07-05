@@ -44,7 +44,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       login sets cookie, me/logout round-trip, login page reachable without
       session; manual login at 375px + desktop
       (source: 06-contracts Auth, 03-research D2, review point 3).
-- [ ] T04 — Order-status graph: pure `src/lib/order-status.ts` (per-mode
+- [x] T04 — Order-status graph: pure `src/lib/order-status.ts` (per-mode
       transitions, cancel-from-non-final, reason rule, undo derivation incl.
       the no-undo-of-undo rule, Romanian labels at the edge) +
       `tests/order-status.test.ts` unit tests covering both modes, all
