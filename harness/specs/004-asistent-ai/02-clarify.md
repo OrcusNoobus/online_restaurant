@@ -23,16 +23,25 @@
 **Answer:** **Într-o singură etapă** — Q&A meniu + comandă prin chat live
 împreună; nu se sparge în sub-feature-uri. Proprietarul a decis totodată că
 asistentul se construiește pe **API-urile Anthropic** („cred că sunt cele
-mai bune modele"). Modelul exact și parametrii sunt decizie tehnică la
-research. Răspuns de proprietar, 2026-07-05.
+mai bune modele"). **Amendament (2026-07-05, a doua discuție):**
+arhitectura trebuie să fie **model-agnostică** (modelul se schimbă oricând
+dintr-o singură linie de configurare, fără modificări de cod) și, în
+perspectivă, **provider-agnostică** — asistentul se scrie peste o
+interfață de furnizor LLM, Anthropic fiind prima implementare.
+Răspuns de proprietar, 2026-07-05.
 
 ### Q2: Furnizor LLM, cont și buget lunar
 
 **Answer:** Cont **propriu al proprietarului** la Anthropic (dezvoltatorul
 îl ghidează la creare); cheia API stă exclusiv în `.env` pe server.
-**Plafon mic** de pornire: ordin de mărime ~50 lei/lună, aplicat ca limită
-hard configurabilă — peste plafon chat-ul se oprește politicos, magazinul
-web nu e afectat. Răspuns de proprietar, 2026-07-05.
+Plafon mic de pornire (ordin de mărime ~50 lei/lună).
+**Amendament (2026-07-05, a doua discuție):** plafonul de cost se
+administrează de proprietar **din platforma furnizorului** (spend limit în
+consolă), NU se implementează contorizare de buget în cod. Obligația
+codului: când API-ul furnizorului e indisponibil (inclusiv plafon atins),
+asistentul comunică politicos indisponibilitatea, iar magazinul web nu e
+afectat. Limitele anti-abuz din Q10 rămân în cod (ele apără de abuz, nu
+de facturare). Răspuns de proprietar, 2026-07-05.
 
 ### Q3: În ce limbi răspunde asistentul?
 

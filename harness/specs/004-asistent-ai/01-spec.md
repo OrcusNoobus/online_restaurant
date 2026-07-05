@@ -60,19 +60,23 @@ comanda fără să navighez prin tot meniul**.
   orele de deschidere; plasarea ASAP rămâne blocată de validările
   existente.
 - **Arhitectură:** asistentul folosește EXCLUSIV serviciile existente
-  (meniu, coș/cotație, comenzi, orar) prin tool-calling pe **API-urile
-  Anthropic** (Q1/Q2 — modelul exact e decizie tehnică la research); zero
-  acces direct la baza de date, zero logică de business duplicată;
-  apelurile LLM se fac doar de pe server.
+  (meniu, coș/cotație, comenzi, orar) prin tool-calling; zero acces direct
+  la baza de date, zero logică de business duplicată; apelurile LLM se fac
+  doar de pe server. Integrarea LLM e **model-agnostică și
+  provider-agnostică** (Q1 amendat): modelul se schimbă dintr-o singură
+  linie de configurare, iar furnizorul printr-o interfață — **Anthropic e
+  prima implementare** (Q1/Q2).
 - **Guardrails:** rămâne la subiect (meniu, comenzi, informații despre
   restaurant); refuză politicos orice altceva. La întrebări de alergii
   (Q7) răspunde doar din datele de alergeni introduse în panou; fără date,
   spune explicit că nu are informația; în ambele cazuri recomandă telefonul
   restaurantului pentru alergii serioase.
-- **Control de cost și abuz (Q2/Q10):** plafon lunar hard configurabil
-  (pornire ~50 lei/lună) — atins, chat-ul se oprește politicos, magazinul
-  web neafectat; limită de mesaje per conversație și per IP/zi, lungime
-  maximă de mesaj (valori exacte la plan).
+- **Control de cost și abuz (Q2 amendat/Q10):** plafonul de cost se
+  administrează de proprietar din consola furnizorului — NU în cod; când
+  API-ul e indisponibil (inclusiv plafon atins), asistentul comunică
+  politicos indisponibilitatea, magazinul web neafectat. În cod rămân doar
+  limitele anti-abuz: mesaje per conversație și per IP/zi, lungime maximă
+  de mesaj (valori exacte la plan).
 - **Conversații stocate (Q9):** transcriptele se salvează pe server pentru
   revizuire de către proprietar, cu ștergere automată după 30 de zile;
   politica de confidențialitate se actualizează corespunzător.
@@ -123,14 +127,19 @@ agent failure mode; anything not listed as in scope is out of scope by default.
    restaurant închis) sunt traduse în mesaje conversaționale corecte, nu
    expun detalii tehnice. În afara orarului, asistentul oferă comandă
    programată în orar; refuză ASAP.
-8. Utilizarea e limitată per conversație și per IP/zi; plafonul lunar de
-   cost oprește chat-ul politicos când e atins; magazinul web nu e afectat
-   de nicio limită sau indisponibilitate a asistentului.
+8. Utilizarea e limitată per conversație și per IP/zi (anti-abuz); când
+   API-ul furnizorului e indisponibil sau dă eroare (inclusiv plafonul de
+   cost atins în consolă), asistentul comunică politicos indisponibilitatea;
+   magazinul web nu e afectat de nicio limită sau indisponibilitate a
+   asistentului.
 9. Conversațiile se stochează pe server și se șterg automat după 30 de
    zile; pagina de confidențialitate menționează stocarea; transcriptele
    nu apar în UI-ul public.
-10. Cheia API Anthropic stă exclusiv în `.env` (niciodată în repo —
-    AGENTS.md Safety Rules); apelurile către LLM se fac doar de pe server.
+10. Cheia API stă exclusiv în `.env` (niciodată în repo — AGENTS.md Safety
+    Rules); apelurile către LLM se fac doar de pe server.
+11. Modelul LLM e configurabil dintr-o singură linie (fără modificări de
+    cod); furnizorul e în spatele unei interfețe — schimbarea furnizorului
+    înseamnă o implementare nouă a interfeței, nu rescrierea asistentului.
 
 ## Non-Functional Requirements
 
@@ -138,8 +147,9 @@ agent failure mode; anything not listed as in scope is out of scope by default.
 - Chat-ul e utilizabil pe 375px lățime; nu blochează UI-ul magazinului.
 - Răspunsurile încep să apară în câteva secunde (streaming dacă e nevoie —
   decizie tehnică la plan).
-- Costul per conversație e cunoscut și plafonat (~50 lei/lună la pornire,
-  configurabil); degradare politicoasă la plafon.
+- Consumul de tokeni per mesaj se înregistrează (observabilitate — costul
+  se urmărește și se plafonează din consola furnizorului); degradare
+  politicoasă când API-ul e indisponibil.
 - Conversațiile stocate nu conțin mai multe date personale decât comanda
   însăși; retenția (30 zile) respectă politica de confidențialitate.
 
@@ -179,8 +189,13 @@ draft: `npm test -- tests/assistant`.)
 - [ ] O întrebare off-topic e refuzată politicos; o încercare de a obține
       reduceri/prețuri inventate eșuează.
   - Verify: `npm test -- tests/assistant`
-- [ ] Peste limita de utilizare / plafonul de cost, asistentul refuză
-      politicos; magazinul web funcționează normal.
+- [ ] Peste limitele anti-abuz, asistentul refuză politicos; când
+      furnizorul LLM e indisponibil (eroare simulată), mesajul e prietenos
+      și magazinul web funcționează normal.
+  - Verify: `npm test -- tests/assistant`
+- [ ] Asistentul funcționează printr-o interfață de furnizor: testele
+      rulează cu un furnizor simulat prin ACEEAȘI interfață ca cel real;
+      modelul se schimbă din configurare fără modificări de cod.
   - Verify: `npm test -- tests/assistant`
 - [ ] Conversațiile apar stocate cu timestamp; una mai veche de 30 de
       zile e ștearsă de mecanismul de retenție.
