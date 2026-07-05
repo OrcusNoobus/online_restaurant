@@ -5,7 +5,9 @@
  * row patches; role rules live at the HTTP boundary, seed-ownership flags in
  * the service (T11).
  */
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
+
+import { slugify } from "@/lib/admin-schemas";
 
 import { db } from "../db/client";
 import {
@@ -184,6 +186,141 @@ export async function getAdminCatalog(): Promise<AdminCatalog> {
     categories: [...categoriesById.values()],
     toppingGroups: groupRows.map((group) => ({ ...group, toppings: toppingsByGroup.get(group.id) ?? [] })),
   };
+}
+
+// --- Creates (003 06-contracts: POST categories/products) --------------------
+
+/** base, base-2, base-3 … until free — distinct names may collide to one slug. */
+async function uniqueSlug(base: string, slugExists: (candidate: string) => Promise<boolean>) {
+  let candidate = base;
+  for (let suffix = 2; await slugExists(candidate); suffix++) {
+    candidate = `${base}-${suffix}`;
+  }
+  return candidate;
+}
+
+export interface NewCategoryInput {
+  name: string;
+  sortOrder?: number;
+}
+
+export type CreateCategoryResult = { ok: true; category: CategoryRow } | { ok: false; error: "name_taken" };
+
+export async function createCategory(input: NewCategoryInput): Promise<CreateCategoryResult> {
+  const duplicate = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(sql`lower(${categories.name}) = lower(${input.name})`);
+  if (duplicate.length > 0) return { ok: false, error: "name_taken" };
+
+  const slug = await uniqueSlug(slugify(input.name), async (candidate) => {
+    const rows = await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, candidate));
+    return rows.length > 0;
+  });
+
+  const [row] = await db
+    .insert(categories)
+    .values({ slug, name: input.name, sortOrder: input.sortOrder ?? 0 })
+    .returning({
+      id: categories.id,
+      slug: categories.slug,
+      name: categories.name,
+      sortOrder: categories.sortOrder,
+      active: categories.active,
+    });
+  return { ok: true, category: row };
+}
+
+export interface NewProductInput {
+  categoryId: number;
+  name: string;
+  description?: string | null;
+  ingredients?: string | null;
+  allergens?: string | null;
+  sortOrder?: number;
+  variants: { name: string | null; priceBani: number }[];
+  toppingGroupIds: number[];
+}
+
+export type CreateProductResult =
+  | { ok: true; product: ProductRow & { variants: AdminVariant[]; toppingGroupIds: number[] } }
+  | { ok: false; error: "name_taken" | "category_not_found" | "topping_group_not_found" };
+
+export async function createProduct(input: NewProductInput): Promise<CreateProductResult> {
+  return db.transaction(async (tx) => {
+    const category = await tx.select({ id: categories.id }).from(categories).where(eq(categories.id, input.categoryId));
+    if (category.length === 0) return { ok: false as const, error: "category_not_found" as const };
+
+    if (input.toppingGroupIds.length > 0) {
+      const found = await tx
+        .select({ id: toppingGroups.id })
+        .from(toppingGroups)
+        .where(inArray(toppingGroups.id, input.toppingGroupIds));
+      if (found.length !== new Set(input.toppingGroupIds).size) {
+        return { ok: false as const, error: "topping_group_not_found" as const };
+      }
+    }
+
+    const duplicate = await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(sql`lower(${products.name}) = lower(${input.name})`);
+    if (duplicate.length > 0) return { ok: false as const, error: "name_taken" as const };
+
+    const slug = await uniqueSlug(slugify(input.name), async (candidate) => {
+      const rows = await tx.select({ id: products.id }).from(products).where(eq(products.slug, candidate));
+      return rows.length > 0;
+    });
+
+    const [product] = await tx
+      .insert(products)
+      .values({
+        categoryId: input.categoryId,
+        slug,
+        name: input.name,
+        description: input.description ?? null,
+        ingredients: input.ingredients ?? null,
+        allergens: input.allergens ?? null,
+        sortOrder: input.sortOrder ?? 0,
+      })
+      .returning({
+        id: products.id,
+        categoryId: products.categoryId,
+        slug: products.slug,
+        name: products.name,
+        description: products.description,
+        ingredients: products.ingredients,
+        allergens: products.allergens,
+        sortOrder: products.sortOrder,
+        active: products.active,
+      });
+
+    const variants = await tx
+      .insert(productVariants)
+      .values(
+        input.variants.map((variant, index) => ({
+          productId: product.id,
+          name: variant.name,
+          priceBani: variant.priceBani,
+          sortOrder: index,
+        })),
+      )
+      .returning({
+        id: productVariants.id,
+        name: productVariants.name,
+        priceBani: productVariants.priceBani,
+        active: productVariants.active,
+        sortOrder: productVariants.sortOrder,
+      });
+
+    if (input.toppingGroupIds.length > 0) {
+      await tx
+        .insert(productToppingGroups)
+        .values(input.toppingGroupIds.map((groupId) => ({ productId: product.id, groupId })));
+    }
+
+    return { ok: true as const, product: { ...product, variants, toppingGroupIds: input.toppingGroupIds } };
+  });
 }
 
 // --- Row patches (fields grow with T08; T07 wires availability) --------------
