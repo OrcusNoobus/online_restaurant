@@ -2,9 +2,9 @@
  * feat-008 Asistent AI — suite (verification: `npm test -- tests/assistant`).
  * T01 covers the LLM module without any network: adapter construction and
  * the neutral-types ↔ wire-format mapping. T02 covers conversation storage
- * against the real Postgres (docker-compose; the suite migrates itself).
- * Later tasks add integration tests through the real service with the fake
- * provider (008 07-tasks).
+ * against the real Postgres (docker-compose; the suite migrates and seeds
+ * itself). T03 runs the real assistant service + DB with the scripted fake
+ * provider: tool wiring on real data, transcript persistence, round cap.
  */
 import { execSync } from "node:child_process";
 
@@ -12,6 +12,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
 import { db } from "@/server/db/client";
 import { assistantConversations, assistantMessages } from "@/server/db/schema";
 import {
@@ -29,13 +30,21 @@ import {
   getConversation,
   getConversationMessages,
 } from "@/server/repositories/assistant";
+import { getMenu } from "@/server/repositories/menu";
+import { getActiveZones } from "@/server/repositories/zones";
+import { runAssistantTurn } from "@/server/services/assistant";
+import { getScheduleConfig } from "@/server/services/settings";
 
-// SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); the T02 suite needs Postgres.
+import { FakeLlmProvider, reply, toolCalls, usage } from "./helpers/fake-llm";
+
+// SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); T02/T03 need Postgres.
 const skipDb = process.env.SKIP_DB === "1";
 
 beforeAll(() => {
   if (skipDb) return;
   execSync("npm run db:migrate", { stdio: "pipe" });
+  // T03 tool tests read the real menu/zones — same self-seed as tests/orders
+  execSync("npm run db:seed", { stdio: "pipe" });
 }, 120_000);
 
 function anthropicResponse(
@@ -362,5 +371,197 @@ describe.skipIf(skipDb)("T02 — retention", () => {
     await deleteConversationsOlderThan(30);
 
     expect(await getConversation(boundary.id)).not.toBeNull();
+  });
+});
+
+// --- T03 — assistant service with the scripted fake provider -----------------
+
+const TURN_IP = "203.0.113.99";
+
+/** runAssistantTurn + track the conversation for the shared afterAll cleanup. */
+async function runTurn(provider: FakeLlmProvider, message: string, conversationId?: string) {
+  const turn = await runAssistantTurn(provider, { conversationId, message, clientIp: TURN_IP });
+  if (!createdConversationIds.includes(turn.conversationId)) {
+    createdConversationIds.push(turn.conversationId);
+  }
+  return turn;
+}
+
+function parseToolResult(call: { messages: LlmMessage[] }, index = 0): unknown {
+  const last = call.messages[call.messages.length - 1];
+  if (last.role !== "tool_results") throw new Error(`expected tool_results, got ${last.role}`);
+  return JSON.parse(last.results[index].content);
+}
+
+describe.skipIf(skipDb)("T03 — menu answers ride on real DB data", () => {
+  it("feeds get_menu results from Postgres and persists the full transcript", async () => {
+    const fake = new FakeLlmProvider([
+      toolCalls([{ id: "call_1", name: "get_menu", input: {} }], usage(300, 15)),
+      reply("Avem Pizza Diavola, picantă, la 30 și 40 cm.", usage(900, 40)),
+    ]);
+
+    const turn = await runTurn(fake, "ce pizza picantă aveți?");
+    expect(turn.reply).toBe("Avem Pizza Diavola, picantă, la 30 și 40 cm.");
+    expect(fake.calls).toHaveLength(2);
+
+    // round 1: system prompt + tools + only the user message
+    const [first, second] = fake.calls;
+    expect(first.system).toContain(RESTAURANT_PHONE);
+    expect(first.tools.map(({ name }) => name)).toEqual([
+      "get_menu",
+      "get_delivery_zones",
+      "get_schedule",
+    ]);
+    expect(first.maxTokens).toBe(1000);
+    expect(first.messages).toEqual([{ role: "user", text: "ce pizza picantă aveți?" }]);
+
+    // round 2 replays the tool round and carries the REAL menu
+    expect(second.messages.map(({ role }) => role)).toEqual([
+      "user",
+      "assistant_tool_calls",
+      "tool_results",
+    ]);
+    const payload = parseToolResult(second) as {
+      categories: {
+        name: string;
+        products: { id: number; variants: { id: number; priceBani: number }[] }[];
+      }[];
+    };
+    const menu = await getMenu();
+    // grounded in the DB: same active-only category set as getMenu()
+    expect(payload.categories.map(({ name }) => name)).toEqual(menu.map(({ name }) => name));
+    expect(payload.categories.flatMap(({ products }) => products)).toHaveLength(
+      menu.flatMap(({ products }) => products).length,
+    );
+    const prices = payload.categories
+      .flatMap(({ products }) => products)
+      .flatMap(({ variants }) => variants)
+      .map(({ priceBani }) => priceBani);
+    expect(prices.length).toBeGreaterThan(0);
+    for (const price of prices) {
+      expect(Number.isSafeInteger(price)).toBe(true);
+      expect(price).toBeGreaterThan(0);
+    }
+
+    // transcript: user → tool round (with usage) → final reply (with usage)
+    const rows = await getConversationMessages(turn.conversationId);
+    expect(rows.map(({ role }) => role)).toEqual(["user", "assistant", "tool", "assistant"]);
+    expect(rows[1].content).toEqual({ toolCalls: [{ id: "call_1", name: "get_menu", input: {} }] });
+    expect(rows[1].inputTokens).toBe(300);
+    expect(rows[1].outputTokens).toBe(15);
+    expect(rows[2].content).toMatchObject({ toolCallId: "call_1", name: "get_menu" });
+    expect(rows[3].content).toEqual({ text: "Avem Pizza Diavola, picantă, la 30 și 40 cm." });
+    expect(rows[3].inputTokens).toBe(900);
+    expect(rows[3].outputTokens).toBe(40);
+  });
+
+  it("serves zones and schedule from the DB, both results in one round", async () => {
+    const fake = new FakeLlmProvider([
+      toolCalls([
+        { id: "call_z", name: "get_delivery_zones", input: {} },
+        { id: "call_s", name: "get_schedule", input: {} },
+      ]),
+      reply("Livrăm în toate zonele afișate."),
+    ]);
+
+    const turn = await runTurn(fake, "unde livrați și ce orar aveți?");
+
+    const second = fake.calls[1];
+    const lastEntry = second.messages[second.messages.length - 1];
+    if (lastEntry.role !== "tool_results") throw new Error("expected tool_results");
+    expect(lastEntry.results).toHaveLength(2);
+
+    const zonesPayload = parseToolResult(second, 0) as {
+      slug: string;
+      feeBani: number;
+      freeOverBani: number;
+    }[];
+    const zones = await getActiveZones();
+    expect(zonesPayload.map(({ slug }) => slug)).toEqual(zones.map(({ slug }) => slug));
+    expect(zonesPayload[0].feeBani).toBe(zones[0].feeBani);
+    // contract naming: freeOverBani carries the repo's freeFromBani threshold
+    expect(zonesPayload[0].freeOverBani).toBe(zones[0].freeFromBani);
+
+    const schedulePayload = parseToolResult(second, 1) as Record<string, unknown>;
+    const schedule = await getScheduleConfig();
+    expect(schedulePayload.timezone).toBe(RESTAURANT_TIMEZONE);
+    expect(schedulePayload.deliveryEstimateMinutes).toBe(schedule.deliveryEstimateMinutes);
+    expect(schedulePayload.pickupEstimateOptionsMinutes).toEqual(
+      schedule.pickupEstimateOptionsMinutes,
+    );
+    expect(schedulePayload.openTime).toMatch(/^\d{2}:\d{2}$/);
+
+    // one tool row per result, in call order
+    const rows = await getConversationMessages(turn.conversationId);
+    expect(rows.map(({ role }) => role)).toEqual(["user", "assistant", "tool", "tool", "assistant"]);
+    expect(rows[2].content).toMatchObject({ toolCallId: "call_z", name: "get_delivery_zones" });
+    expect(rows[3].content).toMatchObject({ toolCallId: "call_s", name: "get_schedule" });
+  });
+
+  it("answers an unknown tool name with an error result instead of crashing", async () => {
+    const fake = new FakeLlmProvider([
+      toolCalls([{ id: "call_x", name: "get_weather", input: {} }]),
+      reply("Vă pot ajuta doar cu meniul și comenzile."),
+    ]);
+
+    const turn = await runTurn(fake, "ce vreme e afară?");
+    expect(turn.reply).toBe("Vă pot ajuta doar cu meniul și comenzile.");
+
+    const second = fake.calls[1];
+    const lastEntry = second.messages[second.messages.length - 1];
+    if (lastEntry.role !== "tool_results") throw new Error("expected tool_results");
+    expect(lastEntry.results[0].isError).toBe(true);
+
+    const rows = await getConversationMessages(turn.conversationId);
+    expect(rows[2].content).toMatchObject({ toolCallId: "call_x", isError: true });
+  });
+});
+
+describe.skipIf(skipDb)("T03 — conversation continuity", () => {
+  it("replays prior turns to the provider on the same conversation", async () => {
+    const firstTurn = await runTurn(new FakeLlmProvider([reply("Bună! Cu ce vă ajut?")]), "salut");
+
+    const fake = new FakeLlmProvider([reply("Sigur, ce produs vă interesează?")]);
+    const secondTurn = await runTurn(fake, "aș comanda ceva", firstTurn.conversationId);
+
+    expect(secondTurn.conversationId).toBe(firstTurn.conversationId);
+    expect(fake.calls[0].messages).toEqual([
+      { role: "user", text: "salut" },
+      { role: "assistant", text: "Bună! Cu ce vă ajut?" },
+      { role: "user", text: "aș comanda ceva" },
+    ]);
+  });
+
+  it("starts a fresh conversation for an unknown conversationId", async () => {
+    const fake = new FakeLlmProvider([reply("Bună!")]);
+    const turn = await runTurn(fake, "salut", "00000000-0000-4000-8000-000000000000");
+
+    expect(turn.conversationId).not.toBe("00000000-0000-4000-8000-000000000000");
+    expect(fake.calls[0].messages).toEqual([{ role: "user", text: "salut" }]);
+    expect(await getConversation(turn.conversationId)).not.toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("T03 — the tool loop is bounded", () => {
+  it("stops after 6 provider rounds and replies politely with the phone", async () => {
+    // 7 scripted tool rounds — the service must consume at most 6
+    const fake = new FakeLlmProvider(
+      Array.from({ length: 7 }, (_, i) =>
+        toolCalls([{ id: `loop_${i}`, name: "get_schedule", input: {} }]),
+      ),
+    );
+
+    const turn = await runTurn(fake, "care e orarul?");
+
+    expect(fake.calls).toHaveLength(6);
+    expect(turn.reply).toContain(RESTAURANT_PHONE);
+
+    // every persisted tool call has its result, plus the fallback reply:
+    // 1 user + 6 × (assistant toolCalls + tool result) + 1 assistant text
+    const rows = await getConversationMessages(turn.conversationId);
+    expect(rows).toHaveLength(14);
+    const lastRow = rows[rows.length - 1];
+    expect(lastRow.role).toBe("assistant");
+    expect(lastRow.content).toEqual({ text: turn.reply });
   });
 });

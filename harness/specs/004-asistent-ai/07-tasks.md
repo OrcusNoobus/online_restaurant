@@ -34,7 +34,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       IP/24h, retention delete > 30 days); integration tests: round-trip,
       ordering, counters, retention cascade
       (source: 05-data-model; 03-research D6).
-- [ ] T03 — Assistant service core + read tools: `services/assistant.ts`
+- [x] T03 — Assistant service core + read tools: `services/assistant.ts`
       with the bounded tool loop (max 6 rounds) over `LlmProvider`, system
       prompt (RO/HU/EN, allergen wording Q7, confirmation rule Q5,
       on-topic guardrails, phone fallback), tools `get_menu`,
