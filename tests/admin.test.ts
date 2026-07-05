@@ -12,10 +12,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as postLoginRoute } from "@/app/api/admin/auth/login/route";
 import { POST as postLogoutRoute } from "@/app/api/admin/auth/logout/route";
 import { GET as getMeRoute } from "@/app/api/admin/auth/me/route";
+import { GET as getAdminOrdersRoute } from "@/app/api/admin/orders/route";
+import { GET as getAdminOrderRoute } from "@/app/api/admin/orders/[id]/route";
+import { POST as postTransitionRoute } from "@/app/api/admin/orders/[id]/transition/route";
+import { POST as postUndoRoute } from "@/app/api/admin/orders/[id]/undo/route";
+import { localDateKey } from "@/lib/schedule";
 import { proxy } from "@/proxy";
 import { db } from "@/server/db/client";
-import { staffSessions, staffUsers } from "@/server/db/schema";
+import { deliveryZones, orders, productVariants, staffSessions, staffUsers } from "@/server/db/schema";
+import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { createUser, findSessionByTokenHash } from "@/server/repositories/staff";
+import { getDetail, listDay, transition, undo } from "@/server/services/admin-orders";
 import {
   hashPassword,
   login,
@@ -50,11 +57,67 @@ beforeAll(async () => {
   staffId = await createUser({ username: "test-staff", displayName: "Test Staff", passwordHash, role: "staff" });
 }, 120_000);
 
+const testOrderIds: number[] = [];
+
 afterAll(async () => {
   if (skipDb) return;
+  // orders first: their status events reference staff users with RESTRICT
+  for (const orderId of testOrderIds) {
+    await db.delete(orders).where(eq(orders.id, orderId));
+  }
   // cascades staff_sessions
   await db.delete(staffUsers).where(like(staffUsers.username, "test-%"));
 });
+
+/** Minimal valid order against seeded catalog rows — pre-priced like the service would. */
+async function createTestOrder(mode: "delivery" | "pickup"): Promise<number> {
+  const [variant] = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      priceBani: productVariants.priceBani,
+    })
+    .from(productVariants)
+    .limit(1);
+  const [zone] = await db.select({ id: deliveryZones.id }).from(deliveryZones).limit(1);
+
+  const feeBani = mode === "delivery" ? 300 : 0;
+  const order: NewOrder = {
+    mode,
+    customerFirstName: "Test",
+    customerLastName: "Client",
+    phone: "+40712345678",
+    email: null,
+    zoneId: mode === "delivery" ? zone.id : null,
+    addressStreet: mode === "delivery" ? "Str. Test 1" : null,
+    notes: null,
+    scheduledFor: null,
+    estimateMinutes: mode === "delivery" ? 60 : 25,
+    paymentMethod: mode === "delivery" ? "cash" : "card_restaurant",
+    subtotalBani: variant.priceBani,
+    sgrBani: 0,
+    deliveryFeeBani: feeBani,
+    totalBani: variant.priceBani + feeBani,
+    termsAcceptedAt: new Date(),
+    clientIp: null,
+    items: [
+      {
+        productId: variant.productId,
+        variantId: variant.id,
+        productName: "Produs test",
+        variantName: variant.name,
+        unitPriceBani: variant.priceBani,
+        quantity: 1,
+        lineTotalBani: variant.priceBani,
+        options: [],
+      },
+    ],
+  };
+  const orderId = await insertOrder(order);
+  testOrderIds.push(orderId);
+  return orderId;
+}
 
 function requestWithCookie(token: string | null): Request {
   return new Request("http://localhost/api/admin/test", {
@@ -310,6 +373,247 @@ describe("proxy (optimistic redirect, no DB)", () => {
       }),
     );
     expect(response.headers.get("location")).toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("admin orders service", () => {
+  it("delivery happy path: accept with estimate → in_delivery → completed, journaled + attributed", async () => {
+    const orderId = await createTestOrder("delivery");
+
+    const accepted = await transition(orderId, { to: "accepted", estimateMinutes: 45 }, adminId);
+    expect(accepted.ok).toBe(true);
+    if (!accepted.ok) return;
+    expect(accepted.detail.order.status).toBe("accepted");
+    expect(accepted.detail.order.estimateMinutes).toBe(45);
+    expect(accepted.detail.events).toHaveLength(1);
+    expect(accepted.detail.events[0]).toMatchObject({
+      fromStatus: "new",
+      toStatus: "accepted",
+      reason: null,
+      staffDisplayName: "Test Admin",
+      undoOfEventId: null,
+    });
+
+    const inDelivery = await transition(orderId, { to: "in_delivery" }, staffId);
+    expect(inDelivery.ok && inDelivery.detail.order.status === "in_delivery").toBe(true);
+
+    const completed = await transition(orderId, { to: "completed" }, staffId);
+    expect(completed.ok).toBe(true);
+    if (!completed.ok) return;
+    expect(completed.detail.order.status).toBe("completed");
+    expect(completed.detail.events).toHaveLength(3);
+    expect(completed.detail.events.map((event) => event.staffDisplayName)).toEqual([
+      "Test Admin",
+      "Test Staff",
+      "Test Staff",
+    ]);
+  });
+
+  it("pickup happy path; omitted estimate keeps the placement quote", async () => {
+    const orderId = await createTestOrder("pickup");
+
+    const accepted = await transition(orderId, { to: "accepted" }, staffId);
+    expect(accepted.ok).toBe(true);
+    if (!accepted.ok) return;
+    expect(accepted.detail.order.estimateMinutes).toBe(25);
+
+    const ready = await transition(orderId, { to: "ready_for_pickup" }, staffId);
+    expect(ready.ok && ready.detail.order.status === "ready_for_pickup").toBe(true);
+
+    const completed = await transition(orderId, { to: "completed" }, staffId);
+    expect(completed.ok && completed.detail.order.status === "completed").toBe(true);
+  });
+
+  it("returns every 422 code from the contract", async () => {
+    const orderId = await createTestOrder("pickup");
+
+    expect(await transition(orderId, { to: "in_delivery" }, staffId)).toEqual({
+      ok: false,
+      error: "invalid_transition",
+    });
+    expect(await transition(orderId, { to: "canceled" }, staffId)).toEqual({
+      ok: false,
+      error: "cancel_reason_required",
+    });
+    expect(await undo(orderId, staffId)).toEqual({ ok: false, error: "nothing_to_undo" });
+
+    const accepted = await transition(orderId, { to: "accepted" }, staffId);
+    expect(accepted.ok).toBe(true);
+    expect(await transition(orderId, { to: "ready_for_pickup", estimateMinutes: 10 }, staffId)).toEqual({
+      ok: false,
+      error: "estimate_not_allowed",
+    });
+
+    expect(await transition(999_999_999, { to: "accepted" }, staffId)).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("cancel stores the reason; undo restores the prior state via a compensating event", async () => {
+    const orderId = await createTestOrder("delivery");
+    await transition(orderId, { to: "accepted" }, staffId);
+
+    const canceled = await transition(orderId, { to: "canceled", reason: "clientul nu răspunde" }, adminId);
+    expect(canceled.ok).toBe(true);
+    if (!canceled.ok) return;
+    expect(canceled.detail.order.status).toBe("canceled");
+    expect(canceled.detail.events.at(-1)).toMatchObject({
+      toStatus: "canceled",
+      reason: "clientul nu răspunde",
+    });
+
+    const undone = await undo(orderId, staffId);
+    expect(undone.ok).toBe(true);
+    if (!undone.ok) return;
+    expect(undone.detail.order.status).toBe("accepted");
+    const compensating = undone.detail.events.at(-1)!;
+    expect(compensating.fromStatus).toBe("canceled");
+    expect(compensating.toStatus).toBe("accepted");
+    expect(compensating.undoOfEventId).not.toBeNull();
+
+    // an undo cannot itself be undone — no redo ping-pong
+    expect(await undo(orderId, staffId)).toEqual({ ok: false, error: "nothing_to_undo" });
+  });
+
+  it("two concurrent transitions: exactly one winner, the loser gets stale_state", async () => {
+    const orderId = await createTestOrder("delivery");
+
+    const [first, second] = await Promise.all([
+      transition(orderId, { to: "accepted", estimateMinutes: 40 }, adminId),
+      transition(orderId, { to: "accepted", estimateMinutes: 50 }, staffId),
+    ]);
+    const winners = [first, second].filter((result) => result.ok);
+    const losers = [first, second].filter((result) => !result.ok);
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    expect(losers[0]).toEqual({ ok: false, error: "stale_state", currentStatus: "accepted" });
+
+    // exactly ONE event was written
+    const detail = await getDetail(orderId);
+    expect(detail!.events).toHaveLength(1);
+  });
+
+  it("day totals exclude canceled orders and count them separately; filter narrows the list only", async () => {
+    const today = localDateKey(new Date());
+    const before = await listDay(undefined, undefined);
+    expect(before.date).toBe(today);
+
+    const aliveId = await createTestOrder("pickup");
+    const canceledId = await createTestOrder("pickup");
+    const [alive] = await db
+      .select({ totalBani: orders.totalBani })
+      .from(orders)
+      .where(eq(orders.id, aliveId));
+    await transition(canceledId, { to: "canceled", reason: "test anulare" }, adminId);
+
+    const after = await listDay(undefined, undefined);
+    expect(after.totals.count).toBe(before.totals.count + 1);
+    expect(after.totals.totalBani).toBe(before.totals.totalBani + alive.totalBani);
+    expect(after.totals.canceledCount).toBe(before.totals.canceledCount + 1);
+
+    // newest-first: the two fixtures lead the list
+    expect(after.orders[0].id).toBeGreaterThan(after.orders[1].id);
+
+    // a status filter narrows the list, totals stay whole-day
+    const filtered = await listDay(undefined, "canceled");
+    expect(filtered.orders.every((order) => order.status === "canceled")).toBe(true);
+    expect(filtered.orders.some((order) => order.id === canceledId)).toBe(true);
+    expect(filtered.totals).toEqual(after.totals);
+  });
+});
+
+describe.skipIf(skipDb)("admin orders HTTP boundary", () => {
+  function ctxFor(id: number | string) {
+    return { params: Promise.resolve({ id: String(id) }) };
+  }
+
+  it("every orders endpoint requires a session", async () => {
+    const bare = requestWithCookie(null);
+    expect((await getAdminOrdersRoute(bare)).status).toBe(401);
+    expect((await getAdminOrderRoute(bare, ctxFor(1))).status).toBe(401);
+    expect((await postUndoRoute(bare, ctxFor(1))).status).toBe(401);
+  });
+
+  it("day view + detail + transition + undo round-trip through HTTP", async () => {
+    resetLoginRateLimiter();
+    const loginResult = await login("test-staff", PASSWORD, "10.0.3.1");
+    expect(loginResult.ok).toBe(true);
+    if (!loginResult.ok) return;
+    const token = loginResult.token;
+
+    try {
+      const orderId = await createTestOrder("pickup");
+
+      const dayResponse = await getAdminOrdersRoute(requestWithCookie(token));
+      expect(dayResponse.status).toBe(200);
+      const day = (await dayResponse.json()) as {
+        date: string;
+        orders: { id: number; status: string }[];
+        totals: { count: number };
+      };
+      expect(day.date).toBe(localDateKey(new Date()));
+      expect(day.orders.some((order) => order.id === orderId)).toBe(true);
+
+      // malformed body → 400; semantic violation → 422
+      const badShape = await postTransitionRoute(
+        new Request("http://localhost/x", {
+          method: "POST",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ to: "flying" }),
+        }),
+        ctxFor(orderId),
+      );
+      expect(badShape.status).toBe(400);
+
+      const noReason = await postTransitionRoute(
+        new Request("http://localhost/x", {
+          method: "POST",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ to: "canceled" }),
+        }),
+        ctxFor(orderId),
+      );
+      expect(noReason.status).toBe(422);
+      expect(await noReason.json()).toEqual({ error: "cancel_reason_required" });
+
+      const accept = await postTransitionRoute(
+        new Request("http://localhost/x", {
+          method: "POST",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ to: "accepted", estimateMinutes: 20 }),
+        }),
+        ctxFor(orderId),
+      );
+      expect(accept.status).toBe(200);
+      const accepted = (await accept.json()) as { order: { status: string; estimateMinutes: number } };
+      expect(accepted.order).toMatchObject({ status: "accepted", estimateMinutes: 20 });
+
+      // same expected-from again → the conditional update loses → 409
+      const stale = await postTransitionRoute(
+        new Request("http://localhost/x", {
+          method: "POST",
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ to: "accepted" }),
+        }),
+        ctxFor(orderId),
+      );
+      expect(stale.status).toBe(422); // from 'accepted', to 'accepted' is graph-invalid, not stale
+
+      const undone = await postUndoRoute(requestWithCookie(token), ctxFor(orderId));
+      expect(undone.status).toBe(200);
+      const undoneBody = (await undone.json()) as { order: { status: string } };
+      expect(undoneBody.order.status).toBe("new");
+
+      const nothingLeft = await postUndoRoute(requestWithCookie(token), ctxFor(orderId));
+      expect(nothingLeft.status).toBe(422);
+      expect(await nothingLeft.json()).toEqual({ error: "nothing_to_undo" });
+
+      const detailResponse = await getAdminOrderRoute(requestWithCookie(token), ctxFor(orderId));
+      expect(detailResponse.status).toBe(200);
+
+      const missing = await getAdminOrderRoute(requestWithCookie(token), ctxFor(999_999_999));
+      expect(missing.status).toBe(404);
+    } finally {
+      await logout(token);
+    }
   });
 });
 
