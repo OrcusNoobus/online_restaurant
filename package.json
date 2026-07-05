@@ -13,6 +13,7 @@
     "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "drizzle-orm": "^0.45.2",
     "next": "16.2.10",
     "pg": "^8.22.0",

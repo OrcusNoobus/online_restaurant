@@ -19,7 +19,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — LLM module: add `@anthropic-ai/sdk`; `src/server/llm/provider.ts`
+- [x] T01 — LLM module: add `@anthropic-ai/sdk`; `src/server/llm/provider.ts`
       (interface, message/tool/result/usage types, `LlmUnavailableError`);
       `src/server/llm/anthropic.ts` (adapter — model from `ASSISTANT_MODEL`,
       prompt caching on system+tools, typed SDK errors →
