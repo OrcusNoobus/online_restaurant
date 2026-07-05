@@ -3,10 +3,16 @@
  * provider-agnostic LlmProvider — the model never touches the DB or the
  * services directly; every tool result is computed here from the same
  * repositories/services the web shop uses. Conversation transcript +
- * usage land in Postgres via repositories/assistant (T02). Anti-abuse
- * limits, retention wiring and the per-turn log line arrive in T06;
- * update_cart / place_order tools in T04/T05.
+ * usage land in Postgres via repositories/assistant (T02). The cart
+ * bridge (03-research D7): the request carries the SITE cart, tools
+ * mutate a working copy, the response returns the final cart + last
+ * quote — prices only ever come from quoteCart. Anti-abuse limits,
+ * retention wiring and the per-turn log line arrive in T06; the
+ * place_order tool in T05.
  */
+import type { CartItem } from "@/lib/cart";
+import { quoteRequestSchema } from "@/lib/order-schemas";
+import type { QuoteView } from "@/lib/quote-types";
 import { RESTAURANT_ADDRESS, RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
 import { formatMinutesAsTime } from "@/lib/schedule";
 import type {
@@ -24,6 +30,7 @@ import {
 } from "@/server/repositories/assistant";
 import { getMenu } from "@/server/repositories/menu";
 import { getActiveZones } from "@/server/repositories/zones";
+import { type Quote, quoteCart } from "@/server/services/pricing";
 import { getScheduleConfig } from "@/server/services/settings";
 
 /** Hard cap of provider rounds per user message (04-plan D4/D5). */
@@ -61,6 +68,11 @@ Alergeni (regulă strictă):
 - Dacă produsul nu are date despre alergeni, spune explicit că nu ai această informație.
 - În ambele cazuri, pentru alergii serioase recomandă un telefon la restaurant: ${RESTAURANT_PHONE}.
 
+Coșul:
+- Coșul din chat este ACELAȘI cu coșul site-ului — clientul îl vede și îl poate edita oricând în pagina de coș.
+- Modifici coșul doar prin tool-ul update_cart, cu id-urile din get_menu. update_cart primește întotdeauna coșul COMPLET dorit (înlocuiește tot), nu doar liniile noi.
+- Prezinți exclusiv prețurile calculate de server (quote) — niciodată calcule proprii. Dacă serverul răspunde cu motive de refuz (de exemplu grup obligatoriu lipsă, cum e ambalajul), corectezi coșul și încerci din nou sau explici clientului.
+
 Comenzi:
 - Înainte de a plasa orice comandă, prezintă un sumar complet: produse, cantități, total (inclusiv garanția SGR și taxa de livrare), livrare sau ridicare, adresa, estimarea. Plasezi comanda DOAR după ce clientul confirmă explicit sumarul. Fără confirmare explicită, nu plasezi nimic.
 - În afara orarului nu se pot plasa comenzi imediate, dar poți oferi programarea comenzii în orele de deschidere din aceeași zi.
@@ -96,6 +108,36 @@ const TOOL_DEFINITIONS: LlmToolDefinition[] = [
     description:
       "Live opening hours, the earliest fulfillment time, and the current delivery/pickup time estimates. Call it for any question about hours, whether we are open, or how long an order takes.",
     inputSchema: NO_INPUT,
+  },
+  {
+    name: "update_cart",
+    description:
+      "Replaces the ENTIRE cart with the given lines and prices it on the server. Send the full desired cart every time, using ids from get_menu (productId, variantId, toppingIds) and, for delivery, a zoneSlug from get_delivery_zones. Required topping groups (e.g. packaging) must have a selection or the server refuses with reason codes. Returns the authoritative quote in integer bani — present ONLY these prices, never your own math.",
+    // model-facing JSON Schema; the server re-validates with quoteRequestSchema
+    inputSchema: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          maxItems: 100,
+          items: {
+            type: "object",
+            properties: {
+              productId: { type: "integer" },
+              variantId: { type: "integer" },
+              quantity: { type: "integer", minimum: 1, maximum: 99 },
+              toppingIds: { type: "array", items: { type: "integer" } },
+            },
+            required: ["productId", "variantId", "quantity"],
+            additionalProperties: false,
+          },
+        },
+        mode: { type: "string", enum: ["delivery", "pickup"] },
+        zoneSlug: { type: "string", description: "required when mode is delivery" },
+      },
+      required: ["items", "mode"],
+      additionalProperties: false,
+    },
   },
 ];
 
@@ -163,7 +205,35 @@ interface ToolExecution {
   isError?: true;
 }
 
-async function executeTool(name: string): Promise<ToolExecution> {
+/** The turn's working copy (03-research D7) — tools mutate it, the response returns it. */
+interface TurnState {
+  cart: CartItem[];
+  /** Last successful server quote of this turn; null when the cart was untouched. */
+  quote: Quote | null;
+}
+
+/**
+ * Replaces the working cart, prices it via quoteCart, returns QuoteResult
+ * verbatim (008 06-contracts). The working copy commits ONLY on a priced
+ * cart — the response cart is written verbatim into the site store, which
+ * must never hold an unpriceable cart. A failed quote is a NORMAL result
+ * (the model reads the reasons and corrects), not a tool error.
+ */
+async function executeUpdateCart(input: unknown, state: TurnState): Promise<ToolExecution> {
+  const parsed = quoteRequestSchema.safeParse(input);
+  if (!parsed.success) {
+    return { result: { error: "validation", issues: parsed.error.issues }, isError: true };
+  }
+
+  const priced = await quoteCart(parsed.data);
+  if (priced.ok) {
+    state.cart = parsed.data.items;
+    state.quote = priced.quote;
+  }
+  return { result: priced };
+}
+
+async function executeTool(name: string, input: unknown, state: TurnState): Promise<ToolExecution> {
   switch (name) {
     case "get_menu":
       return { result: await buildMenuPayload() };
@@ -171,10 +241,18 @@ async function executeTool(name: string): Promise<ToolExecution> {
       return { result: await buildZonesPayload() };
     case "get_schedule":
       return { result: await buildSchedulePayload() };
+    case "update_cart":
+      return executeUpdateCart(input, state);
     default:
       // the model can recover from a bad tool name; never crash the turn
       return { result: `Unknown tool: ${name}`, isError: true };
   }
+}
+
+/** Same projection as POST /api/cart/quote — the resolved zone row stays service-internal. */
+function toQuoteView(quote: Quote): QuoteView {
+  const { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani } = quote;
+  return { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani };
 }
 
 /**
@@ -214,6 +292,8 @@ export interface AssistantTurnRequest {
   conversationId?: string;
   /** Pre-validated at the boundary (zod, T07); length limits enforced in T06. */
   message: string;
+  /** The SITE cart, pre-validated with cartItemSchema at the boundary (Q11). */
+  cart: CartItem[];
   /** Same normalization as orders.client_ip; stored on the conversation. */
   clientIp: string;
 }
@@ -226,6 +306,10 @@ export interface AssistantTurnOptions {
 export interface AssistantTurnResponse {
   conversationId: string;
   reply: string;
+  /** Final working copy — the client writes it verbatim into the cart store. */
+  cart: CartItem[];
+  /** Present when the turn produced a fresh server quote (06-contracts). */
+  quote: QuoteView | null;
 }
 
 /**
@@ -240,6 +324,7 @@ export async function runAssistantTurn(
   options: AssistantTurnOptions = {},
 ): Promise<AssistantTurnResponse> {
   const maxTokens = options.maxReplyTokens ?? DEFAULT_MAX_REPLY_TOKENS;
+  const state: TurnState = { cart: request.cart, quote: null };
 
   const existing = request.conversationId ? await getConversation(request.conversationId) : null;
   const conversation = existing ?? (await createConversation(request.clientIp));
@@ -268,7 +353,12 @@ export async function runAssistantTurn(
         inputTokens: turn.usage.inputTokens,
         outputTokens: turn.usage.outputTokens,
       });
-      return { conversationId: conversation.id, reply: turn.text };
+      return {
+        conversationId: conversation.id,
+        reply: turn.text,
+        cart: state.cart,
+        quote: state.quote ? toQuoteView(state.quote) : null,
+      };
     }
 
     await appendMessage({
@@ -284,7 +374,7 @@ export async function runAssistantTurn(
     // result, so the stored transcript always replays cleanly next turn
     const results: LlmToolResult[] = [];
     for (const call of turn.calls) {
-      const execution = await executeTool(call.name);
+      const execution = await executeTool(call.name, call.input, state);
       await appendMessage({
         conversationId: conversation.id,
         role: "tool",
@@ -309,5 +399,10 @@ export async function runAssistantTurn(
     role: "assistant",
     content: { text: ROUND_CAP_REPLY },
   });
-  return { conversationId: conversation.id, reply: ROUND_CAP_REPLY };
+  return {
+    conversationId: conversation.id,
+    reply: ROUND_CAP_REPLY,
+    cart: state.cart,
+    quote: state.quote ? toQuoteView(state.quote) : null,
+  };
 }

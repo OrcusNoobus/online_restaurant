@@ -42,7 +42,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       integration tests with the fake: menu answers use real DB data
       (bani prices, active-only), transcript persisted with roles/usage,
       round cap enforced (source: 04-plan tool loop; 06-contracts tools).
-- [ ] T04 — Cart bridge + `update_cart`: working-copy cart from the
+- [x] T04 — Cart bridge + `update_cart`: working-copy cart from the
       request, tool prices via `quoteCart` and returns `QuoteResult`
       verbatim; response returns final cart + `quote`; tests: add/modify
       lines lands the exact server quote (SGR, zone fee, threshold),
