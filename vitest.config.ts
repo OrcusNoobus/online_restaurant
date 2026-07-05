@@ -12,6 +12,10 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
+    // Integration suites share one dev database; admin tests mutate catalog
+    // rows and settings that menu/orders tests observe (feat-007). Parallel
+    // files made that racy — sequential is deterministic and still fast.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

@@ -12,23 +12,42 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as postLoginRoute } from "@/app/api/admin/auth/login/route";
 import { POST as postLogoutRoute } from "@/app/api/admin/auth/logout/route";
 import { GET as getMeRoute } from "@/app/api/admin/auth/me/route";
+import { GET as getAdminCatalogRoute } from "@/app/api/admin/catalog/route";
+import { PATCH as patchCategoryRoute } from "@/app/api/admin/categories/[id]/route";
 import { GET as getAdminOrdersRoute } from "@/app/api/admin/orders/route";
 import { GET as getAdminOrderRoute } from "@/app/api/admin/orders/[id]/route";
 import { POST as postTransitionRoute } from "@/app/api/admin/orders/[id]/transition/route";
 import { POST as postUndoRoute } from "@/app/api/admin/orders/[id]/undo/route";
+import { PATCH as patchProductRoute } from "@/app/api/admin/products/[id]/route";
 import { GET as getAdminSettingsRoute, PUT as putAdminSettingsRoute } from "@/app/api/admin/settings/route";
+import { PATCH as patchToppingRoute } from "@/app/api/admin/toppings/[id]/route";
+import { PATCH as patchVariantRoute } from "@/app/api/admin/variants/[id]/route";
+import { GET as getMenuRoute } from "@/app/api/menu/route";
 import { GET as getScheduleRoute } from "@/app/api/schedule/route";
 import { orderRequestSchema } from "@/lib/order-schemas";
 import type { ScheduleConfig } from "@/lib/restaurant-config";
 import { localDateKey } from "@/lib/schedule";
 import { proxy } from "@/proxy";
 import { db } from "@/server/db/client";
-import { deliveryZones, orders, products, productVariants, staffSessions, staffUsers } from "@/server/db/schema";
-import { getCatalogForProducts } from "@/server/repositories/menu";
+import {
+  categories,
+  deliveryZones,
+  orders,
+  products,
+  productToppingGroups,
+  productVariants,
+  staffSessions,
+  staffUsers,
+  toppingGroups,
+  toppingPrices,
+  toppings,
+} from "@/server/db/schema";
+import { getCatalogForProducts, type MenuCategory } from "@/server/repositories/menu";
 import { insertOrder, type NewOrder } from "@/server/repositories/orders";
 import { createUser, findSessionByTokenHash } from "@/server/repositories/staff";
 import { getDetail, listDay, transition, undo } from "@/server/services/admin-orders";
 import { placeOrder } from "@/server/services/orders";
+import { quoteCart } from "@/server/services/pricing";
 import { getScheduleConfig, updateSettings } from "@/server/services/settings";
 import {
   hashPassword,
@@ -130,6 +149,10 @@ function requestWithCookie(token: string | null): Request {
   return new Request("http://localhost/api/admin/test", {
     headers: token ? { cookie: `${SESSION_COOKIE_NAME}=${token}` } : {},
   });
+}
+
+function ctxFor(id: number | string) {
+  return { params: Promise.resolve({ id: String(id) }) };
 }
 
 describe.skipIf(skipDb)("password hashing", () => {
@@ -528,10 +551,6 @@ describe.skipIf(skipDb)("admin orders service", () => {
 });
 
 describe.skipIf(skipDb)("admin orders HTTP boundary", () => {
-  function ctxFor(id: number | string) {
-    return { params: Promise.resolve({ id: String(id) }) };
-  }
-
   it("every orders endpoint requires a session", async () => {
     const bare = requestWithCookie(null);
     expect((await getAdminOrdersRoute(bare)).status).toBe(401);
@@ -621,6 +640,209 @@ describe.skipIf(skipDb)("admin orders HTTP boundary", () => {
     } finally {
       await logout(token);
     }
+  });
+});
+
+describe.skipIf(skipDb)("admin catalog + availability (T07)", () => {
+  let categoryId: number;
+  let productId: number;
+  let variantSmallId: number;
+  let variantBigId: number;
+  let groupId: number;
+  let toppingId: number;
+  let staffToken: string;
+  let adminToken: string;
+
+  function jsonPatch(token: string, body: unknown): Request {
+    return new Request("http://localhost/x", {
+      method: "PATCH",
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${token}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async function menuCategories(): Promise<MenuCategory[]> {
+    const response = await getMenuRoute();
+    expect(response.status).toBe(200);
+    return ((await response.json()) as { categories: MenuCategory[] }).categories;
+  }
+
+  beforeAll(async () => {
+    const [category] = await db
+      .insert(categories)
+      .values({ slug: "test-cat-admin", name: "Test Categorie Admin", sortOrder: 999 })
+      .returning({ id: categories.id });
+    categoryId = category.id;
+    const [product] = await db
+      .insert(products)
+      .values({ categoryId, slug: "test-prod-admin", name: "Test Produs Admin", sortOrder: 999 })
+      .returning({ id: products.id });
+    productId = product.id;
+    const variantRows = await db
+      .insert(productVariants)
+      .values([
+        { productId, name: "mică", priceBani: 1000, sortOrder: 0 },
+        { productId, name: "mare", priceBani: 2000, sortOrder: 1 },
+      ])
+      .returning({ id: productVariants.id });
+    [variantSmallId, variantBigId] = variantRows.map(({ id }) => id);
+    const [group] = await db
+      .insert(toppingGroups)
+      .values({ name: "Test Grup Admin", required: false, displayType: "checkbox", sortOrder: 999 })
+      .returning({ id: toppingGroups.id });
+    groupId = group.id;
+    const [topping] = await db
+      .insert(toppings)
+      .values({ groupId, name: "Test Topping Admin" })
+      .returning({ id: toppings.id });
+    toppingId = topping.id;
+    await db.insert(toppingPrices).values({ toppingId, sizeName: null, priceBani: 100 });
+    await db.insert(productToppingGroups).values({ productId, groupId });
+
+    resetLoginRateLimiter();
+    const staffLogin = await login("test-staff", PASSWORD, "10.0.5.1");
+    const adminLogin = await login("test-admin", PASSWORD, "10.0.5.1");
+    if (!staffLogin.ok || !adminLogin.ok) throw new Error("fixture login failed");
+    staffToken = staffLogin.token;
+    adminToken = adminLogin.token;
+  });
+
+  afterAll(async () => {
+    await logout(staffToken);
+    await logout(adminToken);
+    // cascades variants + group links
+    await db.delete(products).where(eq(products.id, productId));
+    // cascades toppings + prices
+    await db.delete(toppingGroups).where(eq(toppingGroups.id, groupId));
+    await db.delete(categories).where(eq(categories.id, categoryId));
+  });
+
+  it("GET /api/admin/catalog returns the full tree per contract", async () => {
+    const response = await getAdminCatalogRoute(requestWithCookie(staffToken));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      categories: { id: number; products: { id: number; variants: unknown[]; toppingGroupIds: number[] }[] }[];
+      toppingGroups: { id: number; toppings: { id: number; prices: unknown[] }[] }[];
+    };
+    const category = body.categories.find(({ id }) => id === categoryId);
+    expect(category).toBeDefined();
+    const product = category!.products.find(({ id }) => id === productId);
+    expect(product).toBeDefined();
+    expect(product!.variants).toHaveLength(2);
+    expect(product!.toppingGroupIds).toContain(groupId);
+    const group = body.toppingGroups.find(({ id }) => id === groupId);
+    expect(group!.toppings[0]).toMatchObject({ id: toppingId, prices: [{ sizeName: null, priceBani: 100 }] });
+
+    expect((await getAdminCatalogRoute(requestWithCookie(null))).status).toBe(401);
+  });
+
+  it("staff toggles a product: menu hides it, admin catalog keeps it", async () => {
+    const off = await patchProductRoute(jsonPatch(staffToken, { active: false }), ctxFor(productId));
+    expect(off.status).toBe(200);
+    expect(((await off.json()) as { product: { active: boolean } }).product.active).toBe(false);
+
+    const hidden = await menuCategories();
+    expect(hidden.flatMap(({ products: list }) => list).some(({ id }) => id === productId)).toBe(false);
+
+    const catalogResponse = await getAdminCatalogRoute(requestWithCookie(staffToken));
+    const catalog = (await catalogResponse.json()) as {
+      categories: { id: number; products: { id: number; active: boolean }[] }[];
+    };
+    const entry = catalog.categories
+      .find(({ id }) => id === categoryId)!
+      .products.find(({ id }) => id === productId);
+    expect(entry).toMatchObject({ active: false });
+
+    const on = await patchProductRoute(jsonPatch(staffToken, { active: true }), ctxFor(productId));
+    expect(on.status).toBe(200);
+    const restored = await menuCategories();
+    expect(restored.flatMap(({ products: list }) => list).some(({ id }) => id === productId)).toBe(true);
+  });
+
+  it("staff toggles a variant: menu omits the size, quote rejects it, none left → product gone", async () => {
+    const off = await patchVariantRoute(jsonPatch(staffToken, { active: false }), ctxFor(variantBigId));
+    expect(off.status).toBe(200);
+
+    const menu = await menuCategories();
+    const menuProduct = menu.flatMap(({ products: list }) => list).find(({ id }) => id === productId);
+    expect(menuProduct!.variants.map(({ id }) => id)).toEqual([variantSmallId]);
+
+    const rejected = await quoteCart({
+      mode: "pickup",
+      items: [{ productId, variantId: variantBigId, quantity: 1, toppingIds: [] }],
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.reasons.map(({ code }) => code)).toContain("variant_mismatch");
+
+    // the active variant still quotes fine
+    const accepted = await quoteCart({
+      mode: "pickup",
+      items: [{ productId, variantId: variantSmallId, quantity: 1, toppingIds: [] }],
+    });
+    expect(accepted.ok).toBe(true);
+
+    // last active variant off → the whole product disappears from the menu
+    const offSmall = await patchVariantRoute(jsonPatch(staffToken, { active: false }), ctxFor(variantSmallId));
+    expect(offSmall.status).toBe(200);
+    const gone = await menuCategories();
+    expect(gone.flatMap(({ products: list }) => list).some(({ id }) => id === productId)).toBe(false);
+
+    // admin catalog still shows both, flagged inactive
+    const catalogResponse = await getAdminCatalogRoute(requestWithCookie(staffToken));
+    const catalog = (await catalogResponse.json()) as {
+      categories: { id: number; products: { id: number; variants: { id: number; active: boolean }[] }[] }[];
+    };
+    const variants = catalog.categories
+      .find(({ id }) => id === categoryId)!
+      .products.find(({ id }) => id === productId)!.variants;
+    expect(variants.map(({ active }) => active)).toEqual([false, false]);
+
+    for (const variantId of [variantSmallId, variantBigId]) {
+      expect((await patchVariantRoute(jsonPatch(staffToken, { active: true }), ctxFor(variantId))).status).toBe(200);
+    }
+  });
+
+  it("staff toggles a topping: the menu group hides it", async () => {
+    const off = await patchToppingRoute(jsonPatch(staffToken, { active: false }), ctxFor(toppingId));
+    expect(off.status).toBe(200);
+
+    const menu = await menuCategories();
+    const menuProduct = menu.flatMap(({ products: list }) => list).find(({ id }) => id === productId);
+    // the fixture group's only topping is inactive → the group is omitted entirely
+    expect(menuProduct!.toppingGroups.some(({ id }) => id === groupId)).toBe(false);
+
+    const on = await patchToppingRoute(jsonPatch(staffToken, { active: true }), ctxFor(toppingId));
+    expect(on.status).toBe(200);
+    const restored = await menuCategories();
+    const restoredProduct = restored.flatMap(({ products: list }) => list).find(({ id }) => id === productId);
+    expect(restoredProduct!.toppingGroups.some(({ id }) => id === groupId)).toBe(true);
+  });
+
+  it("role matrix: staff blocked from categories and non-active fields; admin toggles the category", async () => {
+    // categories are NOT togglable by staff — requireAdmin, 403
+    expect((await patchCategoryRoute(jsonPatch(staffToken, { active: false }), ctxFor(categoryId))).status).toBe(403);
+
+    // staff sending anything besides {active} → 403 forbidden_role
+    const extraKey = await patchProductRoute(
+      jsonPatch(staffToken, { active: false, name: "Alt nume" }),
+      ctxFor(productId),
+    );
+    expect(extraKey.status).toBe(403);
+    expect(await extraKey.json()).toEqual({ error: "forbidden_role" });
+
+    // malformed value → 400, not 403
+    expect((await patchProductRoute(jsonPatch(staffToken, { active: "da" }), ctxFor(productId))).status).toBe(400);
+
+    // admin deactivates the category → the whole category leaves the menu
+    const off = await patchCategoryRoute(jsonPatch(adminToken, { active: false }), ctxFor(categoryId));
+    expect(off.status).toBe(200);
+    const menu = await menuCategories();
+    expect(menu.some(({ id }) => id === categoryId)).toBe(false);
+
+    const on = await patchCategoryRoute(jsonPatch(adminToken, { active: true }), ctxFor(categoryId));
+    expect(on.status).toBe(200);
+    const restored = await menuCategories();
+    expect(restored.some(({ id }) => id === categoryId)).toBe(true);
   });
 });
 

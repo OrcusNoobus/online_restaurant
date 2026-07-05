@@ -48,6 +48,22 @@ export type TransitionRequestBody = z.infer<typeof transitionRequestSchema>;
 /** Path ids arrive as strings; every admin entity id is a positive integer. */
 export const idParamSchema = z.coerce.number().int().positive();
 
+// --- Catalog (003 06-contracts Catalog; Q14 role matrix) --------------------
+
+/**
+ * The ONLY patch a staff role may send — any other key answers 403
+ * forbidden_role at the route (checked before parsing), not 400.
+ */
+export const availabilityPatchSchema = z.strictObject({ active: z.boolean() });
+
+export const categoryPatchSchema = z
+  .strictObject({
+    name: z.string().trim().min(1).max(120).optional(),
+    sortOrder: z.number().int().optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+
 // --- Settings (003 06-contracts Settings; CHECK rules from 05-data-model) ---
 
 export const settingsUpdateSchema = z

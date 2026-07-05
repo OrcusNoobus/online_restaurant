@@ -1,10 +1,11 @@
 /**
- * Menu reads. Shape mirrors 001 + 002 06-contracts/api.md: only active
- * categories/products/toppings, sorted by sortOrder; every product carries
- * >= 1 variant; products carry their topping groups for the options UI
+ * Menu reads. Shape mirrors 001 + 002 + 003 06-contracts/api.md: only active
+ * categories/products/variants/toppings, sorted by sortOrder; every product
+ * carries >= 1 active variant (none left → product omitted, 003 T07);
+ * products carry their topping groups for the options UI
  * (preview prices only — the cart quote is authoritative).
  */
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "../db/client";
 import {
@@ -104,6 +105,9 @@ export async function getCatalogForProducts(productIds: number[]): Promise<Map<n
     .from(products)
     .where(inArray(products.id, productIds));
 
+  // Inactive variants are ABSENT here on purpose: the pricing service then
+  // answers variant_mismatch — the existing reason code — and the cart drops
+  // the line, exactly like a variant that never existed (003 T07).
   const variantRows = await db
     .select({
       id: productVariants.id,
@@ -112,7 +116,7 @@ export async function getCatalogForProducts(productIds: number[]): Promise<Map<n
       priceBani: productVariants.priceBani,
     })
     .from(productVariants)
-    .where(inArray(productVariants.productId, productIds));
+    .where(and(inArray(productVariants.productId, productIds), eq(productVariants.active, true)));
 
   const linkRows = await db
     .select({ productId: productToppingGroups.productId, groupId: productToppingGroups.groupId })
@@ -216,6 +220,7 @@ export async function getMenu(): Promise<MenuCategory[]> {
       priceBani: productVariants.priceBani,
     })
     .from(productVariants)
+    .where(eq(productVariants.active, true))
     .orderBy(asc(productVariants.sortOrder), asc(productVariants.id));
 
   const groupRows = await db
@@ -297,13 +302,16 @@ export async function getMenu(): Promise<MenuCategory[]> {
   );
   // Products of inactive categories fall out here: their category is not in the map.
   for (const { categoryId, ...product } of productRows) {
+    // no active variants left → nothing orderable → omit the product (003 T07)
+    const activeVariants = variantsByProduct.get(product.id) ?? [];
+    if (activeVariants.length === 0) continue;
     const productGroups = (groupIdsByProduct.get(product.id) ?? [])
       .map((groupId) => groupsById.get(groupId))
       .filter((group): group is MenuToppingGroup => group !== undefined)
       .sort((a, b) => groupOrder.get(a.id)! - groupOrder.get(b.id)!);
     menu.get(categoryId)?.products.push({
       ...product,
-      variants: variantsByProduct.get(product.id) ?? [],
+      variants: activeVariants,
       toppingGroups: productGroups,
     });
   }

@@ -73,7 +73,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       orders/schedule suites stay green
       (source: 03-research D6, spec FR9, 06-contracts Settings/schedule;
       review point 4).
-- [ ] T07 — Admin catalog read + availability: `GET /api/admin/catalog`
+- [x] T07 — Admin catalog read + availability: `GET /api/admin/catalog`
       (full view incl. inactive, per 06-contracts); availability toggle
       endpoints/fields for product/variant/topping (staff-permitted); menu
       payload + pricing hide/reject inactive VARIANTS (new flag) — products/
