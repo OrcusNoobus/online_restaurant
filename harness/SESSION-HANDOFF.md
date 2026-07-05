@@ -8,54 +8,49 @@
 
 ## Current Objective
 
-- **Goal:** feat-006 (Coș și plasare comandă) delivered end-to-end: schema →
-  zones → schedule → pricing/order services → API → mobile UI, verified live.
-- **Active feature:** none in progress; feat-007 (Panou admin) is next.
-- **Status:** feat-006 DONE with evidence; merged fast-forward into main
-  @ cf3d2a6 and pushed (2026-07-04); merged local branches deleted.
-- **Branch / commit:** main @ `git log --oneline -14`
+- **Goal:** feat-007 (Panou admin) delivered: auth → order lifecycle with
+  live day view + alert → catalog/zones/settings admin → seed guard.
+- **Active feature:** none in progress — feat-007 is DONE with evidence.
+- **Status:** complete on branch `feat/007-panou-admin` @ 19c6d45; main is
+  still at the feat-006 merge (green). Merge + push not yet done — that is
+  the explicit human decision left open.
+- **Branch / commit:** `feat/007-panou-admin` @ 19c6d45 (16 commits since main).
 
 ## Completed This Session
 
-- [x] Spec phase: 01-spec + 02-clarify (Q1–Q16 all answered by owner),
-      03-research (8 decisions), 04-plan, 05-data-model, 06-contracts, 07-tasks
-- [x] T01 — schema extensions + stable variant ids (migration 0001)
-- [x] T02 — delivery_zones + seed + GET /api/zones (migration 0002)
-- [x] T03 — schedule config + pure Europe/Bucharest rules + 8 unit tests
-- [x] T04 — menu payload carries topping groups (contract extended)
-- [x] T05 — quoteCart() + POST /api/cart/quote (fee-below-threshold model)
-- [x] T06 — order tables + atomic insertOrder (migration 0003)
-- [x] T07 — placeOrder() + POST /api/orders (snapshots, +40 phone, IP)
-- [x] T08 — options sheet + localStorage cart + /cos
-- [x] T09 — /comanda checkout + confirmation + legal placeholders
-- [x] T10 — 08-quickstart.md flows 1–5 executed; evidence recorded; 09-debug.md
+- [x] T11 — seed-ownership guard + integration tests running the real seed
+- [x] T12 — orders day view UI (poll, alert, filters, day browser, totals,
+      detail panel with graph-driven actions, cancel dialog, undo, 409 refetch)
+- [x] T13 — catalog admin UI + ingredients/allergens in the shop sheet
+- [x] T14 — zones + settings admin pages
+- [x] T15 — 08-quickstart.md written AND executed (flows 1–9); 09-debug.md;
+      evidence recorded in feature-list.json
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh pass |
-| Tests (layer 2) | `npm test` | 47/47 | 22 orders + 8 schedule + 17 menu/seed |
-| End-to-end (layer 3) | `npm test -- tests/orders` + quickstart 1–5 | pass | live orders #13 (delivery) / #19 (pickup) verified in DB at 375px |
+| Tests (layer 2) | `npm test` | 112/112 | 46 admin + 16 order-status + pre-existing suites green |
+| E2E (layer 3) | `npm test -- tests/admin` + quickstart 1–9 | pass | live browser 2026-07-05: orders #275/#276 full lifecycle, race #325, shop reflects panel edits |
 
 ## Files Changed
 
-See PROGRESS.md "Files Modified This Session" — 3 migrations, 5 lib modules,
-3 repositories, 2 services, 3 API routes, cart/checkout UI, 3 test suites.
+See PROGRESS.md "Files Modified This Session" — seed guard (scripts +
+settings repo + admin-catalog service), 4 admin pages, 12 admin components,
+options sheet block, admin test suite, spec docs 07–09, feature-list.json.
 
 ## Decisions Made
 
-- Fee model: per-zone fee only below the zone threshold (subtotal + SGR);
-  free at/above; never blocked. Future: degressive fee (owner note).
-- v1 window: place while open (11:00–22:30), same-day scheduling only,
-  floor 11:30. Future: next-day scheduling (owner note).
-- SGR on drink add-ons too; all SGR flows through `sgr_deposit_bani`.
-- Client-held cart + stateless quote/place services (channel-agnostic core).
-- Order status + payment enums fixed now; feat-007 executes transitions.
+- None new at product level; research decisions D1–D10 executed as approved.
+- UI-level patterns worth keeping (documented in 003 09-debug.md):
+  handlers-not-effects for selection, poller-side reconcile via ref, no
+  changing `key` on stateful forms, native setters for scripted verification.
 
 ## Blockers / Risks
 
-- None. Shop must not go live before feat-007 (orders land only in the DB).
+- None technical. Go-live checklist: merge+push (human), staff accounts on
+  the real host, owner hears the alert tone on the restaurant device.
 
 ## Next Session Startup
 
@@ -66,9 +61,8 @@ See PROGRESS.md "Files Modified This Session" — 3 migrations, 5 lib modules,
 
 ## Recommended Next Step
 
-Start feat-007 (Panou admin) at spec time with the owner. Spec seeds: auth
-for staff, live order list + status transitions (enum already in DB),
-dispatcher adjusts the quoted delivery time (002 clarify Q10 note), edit
-products/prices/availability, edit zone fees/thresholds. Also pending
-long-term: lawyer-reviewed T&C/GDPR texts to replace the preliminary ones
-(owner-approved interim content shipped 2026-07-04).
+Ask the human: merge `feat/007-panou-admin` → main (fast-forward) and push?
+After merge, the shop can take real orders. Then pick the next feature with
+the owner (feat-008 AI chat / feat-010 accounts / feat-011 coupons /
+feat-012 online payment) and start at spec time. Small parked cleanup: hide
+the shop cart FAB on /admin routes (spawned as a separate task chip).
