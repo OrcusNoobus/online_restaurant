@@ -636,6 +636,10 @@ describe.skipIf(skipDb)("T04 — cart bridge + update_cart", () => {
       sgrBani: 100,
       deliveryFeeBani: 2000,
       freeDeliveryGapBani: 1700,
+      // feat-011: always present in the shared QuoteView; the assistant never
+      // sends a couponCode (006 D-e), so they are always the empty values here
+      discountBani: 0,
+      coupon: null,
       totalBani: 4300,
     });
     // the resolved zone row stays service-internal (same as POST /api/cart/quote)

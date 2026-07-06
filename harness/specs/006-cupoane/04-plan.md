@@ -64,6 +64,11 @@ Server (repositories → services):
   `couponCode`/`discountBani` (modify; view shape only)
 - `src/server/services/customer-account.ts` — own-order detail view exposes
   the same two fields (modify; view shape only)
+- `src/server/services/assistant.ts` — `toQuoteView` projects the two new
+  `QuoteView` fields (mechanical: the shared type widened; the assistant
+  never sends a couponCode, so its quotes stay `discountBani: 0` /
+  `coupon: null` — D-e intact, tool schemas untouched) (modify; added at
+  T03 when the shared-type change surfaced in typecheck)
 
 HTTP boundary:
 - `src/app/api/admin/coupons/route.ts` — GET list + POST create,
@@ -98,6 +103,10 @@ UI — admin & account:
 
 Tests:
 - `tests/coupons.test.ts` — integration suite (new)
+- `tests/orders.test.ts` + `tests/assistant.test.ts` — expected-shape
+  literals only: the quote contract gained two always-present fields
+  (`discountBani`, `coupon`), so exact-key/toEqual assertions list them;
+  no behavioral change (modify; added at T03)
 
 ## Technical Design
 

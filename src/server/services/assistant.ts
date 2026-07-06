@@ -342,10 +342,25 @@ async function executeTool(name: string, input: unknown, state: TurnState): Prom
   }
 }
 
-/** Same projection as POST /api/cart/quote — the resolved zone row stays service-internal. */
+/**
+ * Same projection as POST /api/cart/quote — the resolved zone row and coupon
+ * id stay service-internal. The assistant never sends a couponCode (006
+ * D-e), so discountBani is always 0 here; the projection exists for the
+ * shared QuoteView type.
+ */
 function toQuoteView(quote: Quote): QuoteView {
-  const { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani } = quote;
-  return { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani };
+  const { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, discountBani, coupon, totalBani } =
+    quote;
+  return {
+    items,
+    subtotalBani,
+    sgrBani,
+    deliveryFeeBani,
+    freeDeliveryGapBani,
+    discountBani,
+    coupon: coupon ? { code: coupon.code, type: coupon.type } : null,
+    totalBani,
+  };
 }
 
 /**

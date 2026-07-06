@@ -25,13 +25,24 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json({ error: "invalid_cart", reasons: result.reasons }, { status: 422 });
     }
 
-    // the resolved zone row is service-internal (placeOrder uses it) — not part of this contract
-    const { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani } = result.quote;
+    // the resolved zone row and the coupon id are service-internal
+    // (placeOrder uses them) — not part of this contract
+    const { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, discountBani, coupon, totalBani } =
+      result.quote;
     console.log(
       `route=/api/cart/quote status=ok mode=${parsed.data.mode} items=${items.length} ` +
         `totalBani=${totalBani} durationMs=${Date.now() - startedAt}`,
     );
-    return Response.json({ items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani });
+    return Response.json({
+      items,
+      subtotalBani,
+      sgrBani,
+      deliveryFeeBani,
+      freeDeliveryGapBani,
+      discountBani,
+      coupon: coupon ? { code: coupon.code, type: coupon.type } : null,
+      totalBani,
+    });
   } catch (error) {
     console.error(`route=/api/cart/quote status=error durationMs=${Date.now() - startedAt}`, error);
     return Response.json({ error: "internal" }, { status: 500 });

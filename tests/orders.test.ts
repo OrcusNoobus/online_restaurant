@@ -597,8 +597,11 @@ describe.skipIf(skipDb)("POST /api/cart/quote", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
+    // coupon + discountBani joined the contract at feat-011 (006 06-contracts)
     expect(Object.keys(body).sort()).toEqual([
+      "coupon",
       "deliveryFeeBani",
+      "discountBani",
       "freeDeliveryGapBani",
       "items",
       "sgrBani",

@@ -35,20 +35,19 @@ Request — one optional field added:
 }
 ```
 
-Response `200` — `QuoteView` gains two fields (never the coupon id):
+Response `200` — flat body (002 convention); `QuoteView` gains two fields
+(never the coupon id):
 
 ```json
 {
-  "quote": {
-    "items": [ "…unchanged…" ],
-    "subtotalBani": 5000,
-    "sgrBani": 50,
-    "deliveryFeeBani": 1500,
-    "freeDeliveryGapBani": 2450,
-    "discountBani": 500,
-    "coupon": { "code": "VARA10", "type": "percent" },
-    "totalBani": 6050
-  }
+  "items": [ "…unchanged…" ],
+  "subtotalBani": 5000,
+  "sgrBani": 50,
+  "deliveryFeeBani": 1500,
+  "freeDeliveryGapBani": 2450,
+  "discountBani": 500,
+  "coupon": { "code": "VARA10", "type": "percent" },
+  "totalBani": 6050
 }
 ```
 
@@ -78,17 +77,16 @@ everything else unchanged. The server re-runs the quote (existing
 behavior), so an invalid coupon at placement time answers the same `422
 invalid_cart` reason codes above and NO order is created.
 
-Response `201` — `PlacedOrderView` gains two fields:
+Response `201` — flat body (002 convention); `PlacedOrderView` gains two
+fields:
 
 ```json
 {
-  "order": {
-    "orderId": 130, "orderNumber": "…", "status": "new",
-    "mode": "delivery", "scheduledFor": null, "estimateMinutes": null,
-    "subtotalBani": 5000, "sgrBani": 50, "deliveryFeeBani": 1500,
-    "discountBani": 500, "couponCode": "VARA10",
-    "totalBani": 6050
-  }
+  "orderId": 130, "orderNumber": "…", "status": "new",
+  "mode": "delivery", "scheduledFor": null, "estimateMinutes": null,
+  "subtotalBani": 5000, "sgrBani": 50, "deliveryFeeBani": 1500,
+  "discountBani": 500, "couponCode": "VARA10",
+  "totalBani": 6050
 }
 ```
 

@@ -6,6 +6,7 @@
  */
 import { assertBani } from "@/lib/money";
 import type { QuoteRequest } from "@/lib/order-schemas";
+import { type CouponRow, type CouponType, getCouponByCode } from "@/server/repositories/coupons";
 import { type CatalogTopping, getCatalogForProducts } from "@/server/repositories/menu";
 import { type DeliveryZoneRow, getZoneBySlug } from "@/server/repositories/zones";
 
@@ -22,7 +23,11 @@ export interface QuoteReason {
     | "duplicate_topping"
     | "zone_required"
     | "zone_unknown"
-    | "zone_inactive";
+    | "zone_inactive"
+    | "coupon_unknown"
+    | "coupon_inactive"
+    | "coupon_not_started"
+    | "coupon_expired";
   itemIndex?: number;
   groupName?: string;
   detail?: string;
@@ -53,6 +58,10 @@ export interface Quote {
   sgrBani: number;
   deliveryFeeBani: number;
   freeDeliveryGapBani: number;
+  /** Coupon reduction (006 D2) — 0 without a coupon; totalBani is already discounted. */
+  discountBani: number;
+  /** Applied coupon — id consumed by placeOrder, never serialized to the client. */
+  coupon: { id: number; code: string; type: CouponType } | null;
   totalBani: number;
   /** Resolved zone (delivery only) — placeOrder stores the reference. */
   zone: DeliveryZoneRow | null;
@@ -68,10 +77,32 @@ function resolveToppingPrice(topping: CatalogTopping, variantName: string | null
   return generic ? generic.priceBani : null;
 }
 
-export async function quoteCart(request: QuoteRequest): Promise<QuoteResult> {
+/**
+ * `now` drives the coupon validity window (006 D3) — placeOrder passes its
+ * context clock so tests are deterministic end-to-end.
+ */
+export async function quoteCart(request: QuoteRequest, now: Date = new Date()): Promise<QuoteResult> {
   const reasons: QuoteReason[] = [];
 
   if (request.items.length === 0) reasons.push({ code: "empty_cart" });
+
+  // Coupon resolution (006 D2/D3): exactly one refusal reason per invalid
+  // code; a valid row is priced after the fee is known.
+  let coupon: CouponRow | null = null;
+  if (request.couponCode) {
+    const found = await getCouponByCode(request.couponCode);
+    if (!found) {
+      reasons.push({ code: "coupon_unknown", detail: request.couponCode });
+    } else if (!found.active) {
+      reasons.push({ code: "coupon_inactive", detail: found.code });
+    } else if (found.startsAt !== null && now.getTime() < found.startsAt.getTime()) {
+      reasons.push({ code: "coupon_not_started", detail: found.code });
+    } else if (found.endsAt !== null && now.getTime() > found.endsAt.getTime()) {
+      reasons.push({ code: "coupon_expired", detail: found.code });
+    } else {
+      coupon = found;
+    }
+  }
 
   let zone: DeliveryZoneRow | null = null;
   if (request.mode === "delivery") {
@@ -200,11 +231,41 @@ export async function quoteCart(request: QuoteRequest): Promise<QuoteResult> {
     }
   }
 
-  const totalBani = subtotalBani + sgrBani + deliveryFeeBani;
-  for (const value of [subtotalBani, sgrBani, deliveryFeeBani, totalBani]) assertBani(value);
+  // Discount math (006 D2) — all three types manifest as discountBani; SGR
+  // is never reduced (Q2), the threshold above stayed pre-discount (D-d).
+  let discountBani = 0;
+  if (coupon) {
+    if (coupon.type === "percent") {
+      // floor: deterministic, never exceeds the promised percentage (D-g)
+      discountBani = Math.floor((subtotalBani * (coupon.value ?? 0)) / 100);
+    } else if (coupon.type === "fixed") {
+      // capped: the total never goes negative (spec FR2)
+      discountBani = Math.min(coupon.value ?? 0, subtotalBani);
+    } else {
+      // free_delivery: equal to the fee — 0 at pickup / at-or-above the
+      // threshold (accepted with zero effect, D-h)
+      discountBani = deliveryFeeBani;
+    }
+  }
+
+  const totalBani = subtotalBani + sgrBani + deliveryFeeBani - discountBani;
+  for (const value of [subtotalBani, sgrBani, deliveryFeeBani, discountBani, totalBani]) assertBani(value);
+  if (discountBani < 0 || totalBani < 0) {
+    throw new RangeError(`discount out of range: discount=${discountBani} total=${totalBani}`);
+  }
 
   return {
     ok: true,
-    quote: { items, subtotalBani, sgrBani, deliveryFeeBani, freeDeliveryGapBani, totalBani, zone },
+    quote: {
+      items,
+      subtotalBani,
+      sgrBani,
+      deliveryFeeBani,
+      freeDeliveryGapBani,
+      discountBani,
+      coupon: coupon ? { id: coupon.id, code: coupon.code, type: coupon.type } : null,
+      totalBani,
+      zone,
+    },
   };
 }

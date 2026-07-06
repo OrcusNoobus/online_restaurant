@@ -22,12 +22,20 @@ export interface QuoteItemView {
   lineTotalBani: number;
 }
 
+export interface QuoteCouponView {
+  code: string;
+  type: "percent" | "fixed" | "free_delivery";
+}
+
 export interface QuoteView {
   items: QuoteItemView[];
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
   freeDeliveryGapBani: number;
+  /** 0 without a coupon; totalBani is already discounted (006). */
+  discountBani: number;
+  coupon: QuoteCouponView | null;
   totalBani: number;
 }
 
@@ -69,4 +77,16 @@ export const LINE_REASON_CODES = new Set([
   "topping_price_missing",
   "missing_required_group",
   "duplicate_topping",
+]);
+
+/**
+ * Reason codes that identify an invalid COUPON (006 D3) — the client drops
+ * the stored coupon, shows the per-code message, and re-quotes; the cart
+ * itself is never touched.
+ */
+export const COUPON_REASON_CODES = new Set([
+  "coupon_unknown",
+  "coupon_inactive",
+  "coupon_not_started",
+  "coupon_expired",
 ]);
