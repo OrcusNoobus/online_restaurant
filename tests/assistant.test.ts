@@ -405,6 +405,12 @@ describe.skipIf(skipDb)("T02 — retention", () => {
 
 const TURN_IP = "203.0.113.99";
 
+/** The wire-only cart context the service appends on every turn (spec FR1; T10 finding). */
+const EMPTY_CART_CONTEXT = {
+  role: "user" as const,
+  text: "[Context de sistem, generat de server, nu de client] Coșul CURENT al site-ului: gol",
+};
+
 /** runAssistantTurn, unwrapped (ok expected) + conversation tracked for the shared afterAll cleanup. */
 async function runTurn(
   provider: FakeLlmProvider,
@@ -469,11 +475,12 @@ describe.skipIf(skipDb)("T03 — menu answers ride on real DB data", () => {
       "place_order",
     ]);
     expect(first.maxTokens).toBe(1000);
-    expect(first.messages).toEqual([{ role: "user", text: "ce pizza picantă aveți?" }]);
+    expect(first.messages).toEqual([{ role: "user", text: "ce pizza picantă aveți?" }, EMPTY_CART_CONTEXT]);
 
     // round 2 replays the tool round and carries the REAL menu
     expect(second.messages.map(({ role }) => role)).toEqual([
       "user",
+      "user", // the wire-only cart context
       "assistant_tool_calls",
       "tool_results",
     ]);
@@ -585,6 +592,7 @@ describe.skipIf(skipDb)("T03 — conversation continuity", () => {
       { role: "user", text: "salut" },
       { role: "assistant", text: "Bună! Cu ce vă ajut?" },
       { role: "user", text: "aș comanda ceva" },
+      EMPTY_CART_CONTEXT,
     ]);
   });
 
@@ -593,7 +601,7 @@ describe.skipIf(skipDb)("T03 — conversation continuity", () => {
     const turn = await runTurn(fake, "salut", [], "00000000-0000-4000-8000-000000000000");
 
     expect(turn.conversationId).not.toBe("00000000-0000-4000-8000-000000000000");
-    expect(fake.calls[0].messages).toEqual([{ role: "user", text: "salut" }]);
+    expect(fake.calls[0].messages).toEqual([{ role: "user", text: "salut" }, EMPTY_CART_CONTEXT]);
     expect(await getConversation(turn.conversationId)).not.toBeNull();
   });
 });
@@ -1103,6 +1111,61 @@ describe.skipIf(skipDb)("T03 — the tool loop is bounded", () => {
     const lastRow = rows[rows.length - 1];
     expect(lastRow.role).toBe("assistant");
     expect(lastRow.content).toEqual({ text: turn.reply });
+  });
+});
+
+/**
+ * T10 finding — the model must SEE the current site cart, not remember it:
+ * the customer can edit the cart in the site UI between chat messages
+ * (spec FR1 "coșul existent e vizibil asistentului"). The service appends
+ * a wire-only [Context de sistem] user message with the request cart on
+ * every turn; it is never persisted.
+ */
+describe.skipIf(skipDb)("T10 — current site cart is visible to the model", () => {
+  it("appends the request cart as the final wire message, without persisting it", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+    const items = [{ ...heineken, quantity: 2, toppingIds: [sgrId] }];
+
+    const fake = new FakeLlmProvider([reply("Ai 2 × Heineken în coș.")]);
+    const turn = await runTurn(fake, "ce am în coș?", items);
+
+    const wire = fake.calls[0].messages;
+    const last = wire[wire.length - 1];
+    if (last.role !== "user") throw new Error(`expected a user context message, got ${last.role}`);
+    expect(last.text).toContain("[Context de sistem");
+    expect(last.text).toContain(JSON.stringify(items));
+    // the customer's actual message precedes the context block
+    const previous = wire[wire.length - 2];
+    expect(previous).toEqual({ role: "user", text: "ce am în coș?" });
+
+    // the stored transcript stays pure conversation — no context rows
+    const rows = await getConversationMessages(turn.conversationId);
+    expect(rows.map(({ content }) => JSON.stringify(content)).join("\n")).not.toContain("Context de sistem");
+  });
+
+  it("a cart edited on the site between turns reaches the model current, once", async () => {
+    const heineken = await findProduct("heineken-0-5-l", null);
+    const sgrId = await findTopping("Garantie SGR", "Garanție SGR");
+
+    const first = new FakeLlmProvider([reply("Coșul este gol.")]);
+    const opened = await runTurn(first, "salut", []);
+    const firstWire = first.calls[0].messages;
+    const firstLast = firstWire[firstWire.length - 1];
+    if (firstLast.role !== "user") throw new Error("expected the context message");
+    expect(firstLast.text).toContain("gol");
+
+    // site-side edit between turns: the store now holds 2 × Heineken
+    const edited = [{ ...heineken, quantity: 2, toppingIds: [sgrId] }];
+    const second = new FakeLlmProvider([reply("Ai 2 × Heineken în coș.")]);
+    await runTurn(second, "ce am în coș acum?", edited, opened.conversationId);
+
+    const wire = second.calls[0].messages;
+    const contexts = wire.filter((message) => message.role === "user" && message.text.includes("[Context de sistem"));
+    // exactly ONE context — the current cart; the stale turn-1 context was never persisted
+    expect(contexts).toHaveLength(1);
+    if (contexts[0].role !== "user") throw new Error("unreachable");
+    expect(contexts[0].text).toContain('"quantity":2');
   });
 });
 

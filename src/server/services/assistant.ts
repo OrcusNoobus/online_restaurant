@@ -87,6 +87,7 @@ Alergeni (regulă strictă):
 
 Coșul:
 - Coșul din chat este ACELAȘI cu coșul site-ului — clientul îl vede și îl poate edita oricând în pagina de coș.
+- Coșul CURENT al site-ului îți este transmis automat cu fiecare mesaj, într-un bloc [Context de sistem]. Acela este adevărul — clientul poate modifica coșul pe site între mesaje, deci memoria conversației despre coș poate fi depășită.
 - Modifici coșul doar prin tool-ul update_cart, cu id-urile din get_menu. update_cart primește întotdeauna coșul COMPLET dorit (înlocuiește tot), nu doar liniile noi.
 - Prezinți exclusiv prețurile calculate de server (quote) — niciodată calcule proprii. Dacă serverul răspunde cu motive de refuz (de exemplu grup obligatoriu lipsă, cum e ambalajul), corectezi coșul și încerci din nou sau explici clientului.
 
@@ -379,6 +380,24 @@ function toLlmHistory(rows: AssistantMessageRow[]): LlmMessage[] {
   return messages;
 }
 
+/**
+ * Wire-only context appended AFTER the persisted history on every turn:
+ * the site cart travels with each request (Q11) and the customer can edit
+ * it on the site between messages, so the model must never trust its
+ * conversation memory about the cart. Injected fresh per turn and NOT
+ * persisted — the stored transcript stays pure conversation. Sent even
+ * when empty, so a cart emptied on the site kills the stale belief too.
+ * A customer typing a lookalike block gains nothing: ids/quantities are
+ * re-validated and re-priced server-side on every update_cart/place_order.
+ */
+function cartContextMessage(cart: CartItem[]): LlmMessage {
+  const body = cart.length === 0 ? "gol" : JSON.stringify(cart);
+  return {
+    role: "user",
+    text: `[Context de sistem, generat de server, nu de client] Coșul CURENT al site-ului: ${body}`,
+  };
+}
+
 export interface AssistantTurnRequest {
   /** Unknown/expired ids start a fresh conversation — never an error (06-contracts). */
   conversationId?: string;
@@ -494,6 +513,7 @@ export async function runAssistantTurn(
     });
 
     const messages = toLlmHistory(await getConversationMessages(conversation.id));
+    messages.push(cartContextMessage(request.cart));
 
     for (let round = 1; round <= MAX_TOOL_ROUNDS; round++) {
       const turn = await provider.complete({
