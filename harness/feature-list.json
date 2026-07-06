@@ -65,12 +65,12 @@
     {
       "id": "feat-010",
       "name": "Conturi clienți și login social",
-      "behavior": "Un client își poate crea cont opțional (inclusiv login cu Google/Facebook/TikTok), rămâne autentificat și datele lui de livrare se precompletează la comenzile următoare; guest checkout rămâne disponibil. Decis de proprietar la interviul feat-006 (2026-07-04)",
-      "verification": "(defined at spec time) integration tests: signup/login flows, prefilled checkout, guest path unaffected",
+      "behavior": "Un client își poate crea cont opțional (email+parolă sau login Google în v1; Facebook/TikTok amânate — Q1), rămâne autentificat, datele lui de livrare se precompletează la checkout și își vede comenzile proprii cu status (Q2); comenzile guest anterioare se leagă după telefon/email (Q3/Q5, risc acceptat, verificare amânată); guest checkout rămâne disponibil și neschimbat. Decis de proprietar la interviul feat-006 (2026-07-04), detaliat 2026-07-06",
+      "verification": "npm test -- tests/accounts",
       "dependencies": ["feat-006"],
-      "status": "not-started",
+      "status": "in-progress",
       "evidence": "",
-      "spec": ""
+      "spec": "harness/specs/005-conturi-clienti/"
     },
     {
       "id": "feat-011",
