@@ -60,7 +60,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       by email). Tests with scripted claims: creates / logs in / links /
       refuses unverified; `buildAuthUrl` parameter assertions
       (source: 03-research D1; 05-data-model rules; 06-contracts Google).
-- [ ] T06 — Customer-account service: profile view (`CustomerView`,
+- [x] T06 — Customer-account service: profile view (`CustomerView`,
       zoneId↔zoneSlug), patch (immutable email, `unknown_zone`, phone
       set/change re-runs `claimGuestOrders`),
       `absorbOrderIntoEmptyProfile` (D-h: only when contact fields ALL

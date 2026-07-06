@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { hashToken } from "@/server/auth/primitives";
 import { db } from "@/server/db/client";
-import { customers, orders, productVariants } from "@/server/db/schema";
+import { customers, deliveryZones, orders, productVariants } from "@/server/db/schema";
 import {
   createCustomer,
   createCustomerSession,
@@ -39,6 +39,13 @@ import {
   googleRedirectUri,
   isGoogleConfigured,
 } from "@/server/auth/google";
+import {
+  absorbOrderIntoEmptyProfile,
+  getCustomerOrderDetail,
+  getProfile,
+  listCustomerOrders,
+  updateProfile,
+} from "@/server/services/customer-account";
 import {
   CUSTOMER_SESSION_COOKIE_NAME,
   CUSTOMER_SESSION_TTL_MS,
@@ -635,5 +642,134 @@ describe.skipIf(skipDb)("loginWithGoogle resolution (T05)", () => {
 
     // both methods now reach the same account
     expect((await loginCustomer(email, "parola-clientului", null)).ok).toBe(true);
+  });
+});
+
+describe.skipIf(skipDb)("customer-account service (T06)", () => {
+  it("returns the profile view with a resolved zone slug", async () => {
+    const [zone] = await db
+      .select({ id: deliveryZones.id, slug: deliveryZones.slug })
+      .from(deliveryZones)
+      .limit(1);
+    const customerId = await createTestCustomer("profview");
+    await updateCustomerProfile(customerId, { firstName: "Vio", zoneId: zone.id });
+
+    const view = await getProfile(customerId);
+    expect(view?.firstName).toBe("Vio");
+    expect(view?.zoneSlug).toBe(zone.slug);
+    expect(view?.hasPassword).toBe(true);
+    expect(view?.hasGoogle).toBe(false);
+    expect(view).not.toHaveProperty("passwordHash");
+  });
+
+  it("patches profile fields, resolves zoneSlug and refuses an unknown one", async () => {
+    const customerId = await createTestCustomer("patchsvc");
+    const [zone] = await db.select({ slug: deliveryZones.slug }).from(deliveryZones).limit(1);
+
+    const ok = await updateProfile(customerId, {
+      firstName: "Dan",
+      lastName: "Ionescu",
+      addressStreet: "Str. Nouă 5",
+      zoneSlug: zone.slug,
+    });
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(ok.customer.firstName).toBe("Dan");
+      expect(ok.customer.zoneSlug).toBe(zone.slug);
+      expect(ok.claimedOrders).toBe(0);
+    }
+
+    expect(await updateProfile(customerId, { zoneSlug: "zona-inventata" })).toEqual({
+      ok: false,
+      error: "unknown_zone",
+    });
+
+    // clearing works with null
+    const cleared = await updateProfile(customerId, { zoneSlug: null, addressStreet: null });
+    if (cleared.ok) {
+      expect(cleared.customer.zoneSlug).toBeNull();
+      expect(cleared.customer.addressStreet).toBeNull();
+    } else {
+      throw new Error("clear patch failed");
+    }
+  });
+
+  it("re-runs the guest-order backfill when the phone is set or changed — not otherwise", async () => {
+    const phone = `+4074${String(Date.now()).slice(-7)}`;
+    const guestOrder = await createTestOrder({ phone });
+    const customerId = await createTestCustomer("relink");
+
+    // unrelated patch: no claim
+    const unrelated = await updateProfile(customerId, { firstName: "Fără" });
+    if (unrelated.ok) expect(unrelated.claimedOrders).toBe(0);
+
+    // phone set: claims the guest order
+    const withPhone = await updateProfile(customerId, { phone });
+    expect(withPhone.ok).toBe(true);
+    if (withPhone.ok) expect(withPhone.claimedOrders).toBe(1);
+    expect((await listCustomerOrders(customerId)).map((o) => o.id)).toEqual([guestOrder]);
+
+    // same phone again: nothing new to claim, no re-run
+    const samePhone = await updateProfile(customerId, { phone });
+    if (samePhone.ok) expect(samePhone.claimedOrders).toBe(0);
+  });
+
+  it("absorbs the first logged-in order into an EMPTY profile and links by its phone (D-h)", async () => {
+    const phone = `+4075${String(Date.now()).slice(-7)}`;
+    const olderGuestOrder = await createTestOrder({ phone });
+    const customerId = await createTestCustomer("absorb");
+
+    const result = await absorbOrderIntoEmptyProfile(customerId, {
+      firstName: "Radu",
+      lastName: "Marin",
+      phone,
+      addressStreet: "Str. Absorbției 9",
+      zoneId: null,
+    });
+    expect(result.absorbed).toBe(true);
+    expect(result.claimedOrders).toBe(1);
+
+    const view = await getProfile(customerId);
+    expect(view?.firstName).toBe("Radu");
+    expect(view?.phone).toBe(phone);
+    expect((await listCustomerOrders(customerId)).map((o) => o.id)).toEqual([olderGuestOrder]);
+  });
+
+  it("never overwrites a profile that has ANY contact field set", async () => {
+    const customerId = await createTestCustomer("noabsorb");
+    await updateCustomerProfile(customerId, { firstName: "Deja" });
+
+    const result = await absorbOrderIntoEmptyProfile(customerId, {
+      firstName: "Alt",
+      lastName: "Nume",
+      phone: "+40761234567",
+      addressStreet: null,
+      zoneId: null,
+    });
+    expect(result).toEqual({ absorbed: false, claimedOrders: 0 });
+    expect((await getProfile(customerId))?.firstName).toBe("Deja");
+    expect((await getProfile(customerId))?.phone).toBeNull();
+  });
+
+  it("shapes the order list and detail views per the contract, isolation included", async () => {
+    const owner = await createTestCustomer("views");
+    const stranger = await createTestCustomer("stranger");
+    const orderId = await createTestOrder({ customerId: owner, quantity: 2 });
+
+    const list = await listCustomerOrders(owner);
+    expect(list).toHaveLength(1);
+    expect(list[0].orderNumber).toBe(`#${orderId}`);
+    expect(list[0].status).toBe("new");
+    expect(list[0].itemCount).toBe(1);
+
+    const detail = await getCustomerOrderDetail(owner, orderId);
+    expect(detail?.orderNumber).toBe(`#${orderId}`);
+    expect(detail?.items).toHaveLength(1);
+    expect(detail?.items[0].quantity).toBe(2);
+    expect(detail?.items[0].options).toEqual([]);
+    expect(detail?.paymentMethod).toBe("cash");
+    expect(detail).not.toHaveProperty("clientIp");
+
+    expect(await getCustomerOrderDetail(stranger, orderId)).toBeNull();
   });
 });
