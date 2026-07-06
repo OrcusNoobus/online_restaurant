@@ -10,6 +10,7 @@
 > D1–D6 implement the owner's answers Q1–Q4 and the recorded defaults D-a…D-h
 > from `02-clarify.md`; one soft default is flagged for owner review (D2's
 > threshold rule = clarify D-d).
+> APPROVED in full by the owner 2026-07-06, including the flagged D-d.
 
 ## Decision 1: One `coupons` table; the order stores a snapshot (code + discount) plus a RESTRICT FK
 

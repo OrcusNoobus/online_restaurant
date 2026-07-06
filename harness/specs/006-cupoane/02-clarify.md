@@ -49,7 +49,7 @@ feat-007 (prețurile și banii = admin). Angajatul nu vede secțiunea de
 cupoane, dar vede reducerea aplicată pe comenzile din panou. Răspuns de
 proprietar, 2026-07-06.
 
-## Defaults Recorded (propuse de agent; devin definitive la aprobarea 03-research)
+## Defaults Recorded (definitive — 03-research aprobat integral de proprietar 2026-07-06, inclusiv D-d)
 
 - **D-a Un singur cupon per comandă:** fără stacking; aplicarea unui alt cod
   îl înlocuiește pe cel curent.
@@ -82,6 +82,7 @@ proprietar, 2026-07-06.
 
 ## Open Questions (de confirmat înainte sau la research)
 
-Niciuna. Q1–Q4 răspunse la interviu (2026-07-06); D-a…D-h devin definitive
-la aprobarea 03-research de către proprietar. Orice ambiguitate nouă
+Niciuna. Q1–Q4 răspunse la interviu (2026-07-06); D-a…D-h definitive prin
+aprobarea integrală a 03-research (2026-07-06, inclusiv default-ul flagat
+D-d — prag pe valoarea dinainte de reducere). Orice ambiguitate nouă
 descoperită la implementare se adaugă AICI înainte de a scrie cod.
