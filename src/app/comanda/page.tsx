@@ -68,6 +68,38 @@ export default function CheckoutPage() {
     removeLines,
   });
 
+  // 010 T09: silent prefill for logged-in customers. 401 = guest → nothing
+  // happens (FR3); on 200 we seed ONLY fields the visitor has not already
+  // typed into (the response may arrive after typing started).
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/account/me", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = (await response.json()) as {
+          customer: {
+            firstName: string | null;
+            lastName: string | null;
+            phone: string | null;
+            email: string;
+            addressStreet: string | null;
+            zoneSlug: string | null;
+          };
+        };
+        const profile = body.customer;
+        if (profile.firstName) setFirstName((current) => current || profile.firstName!);
+        if (profile.lastName) setLastName((current) => current || profile.lastName!);
+        if (profile.phone) setPhone((current) => current || profile.phone!);
+        setEmail((current) => current || profile.email);
+        if (profile.addressStreet) setAddress((current) => current || profile.addressStreet!);
+        if (profile.zoneSlug) setZoneSlug((current) => current ?? profile.zoneSlug!);
+      })
+      .catch(() => {
+        // prefill is best-effort; the form works exactly like for a guest
+      });
+    return () => controller.abort();
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/zones", { signal: controller.signal })

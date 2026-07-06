@@ -49,11 +49,28 @@ export default function PrivacyPage() {
           rugăm să nu includeți în chat date personale care nu sunt necesare comenzii.
         </p>
 
-        <h2 className={sectionTitle}>5. Drepturile dumneavoastră</h2>
+        <h2 className={sectionTitle}>5. Contul de client (opțional)</h2>
+        <p className={paragraph}>
+          Contul este opțional — puteți comanda oricând fără cont. Dacă vă creați unul, stocăm adresa de
+          e-mail (identificatorul contului), parola doar sub formă criptografică ireversibilă (niciodată
+          în clar) și, dacă le completați, datele profilului de livrare (nume, telefon, adresă, zonă),
+          folosite exclusiv pentru precompletarea comenzilor și afișarea istoricului propriu. La
+          autentificarea cu Google primim de la Google numele și adresa de e-mail verificată; nu primim
+          și nu stocăm parola contului Google. Contul rămâne activ până cereți ștergerea lui.
+        </p>
+        <p className={paragraph}>
+          La crearea contului, comenzile plasate anterior ca vizitator cu același număr de telefon sau
+          aceeași adresă de e-mail se leagă automat de cont și apar în istoricul acestuia. Dacă
+          preferați să nu se întâmple acest lucru, folosiți la comenzi date de contact diferite de cele
+          ale contului sau cereți-ne dezlegarea lor telefonic.
+        </p>
+
+        <h2 className={sectionTitle}>6. Drepturile dumneavoastră</h2>
         <p className={paragraph}>
           Conform GDPR, aveți dreptul de acces, rectificare, ștergere, restricționare și opoziție asupra
-          datelor personale. Pentru orice solicitare, contactați-ne la {RESTAURANT_PHONE} sau la
-          restaurant: {RESTAURANT_ADDRESS}. Aveți de asemenea dreptul de a depune o plângere la ANSPDCP.
+          datelor personale — inclusiv ștergerea contului de client și exportul datelor asociate, la
+          cerere. Pentru orice solicitare, contactați-ne la {RESTAURANT_PHONE} sau la restaurant:{" "}
+          {RESTAURANT_ADDRESS}. Aveți de asemenea dreptul de a depune o plângere la ANSPDCP.
         </p>
 
         <Link href="/" className="mt-8 inline-block text-sm font-medium text-amber-700 underline dark:text-amber-400">

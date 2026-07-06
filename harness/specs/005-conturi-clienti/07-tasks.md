@@ -84,7 +84,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       filled profile untouched, guest placement byte-identical
       (customer_id NULL); `npm test -- tests/orders` still 22/22
       (source: 04-plan checkout integration; spec FR3/FR4).
-- [ ] T09 — UI: `/cont` server-gated page (AuthPanel logged out — tabs +
+- [x] T09 — UI: `/cont` server-gated page (AuthPanel logged out — tabs +
       Google button behind `googleEnabled` prop; profile + OrdersList
       logged in), `/cont/comenzi/[id]` detail (404 for non-owned),
       OrdersList 15s polling, static "Cont" link in the shop header

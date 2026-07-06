@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { CategoryNav } from "@/components/menu/CategoryNav";
 import { ProductCard } from "@/components/menu/ProductCard";
 import { getMenu } from "@/server/repositories/menu";
@@ -13,7 +15,16 @@ export default async function MenuPage() {
   return (
     <div className="flex-1 bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
       <header className="mx-auto w-full max-w-2xl px-4 pb-4 pt-8">
-        <h1 className="text-2xl font-bold tracking-tight">Royal Food Delivery</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Royal Food Delivery</h1>
+          {/* one label for both auth states — /cont itself decides what to show (010 T09) */}
+          <Link
+            href="/cont"
+            className="shrink-0 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+          >
+            Cont
+          </Link>
+        </div>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Livrare la domiciliu în Sântana de Mureș
         </p>
