@@ -62,10 +62,11 @@ normalizat** (câmpul cerut oricum la checkout, identificatorul tare pentru aces
 business) pentru a reduce, nu elimina, expunerea. Răspuns de proprietar,
 2026-07-06.
 
-## Defaults Recorded (proprietarul poate suprascrie)
+## Defaults Recorded (definitive — research aprobat de proprietar 2026-07-06)
 
-Alegeri pe care agentul le propune ca implicite rezonabile; dacă proprietarul
-nu le contrazice, devin definitive la research/plan.
+Alegeri propuse de agent ca implicite rezonabile. Proprietarul a aprobat
+03-research (care le încorporează pe toate, inclusiv D-g/D-h flagate acolo)
+pe 2026-07-06 — de la această dată sunt definitive.
 
 - **D-a Durata sesiunii:** propunere 30 de zile rolling per dispozitiv (clienții
   se așteaptă să „rămână logați" mai mult decât personalul, care e la 7 zile);
@@ -86,9 +87,21 @@ nu le contrazice, devin definitive la research/plan.
   (Google e sursa de adevăr pentru posesia adresei).
 - **D-f Comenzile din cont sunt read-only:** contul afișează statusul, dar nu
   permite modificarea/anularea (corectările rămân telefonice).
+- **D-g Telefonul e opțional la signup** (email+parolă): fricțiune minimă,
+  simetric cu Google (care nu are telefon deloc); legarea comenzilor guest
+  după telefon rulează când profilul primește/schimbă telefonul. Flagat în
+  03-research, aprobat de proprietar 2026-07-06.
+- **D-h Prima comandă logată umple profilul GOL:** dacă toate câmpurile de
+  contact din profil sunt goale, datele primei comenzi plasate logat se
+  copiază în profil (un cont Google capătă astfel precompletare + legare
+  după telefon fără o corvoadă separată). Un profil deja completat nu e
+  suprascris niciodată de editările per-comandă. Flagat în 03-research,
+  aprobat de proprietar 2026-07-06.
+- **D-a (precizare la research):** durata sesiunii de client = 30 de zile
+  rolling, prag de reîmprospătare 60s — fixată în 03-research D3.
 
 ## Open Questions (de confirmat înainte sau la research)
 
-Niciuna care blochează research-ul. Dacă proprietarul vrea să schimbe vreun
-default de mai sus (în special D-a durata sesiunii și D-b o singură adresă),
-se notează aici înainte de plan.
+Niciuna. Q1–Q5 răspunse la interviu; D-a…D-h definitive prin aprobarea
+research-ului (2026-07-06). Orice ambiguitate nouă descoperită la
+implementare se adaugă AICI înainte de a scrie cod.

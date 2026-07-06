@@ -6,16 +6,17 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-010 spec + clarify + research done;
-  next: owner approves research → 04-plan)
+- **Last updated:** 2026-07-06 (feat-010 research APPROVED by owner;
+  04-plan + 05-data-model + 06-contracts written — next: owner approves
+  plan → 07-tasks → code)
 - **Active feature:** feat-010 (Conturi clienți și login social),
-  in-progress on branch `feat/010-conturi-clienti`. Chain so far:
-  01-spec (owner interview Q1–Q5 recorded), 02-clarify (Q1–Q5 answered,
-  defaults D-a…D-f), 03-research (D1–D8 written 2026-07-06, awaiting
-  owner approval — two flagged defaults: phone optional at signup;
-  first logged-in order fills an empty profile). feat-008 remains DONE
-  with evidence; its merge to main (fast-forward from
-  `claude/strange-hopper-b16056` @ 1d8a87b) stays the human's call.
+  in-progress on branch `feat/010-conturi-clienti`. Chain: 01-spec ✓,
+  02-clarify ✓ (Q1–Q5 + defaults D-a…D-h, all definitive), 03-research ✓
+  (owner-approved 2026-07-06 incl. the two flagged defaults), 04-plan +
+  05-data-model + 06-contracts/api.md written 2026-07-06 awaiting owner
+  approval. feat-008 remains DONE with evidence; its merge to main
+  (fast-forward from `claude/strange-hopper-b16056` @ 1d8a87b) stays the
+  human's call.
 - **Verification status:** ./init.sh fully green with the REAL key in
   .env: 156/156 tests (incl. the live T09 smoke and 2 new T10
   cart-context tests), lint, typecheck, boundary checks, build with
@@ -78,30 +79,37 @@
 ## In Progress
 
 - feat-010 Conturi clienți și login social (owner's pick 2026-07-06):
-  spec + clarify committed (8a0f1c8), 03-research written 2026-07-06
-  (Google OIDC hand-rolled zero-deps; one `customers` table, Google
-  links by verified email; sessions mirror feat-007 with shared
-  primitives extracted; guest-order linking = stamped `customer_id`
-  backfill; isolation via requireCustomer + repository filter; /cont +
-  /api/account surface; deterministic tests with injectable token
-  exchange; Google runtime-optional like the assistant key). Next
-  artifact: 04-plan + 05-data-model + 06-contracts after the owner
-  approves the research decisions.
+  spec + clarify (8a0f1c8), 03-research (ef7a30e, owner-approved),
+  04-plan + 05-data-model + 06-contracts/api.md written 2026-07-06.
+  Design fixed: Google OIDC hand-rolled zero-deps; one `customers`
+  table, Google links by verified email; `customer_sessions` mirror
+  feat-007 (30d rolling, `rf_client_session`) with shared primitives
+  extracted to `src/server/auth/`; guest-order linking = stamped
+  `customer_id` backfill (first-claim); isolation via requireCustomer +
+  repository filter; `/cont` + `/api/account/*` surface, silent checkout
+  prefill; deterministic tests with injectable token exchange; Google
+  runtime-optional like the assistant key. Next artifact: 07-tasks after
+  the owner approves the plan trio.
 
 ## Next Steps
 
-1. **Owner:** review/approve 03-research D1–D8 for feat-010 — especially
-   the two flagged defaults (phone OPTIONAL at signup; first logged-in
-   order fills an EMPTY profile). Then the agent writes 04-plan +
-   05-data-model + 06-contracts.
-2. **Human decision (standing):** fast-forward main to the feat-008
+1. **Owner:** review/approve feat-010 04-plan + 05-data-model +
+   06-contracts/api.md (file targets incl. the staff-auth primitives
+   extraction; customers/customer_sessions/orders.customer_id model;
+   /api/account/* + Google redirect contract). Then the agent writes
+   07-tasks and starts implementing.
+2. **Owner, before quickstart (not blocking implementation):** create the
+   Google Cloud OAuth client (web application; authorized redirect URIs
+   for localhost:3000 and the production host, path
+   /api/account/google/callback) — values go ONLY in `.env`.
+3. **Human decision (standing):** fast-forward main to the feat-008
    worktree branch `claude/strange-hopper-b16056` and push. Verified
    2026-07-06: main (@ cdd18cb) ALREADY contains feat-007 (rebased
    commits, new SHAs) + feat-008 T01–T05; this branch is main + 10
    commits (T06–T10), main is its ancestor — a plain fast-forward. The
    old `feat/007-panou-admin` branch (@ 19c6d45) is an obsolete
    duplicate of the rebased 007 content and can be deleted, NOT merged.
-3. Still open (human): revoke the shared API key (owner said he will) and
+4. Still open (human): revoke the shared API key (owner said he will) and
    issue a production key at deploy time; hear the new-order tone on the
    restaurant device; hide the shop cart FAB on /admin routes (parked
    chip); lawyer-reviewed T&C/GDPR texts (incl. the new chat paragraph).
