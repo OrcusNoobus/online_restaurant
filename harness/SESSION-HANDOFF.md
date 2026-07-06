@@ -8,68 +8,54 @@
 
 ## Current Objective
 
-- **Goal:** feat-008 (Asistent AI pe site) — chat assistant over the existing
-  services, web channel first.
-- **Active feature:** feat-008, in-progress. T01–T09 DONE; only T10 remains
-  (08-quickstart.md written AND executed against the real API + 09-debug.md
-  + evidence in feature-list.json).
-- **Status:** everything buildable/testable offline is done and green.
-  **T10 is blocked on the human: it needs a real `ANTHROPIC_API_KEY`**
-  (owner key or dev key) in the git-ignored `.env`.
-- **Branch / commit:** worktree branch `claude/strange-hopper-b16056`
-  @ ed79a93 (contains T01–T05 from `claude/distracted-jang-33b090` plus
-  T06–T09). feat-007 is still unmerged on `feat/007-panou-admin` @ 19c6d45 —
-  merge + push remains a separate open human decision.
+- **Goal:** feat-008 (Asistent AI pe site) delivered end-to-end: LLM
+  module → assistant service with tool loop → storage/limits → HTTP
+  boundary → chat UI → privacy → quickstart against the REAL API.
+- **Active feature:** none in progress — feat-008 is DONE with evidence.
+- **Status:** complete on worktree branch `claude/strange-hopper-b16056`;
+  main (@ cdd18cb) already holds feat-007 (rebased) + feat-008 T01–T05,
+  this branch adds T06–T10 as a verified clean fast-forward.
+- **Branch / commit:** `claude/strange-hopper-b16056`, last code commit
+  1d8a87b (10 commits ahead of main).
 
 ## Completed This Session
 
-- [x] T08 — chat UI: `ChatFab` (bottom-left, hidden on /admin + /comanda,
-      rendered by layout.tsx only when ANTHROPIC_API_KEY is set),
-      `ChatPanel` (375px bottom sheet / desktop card, typing indicator,
-      placedOrder confirmation card, error bubbles with the restaurant
-      phone), `useAssistant` (sessionStorage transcript per tab session,
-      shared cart round-trip via a new `replace` store action — documented
-      file-target deviation)
-- [x] T09 — privacy page section (chat transcripts, 30-day retention),
-      T&C + privacy links under the chat input, live smoke test gated on
-      ANTHROPIC_API_KEY
+- [x] T08 — chat UI (ChatFab key-gated in layout, ChatPanel 375px-first,
+      useAssistant with sessionStorage transcript + shared-cart write-back)
+- [x] T09 — privacy section (30-day retention), T&C links under the chat
+      input, key-gated live smoke test
+- [x] T10 — 08-quickstart.md written AND executed against the real API
+      (flows 1–8, all PASS); 09-debug.md; evidence in feature-list.json;
+      feat-008 marked done
+- [x] Fix @ 1d8a87b (T10 finding): wire-only current-cart context every
+      turn — site-side cart edits are now visible to the model
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh pass |
-| Tests (layer 2) | `npm test` | 153 passed + 1 skipped | the skip is the key-gated T09 live smoke — by design without a key |
-| Feature (layer 3 partial) | `npm test -- tests/assistant` | 41 passed + 1 skipped | full layer-3 sign-off happens at T10 with the real API |
-| UI (manual) | dev server + dummy key | pass | FAB routing, 375px/desktop panel, 503 degradation bubble, transcript survives navigation; dummy key removed afterwards, test conversation row deleted from dev DB |
+| Tests (layer 2) | `npm test` | 156/156 | incl. live smoke on the real key + 2 new cart-context tests |
+| E2E (layer 3) | `npm test -- tests/assistant` + quickstart 1–8 | pass | real API 2026-07-06: chat order #821 in the admin panel, 24 prices exact vs DB, guardrails held — details in 004-asistent-ai/08-quickstart.md "Rezultate" |
 
 ## Files Changed
 
-See PROGRESS.md "Files Modified This Session" — chat components (3 new),
-cart-store `replace`, layout mount, privacy page, live smoke in
-tests/assistant.test.ts, 07-tasks.md ticks, PROGRESS.md, DEV_LOG.md.
+See PROGRESS.md "Files Modified This Session". Key artifacts this
+session: chat components, cart-store `replace`, privacy section, the
+cart-context fix in services/assistant.ts, 08-quickstart.md + 09-debug.md.
 
 ## Decisions Made
 
-- Implementation-level only (recorded in PROGRESS.md "Decisions Made This
-  Session"): cart-store `replace` deviation and why; chat FAB bottom-LEFT
-  (cart FAB owns the right); FAB visible on /cos (only /admin + /comanda
-  excluded per Q8); panel is a modal with backdrop on all sizes
-  (OptionsSheet idiom); useAssistant lives in ChatFab so the transcript
-  survives panel close; 422 codes map to client-side Romanian texts,
-  everything else (400/500/503/network/90s timeout) shows the generic
-  unavailable text with the phone.
+- Implementation-level only, recorded in PROGRESS "Decisions Made This
+  Session"; the T10 one that outlives this feature: per-turn channel
+  state (the cart) reaches the model as regenerated wire-only context,
+  never via conversation memory — feat-009 adapters must do the same.
 
 ## Blockers / Risks
 
-- **T10 needs `ANTHROPIC_API_KEY` from the human** — without it the
-  quickstart cannot run against the real API and feat-008 cannot be marked
-  done. Ask the owner (or use a dev key) and put it in `.env` (git-ignored;
-  never in the repo or harness files).
-- Still open (human): merge `feat/007-panou-admin` → main + push; hear the
-  new-order tone on the restaurant device; lawyer-reviewed T&C/GDPR texts
-  (the chat paragraph added in T09 is interim content, same status as the
-  rest of the page).
+- None technical. The shared API key sits ONLY in the git-ignored `.env`;
+  the owner said he will revoke it — a fresh production key goes into the
+  host's `.env` at deploy time (absent key = shop unaffected, chat hidden).
 
 ## Next Session Startup
 
@@ -80,12 +66,11 @@ tests/assistant.test.ts, 07-tasks.md ticks, PROGRESS.md, DEV_LOG.md.
 
 ## Recommended Next Step
 
-If `ANTHROPIC_API_KEY` is available: T10 — write
-`harness/specs/004-asistent-ai/08-quickstart.md` and execute every flow
-against the real API (menu Q&A RO/HU/EN, allergens, full order via chat
-landing in the admin panel, shared-cart check, outside-hours scheduling,
-off-topic + injection attempt, limit behavior), then 09-debug.md and
-evidence in feature-list.json. Remember the model/env contract:
-`ASSISTANT_MODEL` (default in code) and the dev DB cleanup rules after
-manual testing. If no key yet: ask the owner for it; do not start other
-features while feat-008 is in-progress (one feature at a time).
+Ask the human two things (PROGRESS "Next Steps"):
+1. Fast-forward main to `claude/strange-hopper-b16056` and push (the old
+   `feat/007-panou-admin` branch is an obsolete rebased duplicate —
+   delete, don't merge). After that the shop can go live with the
+   assistant.
+2. Pick the next feature: feat-009 WhatsApp/Telegram (builds directly on
+   the assistant service), feat-010 accounts, feat-011 coupons, or
+   feat-012 online payment. Start at spec time per the document flow.

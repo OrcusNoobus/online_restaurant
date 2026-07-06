@@ -26,6 +26,34 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-06] — feat-008 Asistent AI COMPLETE (T01–T10, done with evidence)
+- Status: Completed
+- Action: T10 executed with the owner's real API key (claude-opus-4-8):
+  quickstart flows 1–8 in the browser at 375px — menu Q&A in RO/HU/EN
+  with 24 prices spot-checked exact against the DB, allergen rule held
+  (no invention for products without data), shared cart both directions,
+  full chat order #821 placed only after explicit confirmation and
+  visible in the admin day view identical to a web order, out-of-hours
+  refusal with the real schedule, off-topic + manager-discount injection
+  refused, 501-char message → 400. Suite 156/156 incl. the live smoke.
+  Evidence in feature-list.json; feature marked done. Test entities
+  cleaned up; key stays only in the git-ignored .env (owner revokes it).
+- Challenge: Flow 4 caught a real design gap — the model received only
+  system prompt + persisted transcript, so a cart edited in the site UI
+  between messages was invisible: it answered from stale conversation
+  memory, and place_order (items composed by the model) could have
+  placed an order different from the on-screen cart (spec FR1 "coșul
+  existent e vizibil asistentului").
+- Solution: fix @ 1d8a87b — wire-only `[Context de sistem]` user message
+  with the request cart injected EVERY turn (even empty), never
+  persisted; stable system-prompt line declares it the truth about the
+  cart. 2 new integration tests + 3 wire assertions updated. Re-ran the
+  failing flow live: the assistant noticed the site-side edit unprompted.
+  Lesson recorded in 09-debug.md for feat-009: per-turn channel state
+  belongs in regenerated wire-only context, never in conversation memory.
+  This is exactly what the quickstart layer exists to catch — the fake
+  provider tests all passed while the real conversation exposed the gap.
+
 ## [2026-07-06] — feat-008 T08+T09: chat UI + privacy — backend↔UI loop closed
 - Status: Completed (feature still in-progress: T10 quickstart remains)
 - Action: Chat UI shipped (ChatFab bottom-left behind server-side

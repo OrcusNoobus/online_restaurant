@@ -6,39 +6,28 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-008 T08 + T09 done)
-- **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
-  complete and approved; implementation in progress. T01 (LLM module) DONE
-  @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
-  T03 (service core + read tools + fake provider) DONE @ 259678a; T04
-  (cart bridge + update_cart) DONE @ 4e5b5cb; T05 (place_order) DONE
-  @ f63d14a; T06 (limits + degradation + retention) DONE @ b42c82b; T07
-  (HTTP boundary) DONE @ 4b03991; T08 (chat UI: ChatFab + ChatPanel +
-  useAssistant + layout mount) DONE @ 49e0e21; T09 (privacy paragraph +
-  T&C link near the chat input + key-gated live smoke test) DONE —
-  T01–T05 on worktree branch `claude/distracted-jang-33b090`, T06–T09 on
-  worktree branch `claude/strange-hopper-b16056` (contains all prior
-  commits). feat-007 remains DONE on `feat/007-panou-admin` @ 19c6d45,
-  still NOT merged into main — merge + push stays the human's call.
-- **Verification status:** ./init.sh fully green on this branch (Postgres,
-  migrate incl. 0005, lint, typecheck, boundary checks, build with the
-  new ƒ /api/assistant route); full test suite 153 passed + 1 skipped
-  (the T09 live smoke, gated on ANTHROPIC_API_KEY — empty in dev, so
-  skipped by design) incl. tests/assistant.test.ts (8 T01 + 7 T02 + 6
-  T03 + 5 T04 + 3 T05 + 6 T06 + 1 gated T09) and
-  tests/assistant-route.test.ts (6 T07); feature verification
-  `npm test -- tests/assistant` 41 passed + 1 skipped. T09 UI verified
-  live: T&C + privacy links under the chat input, privacy page section
-  "4. Conversațiile cu asistentul (chat)" with the 30-day retention
-  (rights renumbered to 5). T08 UI
-  verified live in the browser (dev server, temporary DUMMY
-  ANTHROPIC_API_KEY, restored to empty afterwards): FAB renders
-  bottom-left on / and /cos, absent on /comanda and /admin, absent
-  everywhere with the key empty; panel opens 375px-first and as a desktop
-  card; send → optimistic user bubble → typing indicator → 503 → polite
-  unavailable bubble with the restaurant phone; transcript +
-  conversationId survive navigation via sessionStorage; the test
-  conversation row created by the 503 turn was deleted from the dev DB.
+- **Last updated:** 2026-07-06 (feat-008 COMPLETE — T01–T10 done with
+  evidence)
+- **Active feature:** none in progress. feat-008 (Asistent AI pe site)
+  is DONE: full chain 01–09 + quickstart executed against the REAL API
+  (claude-opus-4-8, owner-provided key). All feat-008 work sits on
+  worktree branch `claude/strange-hopper-b16056` (last code commit
+  1d8a87b). main (@ cdd18cb) already contains feat-007 (rebased) +
+  feat-008 T01–T05; this branch adds T06–T10 as a clean fast-forward —
+  the merge + push stays the human's call (Next Steps 1).
+- **Verification status:** ./init.sh fully green with the REAL key in
+  .env: 156/156 tests (incl. the live T09 smoke and 2 new T10
+  cart-context tests), lint, typecheck, boundary checks, build with
+  ƒ /api/assistant. 08-quickstart.md flows 1–8 executed 2026-07-06
+  against the real API at 375px — all PASS (24 prices spot-checked
+  exact vs DB; chat order #821 landed in the admin panel identical to a
+  web order; guardrails + injection attempt held; details and the one
+  finding in 08-quickstart.md "Rezultate" and 09-debug.md). Evidence
+  recorded in harness/feature-list.json.
+- **API key:** lives ONLY in the git-ignored `.env` (never committed,
+  never in harness files). The owner said they will revoke/delete this
+  key themselves; with the key present, ./init.sh runs the live smoke
+  (~2 real turns per run).
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -63,79 +52,57 @@
     settings row (checkout reads GET /api/schedule)
   - seed-ownership guard: first panel write stamps the domain flag, seed
     skips that section loudly, SEED_FORCE=1 resets
+- [x] feat-008 Asistent AI pe site — full chain 01–09 + T01–T10 on the
+  worktree branches (claude/distracted-jang-33b090 → claude/strange-hopper-b16056):
+  - provider-agnostic LLM module: `LlmProvider` interface + Anthropic
+    adapter (only SDK importer, model from ASSISTANT_MODEL, prompt
+    caching, SDK errors → LlmUnavailableError)
+  - assistant service: bounded tool loop (6 rounds), trilingual system
+    prompt with Q5/Q6/Q7/Q12 rules, tools get_menu / get_delivery_zones /
+    get_schedule / update_cart (quoteCart verbatim) / place_order (same
+    placeOrder as the web), wire-only current-cart context every turn
+  - storage: migration 0005, conversations + messages with token usage,
+    30-day retention on conversation create, anti-abuse limits
+    (500 chars, 40/conversation, 60/IP/day) checked before persistence
+  - HTTP boundary: zod schema + POST /api/assistant (400/422/503 per
+    contract, lazy provider so limits answer while unconfigured)
+  - chat UI: ChatFab (bottom-left, key-gated in layout, hidden on
+    /admin + /comanda), ChatPanel (375px sheet / desktop card, typing
+    indicator, placedOrder card, T&C links), useAssistant
+    (sessionStorage transcript, shared cart write-back via `replace`)
+  - privacy: chat/30-day retention section in confidentialitate
+  - verification: 156/156 incl. live smoke; quickstart flows 1–8 on the
+    REAL API — evidence in feature-list.json, finding + fix in 09-debug.md
 
 ## In Progress
 
-- feat-008 Asistent AI — T01 done (LLM module); T02 done (migration 0005 +
-  `repositories/assistant.ts`); T03 done (`services/assistant.ts`: bounded
-  tool loop, system prompt, read tools, fake provider); T04 done (cart
-  bridge: request carries the site cart, `update_cart` tool zod-validates
-  with `quoteRequestSchema` and prices via `quoteCart`, QuoteResult goes
-  to the model VERBATIM, working copy commits only on a priced cart,
-  response returns final cart + `QuoteView` (zone stripped, same as the
-  quote route); 5 integration tests). T05 done (`place_order` tool: full
-  `OrderRequest` zod-validated then through the SAME `placeOrder` as the
-  web with `{clientIp, now}` context, PlaceOrderResult verbatim to the
-  model, `placedOrder` (PlacedOrderView) in the response, cart emptied on
-  success mirroring the web checkout `clear()`; system prompt gains
-  required-data + payment-on-receipt rules; injectable `now` in
-  AssistantTurnOptions for deterministic tests; 3 integration tests).
-  T06 done (`runAssistantTurn` returns `AssistantTurnResult` union —
-  `{ok:false, error}` with the contract's 422 codes; limits checked
-  BEFORE any persistence or provider call; retention via
-  `deleteConversationsOlderThan(30)` on conversation create;
-  `LlmUnavailableError` escapes for the route's 503 mapping; one
-  structured key=value log line per turn; 6 integration tests).
-  T07 done (`src/lib/assistant-schemas.ts`: zod body — message trimmed
-  1–500, `z.uuid()` conversationId optional, cart via `cartItemSchema`
-  max 100; `POST /api/assistant`: validate → `runAssistantTurn` →
-  contract shape, `ok:false` → 422 `{error}`, `LlmUnavailableError` →
-  503 `assistant_unavailable`, provider constructed LAZILY so limits
-  answer 422 even when unconfigured; x-forwarded-for first hop, fallback
-  `"unknown"` bucket; `ASSISTANT_MAX_REPLY_TOKENS` wired from env; 6
-  route tests in tests/assistant-route.test.ts with the Anthropic class
-  module-mocked to the scripted fake).
-  T08 done (chat UI: `useAssistant` — sessionStorage `rfd-chat-v1` holds
-  conversationId + transcript for the tab session (Q8), request carries
-  the cart from `useCart()`, response cart written back via a new
-  `replace` store action (Q11), 422 codes and 503/network/timeout mapped
-  to error-role bubbles with the restaurant phone; `ChatPanel` —
-  presentational bottom sheet (375px) / floating card (sm+), typing
-  indicator, placedOrder confirmation card reusing the checkout wording,
-  input maxLength 500; `ChatFab` — bottom-LEFT (cart FAB owns the
-  right), hidden on /admin + /comanda, owns the hook so the transcript
-  survives panel close; `layout.tsx` renders ChatFab only when
-  `ANTHROPIC_API_KEY` is set, server-side).
-  T09 done (confidentialitate/page.tsx gains section "4. Conversațiile
-  cu asistentul (chat)" — transcripts + cart + IP stored, 30-day
-  auto-delete, rights renumbered to 5; ChatPanel footer shows the same
-  T&C + privacy links as the checkout under the input — place_order
-  sends `termsAccepted: true`; tests/assistant.test.ts gains the
-  key-gated live smoke: one real menu question through
-  AnthropicLlmProvider asserting a non-empty reply, `describe.skipIf`
-  on missing ANTHROPIC_API_KEY, 90s timeout, conversation tracked for
-  the shared afterAll cleanup).
-  Next task: T10 (08-quickstart.md written AND executed against the
-  real API — needs a key from the human).
+- none — feat-008 delivered with evidence; the next feature is the
+  owner's pick (feat-009 WhatsApp/Telegram / feat-010 accounts /
+  feat-011 coupons / feat-012 online payment), starting at spec time.
 
 ## Next Steps
 
-1. feat-008 T10 — 08-quickstart.md written AND executed against the
-   real API (owner key or dev key — **needs the human to provide
-   ANTHROPIC_API_KEY**): flows for menu Q&A (RO/HU/EN), allergens, full
-   order via chat landing in the admin panel, shared-cart check,
-   outside-hours scheduling, off-topic + injection attempt, limit
-   behavior; then 09-debug.md and evidence in harness/feature-list.json
-   (source: spec acceptance criteria; 03-research D9).
-3. **Human decision (still open):** merge `feat/007-panou-admin` into main
-   and push — after that the shop can take real orders. Also still open:
-   hear the new-order tone on the restaurant device; hide the shop cart FAB
-   on /admin routes (parked chip); lawyer-reviewed T&C/GDPR texts.
+1. **Human decision:** fast-forward main to the feat-008 worktree branch
+   `claude/strange-hopper-b16056` and push. Verified 2026-07-06:
+   main (@ cdd18cb) ALREADY contains feat-007 (rebased commits, new
+   SHAs) + feat-008 T01–T05; this branch is main + 10 commits
+   (T06–T10), main is its ancestor — a plain fast-forward. The old
+   `feat/007-panou-admin` branch (@ 19c6d45) is an obsolete duplicate
+   of the rebased 007 content and can be deleted, NOT merged.
+2. **Human decision:** pick the next feature (feat-009 WhatsApp/Telegram /
+   feat-010 accounts / feat-011 coupons / feat-012 online payment) —
+   start at spec time per the document flow.
+3. Still open (human): revoke the shared API key (owner said he will) and
+   issue a production key at deploy time; hear the new-order tone on the
+   restaurant device; hide the shop cart FAB on /admin routes (parked
+   chip); lawyer-reviewed T&C/GDPR texts (incl. the new chat paragraph).
 
 ## Blockers / Risks
 
-- None technical. Go-live still needs: feature merged, staff accounts
-  created on the real host, owner walk-through of the panel.
+- None technical. Go-live still needs: branches merged + pushed, staff
+  accounts created on the real host, a production ANTHROPIC_API_KEY in
+  the host's .env (absent key = shop works, chat hidden), owner
+  walk-through of the panel.
 
 ## Decisions Made This Session
 
@@ -217,6 +184,15 @@
   the generic unavailable text with the phone. The welcome bubble is a
   static placeholder shown only while the transcript is empty — not a
   persisted message.
+- T10 implementation-level (quickstart finding, fix @ 1d8a87b): the model
+  now receives a wire-only `[Context de sistem]` user message with the
+  CURRENT request cart on EVERY turn — never persisted, sent even when
+  empty. Without it, a cart edited in the site UI between chat messages
+  was invisible to the model (it answered from stale conversation memory
+  and place_order could have diverged from the on-screen cart — spec FR1).
+  Full write-up in 004-asistent-ai/09-debug.md, incl. the lesson for
+  feat-009 channels: per-turn channel state goes in regenerated wire-only
+  context, never in the persisted transcript.
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -246,7 +222,12 @@
 - src/app/confidentialitate/page.tsx (chat transcripts section — T09)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01–T09 ticked), harness/PROGRESS.md
+- src/server/services/assistant.ts + tests/assistant.test.ts (T10 fix:
+  wire-only current-cart context + 2 tests, 3 wire assertions updated)
+- harness/specs/004-asistent-ai/08-quickstart.md (new — T10, executed) +
+  09-debug.md (new — T10 findings)
+- harness/feature-list.json (feat-008 → done with evidence)
+- harness/specs/004-asistent-ai/07-tasks.md (T01–T10 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 

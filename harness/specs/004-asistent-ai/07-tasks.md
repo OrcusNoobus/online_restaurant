@@ -76,7 +76,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       (place_order sends `termsAccepted: true`), optional live smoke test
       gated on `ANTHROPIC_API_KEY`; full `./init.sh` green
       (source: Q9; 06-contracts place_order note).
-- [ ] T10 — 08-quickstart.md written AND executed against the real API
+- [x] T10 — 08-quickstart.md written AND executed against the real API
       (owner key or dev key): flows for menu Q&A (RO/HU/EN), allergens,
       full order via chat landing in the admin panel, shared-cart check,
       outside-hours scheduling, off-topic + injection attempt, limit

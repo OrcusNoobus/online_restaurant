@@ -48,8 +48,8 @@
       "behavior": "Un client deschide chat-ul de pe site, întreabă în limbaj natural despre meniu (ex: 'ce pizza picantă aveți?') și poate plasa o comandă prin conversație; asistentul folosește EXCLUSIV serviciile existente (meniu, coș, comenzi) prin tool-calling. Probabil se sparge în sub-feature-uri la spec time",
       "verification": "npm test -- tests/assistant",
       "dependencies": ["feat-006"],
-      "status": "in-progress",
-      "evidence": "",
+      "status": "done",
+      "evidence": "T01-T10 on worktree branches claude/distracted-jang-33b090 (T01-T05) + claude/strange-hopper-b16056 (T06-T10, through 1d8a87b); npm test -- tests/assistant: 43 passed + live smoke on the real key 2026-07-06 (provider types, storage+retention, tool loop with round cap, cart bridge incl. current-cart context, place_order + confirmation gating, all 422 limit codes, 503 degradation, route layer); full suite 156/156, ./init.sh green incl. build with f /api/assistant; 08-quickstart.md flows 1-8 executed 2026-07-06 against the REAL API (claude-opus-4-8) at 375px: menu Q&A RO/HU/EN with 24 prices spot-checked exact vs DB, allergens with-data vs no-data (no invention), shared cart both directions (site-edit visibility fixed @ 1d8a87b during execution), full chat order #821 placed only after explicit confirmation and visible in the admin day view identical to a web order (phone normalized, server totals, terms accepted), out-of-hours 23:30 refused with the real schedule, off-topic + manager-discount injection refused, 501-char message 400; test order/conversations/staff user cleaned up after",
       "spec": "harness/specs/004-asistent-ai/"
     },
     {
