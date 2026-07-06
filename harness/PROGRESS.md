@@ -6,7 +6,7 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-008 T08 done)
+- **Last updated:** 2026-07-06 (feat-008 T08 + T09 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
   complete and approved; implementation in progress. T01 (LLM module) DONE
   @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
@@ -14,17 +14,23 @@
   (cart bridge + update_cart) DONE @ 4e5b5cb; T05 (place_order) DONE
   @ f63d14a; T06 (limits + degradation + retention) DONE @ b42c82b; T07
   (HTTP boundary) DONE @ 4b03991; T08 (chat UI: ChatFab + ChatPanel +
-  useAssistant + layout mount) DONE — T01–T05 on worktree branch
-  `claude/distracted-jang-33b090`, T06–T08 on worktree branch
-  `claude/strange-hopper-b16056` (contains all prior commits). feat-007
-  remains DONE on `feat/007-panou-admin` @ 19c6d45, still NOT merged into
-  main — merge + push stays the human's call.
+  useAssistant + layout mount) DONE @ 49e0e21; T09 (privacy paragraph +
+  T&C link near the chat input + key-gated live smoke test) DONE —
+  T01–T05 on worktree branch `claude/distracted-jang-33b090`, T06–T09 on
+  worktree branch `claude/strange-hopper-b16056` (contains all prior
+  commits). feat-007 remains DONE on `feat/007-panou-admin` @ 19c6d45,
+  still NOT merged into main — merge + push stays the human's call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
   migrate incl. 0005, lint, typecheck, boundary checks, build with the
-  new ƒ /api/assistant route); full test suite 153/153 incl.
-  tests/assistant.test.ts (8 T01 + 7 T02 + 6 T03 + 5 T04 + 3 T05 + 6 T06)
-  and tests/assistant-route.test.ts (6 T07); feature verification
-  `npm test -- tests/assistant` 41/41 (matches both files). T08 UI
+  new ƒ /api/assistant route); full test suite 153 passed + 1 skipped
+  (the T09 live smoke, gated on ANTHROPIC_API_KEY — empty in dev, so
+  skipped by design) incl. tests/assistant.test.ts (8 T01 + 7 T02 + 6
+  T03 + 5 T04 + 3 T05 + 6 T06 + 1 gated T09) and
+  tests/assistant-route.test.ts (6 T07); feature verification
+  `npm test -- tests/assistant` 41 passed + 1 skipped. T09 UI verified
+  live: T&C + privacy links under the chat input, privacy page section
+  "4. Conversațiile cu asistentul (chat)" with the 30-day retention
+  (rights renumbered to 5). T08 UI
   verified live in the browser (dev server, temporary DUMMY
   ANTHROPIC_API_KEY, restored to empty afterwards): FAB renders
   bottom-left on / and /cos, absent on /comanda and /admin, absent
@@ -100,18 +106,27 @@
   right), hidden on /admin + /comanda, owns the hook so the transcript
   survives panel close; `layout.tsx` renders ChatFab only when
   `ANTHROPIC_API_KEY` is set, server-side).
-  Next task: T09 (privacy paragraph + T&C link near the input + optional
-  live smoke gated on the key).
+  T09 done (confidentialitate/page.tsx gains section "4. Conversațiile
+  cu asistentul (chat)" — transcripts + cart + IP stored, 30-day
+  auto-delete, rights renumbered to 5; ChatPanel footer shows the same
+  T&C + privacy links as the checkout under the input — place_order
+  sends `termsAccepted: true`; tests/assistant.test.ts gains the
+  key-gated live smoke: one real menu question through
+  AnthropicLlmProvider asserting a non-empty reply, `describe.skipIf`
+  on missing ANTHROPIC_API_KEY, 90s timeout, conversation tracked for
+  the shared afterAll cleanup).
+  Next task: T10 (08-quickstart.md written AND executed against the
+  real API — needs a key from the human).
 
 ## Next Steps
 
-1. feat-008 T09 — Privacy + polish: `confidentialitate/page.tsx`
-   paragraph (transcripts, 30-day retention), T&C link near the chat
-   input (place_order sends `termsAccepted: true`), optional live smoke
-   test gated on `ANTHROPIC_API_KEY`; full `./init.sh` green
-   (source: Q9; 06-contracts place_order note).
-2. Then T10 (08-quickstart executed against the real API — needs a key)
-   per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T10 — 08-quickstart.md written AND executed against the
+   real API (owner key or dev key — **needs the human to provide
+   ANTHROPIC_API_KEY**): flows for menu Q&A (RO/HU/EN), allergens, full
+   order via chat landing in the admin panel, shared-cart check,
+   outside-hours scheduling, off-topic + injection attempt, limit
+   behavior; then 09-debug.md and evidence in harness/feature-list.json
+   (source: spec acceptance criteria; 03-research D9).
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -223,13 +238,15 @@
 - src/lib/assistant-schemas.ts (new — T07)
 - src/app/api/assistant/route.ts (new — T07)
 - tests/assistant-route.test.ts (new — T07, 6 route tests)
-- src/components/chat/{useAssistant.ts,ChatPanel.tsx,ChatFab.tsx} (new — T08)
+- src/components/chat/{useAssistant.ts,ChatPanel.tsx,ChatFab.tsx} (new — T08;
+  T09 adds the T&C/privacy links in the panel footer)
 - src/components/cart/cart-store.ts (+replace action — T08, documented
   file-target deviation)
 - src/app/layout.tsx (mount ChatFab behind ANTHROPIC_API_KEY — T08)
+- src/app/confidentialitate/page.tsx (chat transcripts section — T09)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01–T08 ticked), harness/PROGRESS.md
+- harness/specs/004-asistent-ai/07-tasks.md (T01–T09 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
