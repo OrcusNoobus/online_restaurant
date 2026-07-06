@@ -41,7 +41,15 @@ export default function PrivacyPage() {
           nevoile operaționale ale restaurantului, după care pot fi anonimizate sau șterse.
         </p>
 
-        <h2 className={sectionTitle}>4. Drepturile dumneavoastră</h2>
+        <h2 className={sectionTitle}>4. Conversațiile cu asistentul (chat)</h2>
+        <p className={paragraph}>
+          Conversațiile purtate cu asistentul de pe site se stochează pe serverele noastre (mesajele,
+          coșul asociat și adresa IP, ca măsură de prevenire a abuzurilor) pentru buna funcționare a
+          serviciului și pentru îmbunătățirea lui. Transcrierile se șterg automat după 30 de zile. Vă
+          rugăm să nu includeți în chat date personale care nu sunt necesare comenzii.
+        </p>
+
+        <h2 className={sectionTitle}>5. Drepturile dumneavoastră</h2>
         <p className={paragraph}>
           Conform GDPR, aveți dreptul de acces, rectificare, ștergere, restricționare și opoziție asupra
           datelor personale. Pentru orice solicitare, contactați-ne la {RESTAURANT_PHONE} sau la

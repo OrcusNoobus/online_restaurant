@@ -1105,3 +1105,23 @@ describe.skipIf(skipDb)("T03 — the tool loop is bounded", () => {
     expect(lastRow.content).toEqual({ text: turn.reply });
   });
 });
+
+/**
+ * T09 — optional live smoke against the real API (03-research D9): one menu
+ * question through the real adapter, asserting a non-empty reply. Runs only
+ * when ANTHROPIC_API_KEY is set; keyless dev and CI skip it. LLM behavior
+ * beyond "it answers" (languages, guardrails) belongs to the T10 quickstart.
+ */
+describe.skipIf(skipDb || !process.env.ANTHROPIC_API_KEY)("T09 — live smoke (real provider)", () => {
+  it("answers a menu question with a non-empty reply", async () => {
+    const turn = await runAssistantTurn(
+      new AnthropicLlmProvider(),
+      { message: "Ce pizza picantă aveți?", cart: [], clientIp: TURN_IP },
+      {},
+    );
+    if (!turn.ok) throw new Error(`expected an ok turn, got ${turn.error}`);
+    createdConversationIds.push(turn.conversationId);
+
+    expect(turn.reply.trim().length).toBeGreaterThan(0);
+  }, 90_000);
+});

@@ -7,6 +7,7 @@
  * handler goes out. Refusal/unavailable bubbles (with the restaurant phone)
  * arrive as ordinary error-role messages from useAssistant.
  */
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import type { ChatMessage } from "@/components/chat/useAssistant";
@@ -146,6 +147,18 @@ export function ChatPanel({ messages, pending, onSend, onClose }: ChatPanelProps
               Trimite
             </button>
           </form>
+          {/* place_order sends termsAccepted: true — the same legal texts as the checkout (06-contracts) */}
+          <p className="mt-2 text-center text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+            Comanda prin chat presupune acordul cu{" "}
+            <Link href="/termeni" className="underline" target="_blank">
+              Termenii și Condițiile
+            </Link>{" "}
+            și{" "}
+            <Link href="/confidentialitate" className="underline" target="_blank">
+              Protecția datelor
+            </Link>
+            .
+          </p>
         </footer>
       </div>
     </div>

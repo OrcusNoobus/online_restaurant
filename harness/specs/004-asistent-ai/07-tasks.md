@@ -71,7 +71,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       restaurant phone, 375px-first), `useAssistant` (sessionStorage id,
       sends cart from `useCart()`, writes returned cart back), mount in
       `layout.tsx` (source: 04-plan UI; Q8/Q11; 03-research D10).
-- [ ] T09 — Privacy + polish: `confidentialitate/page.tsx` paragraph
+- [x] T09 — Privacy + polish: `confidentialitate/page.tsx` paragraph
       (transcripts, 30-day retention), T&C link near the chat input
       (place_order sends `termsAccepted: true`), optional live smoke test
       gated on `ANTHROPIC_API_KEY`; full `./init.sh` green
