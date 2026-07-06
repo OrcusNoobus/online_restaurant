@@ -14,10 +14,22 @@ export const cartItemSchema = z.object({
   toppingIds: z.array(z.number().int().positive()).max(30).default([]),
 });
 
+/**
+ * Coupon codes are normalized (trim + uppercase) at EVERY boundary — public
+ * quote/order and admin CRUD — so the DB only ever sees one canonical
+ * spelling and lookups are exact matches (006 D-b).
+ */
+export const couponCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9-]{3,32}$/, "cod invalid");
+
 export const quoteRequestSchema = z.object({
   mode: z.enum(["delivery", "pickup"]),
   zoneSlug: z.string().min(1).optional(),
   items: z.array(cartItemSchema).max(100),
+  couponCode: couponCodeSchema.optional(),
 });
 
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;

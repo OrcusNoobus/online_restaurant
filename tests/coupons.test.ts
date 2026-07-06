@@ -8,6 +8,8 @@ import { execSync } from "node:child_process";
 import { like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { couponCreateSchema, couponPatchSchema } from "@/lib/admin-schemas";
+import { couponCodeSchema } from "@/lib/order-schemas";
 import { db } from "@/server/db/client";
 import { coupons } from "@/server/db/schema";
 import {
@@ -17,6 +19,7 @@ import {
   type NewCouponInput,
   patchCoupon,
 } from "@/server/repositories/coupons";
+import { adminCreateCoupon, adminListCoupons, adminPatchCoupon } from "@/server/services/admin-coupons";
 
 // SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
 const skipDb = process.env.SKIP_DB === "1";
@@ -142,5 +145,96 @@ describe.skipIf(skipDb)("coupons repository (T01)", () => {
         )
       ).ok,
     ).toBe(true);
+  });
+});
+
+describe("coupon boundary schemas (T02)", () => {
+  it("normalizes any casing/whitespace to the canonical code", () => {
+    expect(couponCodeSchema.parse("  vara10 ")).toBe("VARA10");
+    expect(couponCodeSchema.parse("Vara-10")).toBe("VARA-10");
+  });
+
+  it("rejects malformed codes as validation (400-level), not semantics", () => {
+    for (const bad of ["ab", "a".repeat(33), "cod cu spații", "diacritice-ă", ""]) {
+      expect(couponCodeSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it("create schema is shape-only; patch schema refuses empty and unknown keys", () => {
+    const parsed = couponCreateSchema.parse({ code: "vara10", type: "percent", value: 10 });
+    expect(parsed).toMatchObject({ code: "VARA10", type: "percent", value: 10 });
+
+    expect(couponPatchSchema.safeParse({}).success).toBe(false);
+    expect(couponPatchSchema.safeParse({ unknown: 1 }).success).toBe(false);
+    expect(couponPatchSchema.safeParse({ active: false }).success).toBe(true);
+  });
+});
+
+describe.skipIf(skipDb)("admin coupons service (T02)", () => {
+  it("refuses value/type mismatches with invalid_value_for_type", async () => {
+    for (const bad of [
+      { type: "percent" as const, value: 0 },
+      { type: "percent" as const, value: 101 },
+      { type: "percent" as const, value: null },
+      { type: "fixed" as const, value: 0 },
+      { type: "fixed" as const, value: null },
+      { type: "free_delivery" as const, value: 500 },
+    ]) {
+      expect(await adminCreateCoupon({ code: testCode("SVC-VAL"), ...bad })).toEqual({
+        ok: false,
+        error: "invalid_value_for_type",
+      });
+    }
+  });
+
+  it("refuses a window with starts_at >= ends_at as invalid_window", async () => {
+    expect(
+      await adminCreateCoupon({
+        code: testCode("SVC-WIN"),
+        type: "percent",
+        value: 10,
+        startsAt: "2026-08-01T00:00:00.000Z",
+        endsAt: "2026-07-01T00:00:00.000Z",
+      }),
+    ).toEqual({ ok: false, error: "invalid_window" });
+  });
+
+  it("creates, lists and reports duplicate codes", async () => {
+    const code = testCode("SVC-DUP");
+    const created = await adminCreateCoupon({ code, type: "fixed", value: 2000 });
+    expect(created.ok && created.coupon).toMatchObject({ code, type: "fixed", value: 2000, active: true });
+
+    expect(await adminCreateCoupon({ code, type: "percent", value: 5 })).toEqual({
+      ok: false,
+      error: "code_taken",
+    });
+    expect((await adminListCoupons()).some((coupon) => coupon.code === code)).toBe(true);
+  });
+
+  it("re-validates the RESULTING row on patch (type/value consistency)", async () => {
+    const created = await adminCreateCoupon({ code: testCode("SVC-PATCH"), type: "percent", value: 10 });
+    if (!created.ok) throw new Error("setup failed");
+    const id = created.coupon.id;
+
+    // changing type without a compatible value is refused as a whole
+    expect(await adminPatchCoupon(id, { type: "free_delivery" })).toEqual({
+      ok: false,
+      error: "invalid_value_for_type",
+    });
+    expect(await adminPatchCoupon(id, { value: null })).toEqual({ ok: false, error: "invalid_value_for_type" });
+
+    // consistent combined change passes
+    const switched = await adminPatchCoupon(id, { type: "free_delivery", value: null });
+    expect(switched.ok && switched.coupon).toMatchObject({ type: "free_delivery", value: null });
+
+    // window re-checked against the effective row
+    const windowed = await adminPatchCoupon(id, { endsAt: "2026-09-01T00:00:00.000Z" });
+    expect(windowed.ok).toBe(true);
+    expect(await adminPatchCoupon(id, { startsAt: "2026-10-01T00:00:00.000Z" })).toEqual({
+      ok: false,
+      error: "invalid_window",
+    });
+
+    expect(await adminPatchCoupon(999_999_999, { active: false })).toEqual({ ok: false, error: "not_found" });
   });
 });

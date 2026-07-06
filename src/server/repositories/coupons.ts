@@ -40,6 +40,11 @@ export async function getCouponByCode(normalizedCode: string): Promise<CouponRow
   return rows[0] ?? null;
 }
 
+export async function getCouponById(id: number): Promise<CouponRow | null> {
+  const rows = await db.select(couponColumns).from(coupons).where(eq(coupons.id, id));
+  return rows[0] ?? null;
+}
+
 /** The admin list: ALL coupons, newest first. */
 export async function listAllCoupons(): Promise<CouponRow[]> {
   return db.select(couponColumns).from(coupons).orderBy(desc(coupons.createdAt), desc(coupons.id));

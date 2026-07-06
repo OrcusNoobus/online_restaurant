@@ -5,6 +5,8 @@
  */
 import { z } from "zod";
 
+import { couponCodeSchema } from "./order-schemas";
+
 /** Session cookie name — defined here so src/proxy.ts can check presence without importing server code. */
 export const SESSION_COOKIE_NAME = "rf_admin_session";
 
@@ -172,6 +174,36 @@ export const zonePatchSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
 export type ZonePatchBody = z.infer<typeof zonePatchSchema>;
+
+// --- Coupons (006 06-contracts — admin only) ---------------------------------
+
+export const couponTypeValues = ["percent", "fixed", "free_delivery"] as const;
+
+/**
+ * Shape only — value-per-type and window consistency are semantic rules in
+ * services/admin-coupons.ts (422 invalid_value_for_type / invalid_window),
+ * mirroring the DB CHECKs. `code` is normalized by couponCodeSchema.
+ */
+export const couponCreateSchema = z.object({
+  code: couponCodeSchema,
+  type: z.enum(couponTypeValues),
+  value: z.number().int().nullish(),
+  startsAt: z.iso.datetime({ offset: true }).nullish(),
+  endsAt: z.iso.datetime({ offset: true }).nullish(),
+});
+export type CouponCreate = z.infer<typeof couponCreateSchema>;
+
+export const couponPatchSchema = z
+  .strictObject({
+    code: couponCodeSchema.optional(),
+    type: z.enum(couponTypeValues).optional(),
+    value: z.number().int().nullable().optional(),
+    startsAt: z.iso.datetime({ offset: true }).nullable().optional(),
+    endsAt: z.iso.datetime({ offset: true }).nullable().optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "empty patch" });
+export type CouponPatchBody = z.infer<typeof couponPatchSchema>;
 
 // --- Settings (003 06-contracts Settings; CHECK rules from 05-data-model) ---
 
