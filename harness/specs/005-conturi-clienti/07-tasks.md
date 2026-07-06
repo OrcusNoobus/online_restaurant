@@ -52,7 +52,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       scrypt-only storage, duplicate email 422 case-insensitive,
       login/logout/invalidation, renewal, 429 after 10 failures, guard
       both outcomes (source: 03-research D2/D3; 06-contracts).
-- [ ] T05 — Google module + `loginWithGoogle`: `src/server/auth/google.ts`
+- [x] T05 — Google module + `loginWithGoogle`: `src/server/auth/google.ts`
       (pinned endpoints, `isGoogleConfigured`, `buildAuthUrl` with
       state+PKCE S256, `exchangeCode` with iss/aud/exp/email_verified
       checks, `GoogleAuthError`); `loginWithGoogle(claims)` resolution

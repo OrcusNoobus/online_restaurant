@@ -32,9 +32,18 @@ import {
   type NewOrder,
 } from "@/server/repositories/orders";
 import {
+  buildGoogleAuthUrl,
+  decodeAndValidateIdToken,
+  type GoogleClaims,
+  GoogleAuthError,
+  googleRedirectUri,
+  isGoogleConfigured,
+} from "@/server/auth/google";
+import {
   CUSTOMER_SESSION_COOKIE_NAME,
   CUSTOMER_SESSION_TTL_MS,
   loginCustomer,
+  loginWithGoogle,
   logoutCustomer,
   register,
   requireCustomer,
@@ -451,5 +460,180 @@ describe.skipIf(skipDb)("customer auth service (T04)", () => {
       error: "unauthenticated",
     });
     expect((await requireCustomer(requestWithCookie("token-inventat"))).ok).toBe(false);
+  });
+});
+
+const GOOGLE_ENV = {
+  GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
+  GOOGLE_CLIENT_SECRET: "test-secret",
+  APP_BASE_URL: "http://localhost:3000/",
+};
+
+function googleClaims(overrides: Partial<GoogleClaims> = {}): GoogleClaims {
+  return {
+    sub: `sub-${RUN}-${(seq += 1)}`,
+    email: testEmail("google"),
+    emailVerified: true,
+    givenName: "Gigi",
+    familyName: "Google",
+    ...overrides,
+  };
+}
+
+/** Hand-built JWT — signature is NOT verified by design (research D1 / OIDC §3.1.3.7). */
+function fakeIdToken(payload: Record<string, unknown>): string {
+  const encode = (part: unknown) => Buffer.from(JSON.stringify(part)).toString("base64url");
+  return `${encode({ alg: "RS256", typ: "JWT" })}.${encode(payload)}.fake-signature`;
+}
+
+describe("google module (T05, no network)", () => {
+  it("reports configured only when all three env vars are present", () => {
+    expect(isGoogleConfigured(GOOGLE_ENV)).toBe(true);
+    expect(isGoogleConfigured({ ...GOOGLE_ENV, GOOGLE_CLIENT_SECRET: "" })).toBe(false);
+    expect(isGoogleConfigured({})).toBe(false);
+  });
+
+  it("builds the auth URL with code flow, PKCE S256 and the derived redirect URI", () => {
+    const url = new URL(
+      buildGoogleAuthUrl({ state: "the-state", codeChallenge: "the-challenge" }, GOOGLE_ENV),
+    );
+    expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("client_id")).toBe(GOOGLE_ENV.GOOGLE_CLIENT_ID);
+    // trailing slash on APP_BASE_URL must not double up
+    expect(url.searchParams.get("redirect_uri")).toBe("http://localhost:3000/api/account/google/callback");
+    expect(googleRedirectUri(GOOGLE_ENV)).toBe("http://localhost:3000/api/account/google/callback");
+    expect(url.searchParams.get("scope")).toBe("openid email profile");
+    expect(url.searchParams.get("state")).toBe("the-state");
+    expect(url.searchParams.get("code_challenge")).toBe("the-challenge");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("prompt")).toBe("select_account");
+  });
+
+  it("accepts a valid id_token and normalizes the claims", () => {
+    const now = new Date();
+    const claims = decodeAndValidateIdToken(
+      fakeIdToken({
+        iss: "https://accounts.google.com",
+        aud: GOOGLE_ENV.GOOGLE_CLIENT_ID,
+        exp: Math.floor(now.getTime() / 1000) + 300,
+        sub: "sub-123",
+        email: "Ana.Pop@Gmail.com",
+        email_verified: true,
+        given_name: "Ana",
+      }),
+      GOOGLE_ENV.GOOGLE_CLIENT_ID,
+      now,
+    );
+    expect(claims).toEqual({
+      sub: "sub-123",
+      email: "ana.pop@gmail.com",
+      emailVerified: true,
+      givenName: "Ana",
+      familyName: null,
+    });
+  });
+
+  it("refuses malformed, mis-issued, mis-audienced and expired tokens with typed codes", () => {
+    const now = new Date();
+    const valid = {
+      iss: "accounts.google.com",
+      aud: GOOGLE_ENV.GOOGLE_CLIENT_ID,
+      exp: Math.floor(now.getTime() / 1000) + 300,
+      sub: "s",
+      email: "a@b.co",
+    };
+    const codeOf = (fn: () => unknown): string | undefined => {
+      try {
+        fn();
+        return undefined;
+      } catch (error) {
+        return error instanceof GoogleAuthError ? error.code : "not-a-google-error";
+      }
+    };
+
+    expect(codeOf(() => decodeAndValidateIdToken("nu-e-jwt", "c", now))).toBe("bad_token");
+    expect(
+      codeOf(() =>
+        decodeAndValidateIdToken(fakeIdToken({ ...valid, iss: "https://evil.example" }), valid.aud, now),
+      ),
+    ).toBe("wrong_issuer");
+    expect(
+      codeOf(() => decodeAndValidateIdToken(fakeIdToken({ ...valid, aud: "alt-client" }), valid.aud, now)),
+    ).toBe("wrong_audience");
+    expect(
+      codeOf(() =>
+        decodeAndValidateIdToken(
+          fakeIdToken({ ...valid, exp: Math.floor(now.getTime() / 1000) - 10 }),
+          valid.aud,
+          now,
+        ),
+      ),
+    ).toBe("expired");
+    expect(
+      codeOf(() => decodeAndValidateIdToken(fakeIdToken({ ...valid, email: undefined }), valid.aud, now)),
+    ).toBe("missing_claims");
+  });
+});
+
+describe.skipIf(skipDb)("loginWithGoogle resolution (T05)", () => {
+  it("refuses an unverified email outright — nothing is created or linked", async () => {
+    const claims = googleClaims({ emailVerified: false });
+    expect(await loginWithGoogle(claims)).toEqual({ ok: false, error: "google_email_unverified" });
+    expect(await findCustomerByEmail(claims.email)).toBeNull();
+  });
+
+  it("creates a Google-only account (terms stamped, guest orders claimed by email)", async () => {
+    const claims = googleClaims();
+    const guestOrder = await createTestOrder({ email: claims.email.toUpperCase() });
+
+    const result = await loginWithGoogle(claims);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.created).toBe(true);
+    expect(result.claimedOrders).toBe(1);
+    expect(result.customer.hasGoogle).toBe(true);
+    expect(result.customer.hasPassword).toBe(false);
+    expect(result.customer.firstName).toBe("Gigi");
+
+    const row = await findCustomerByEmail(claims.email);
+    expect(row?.googleSub).toBe(claims.sub);
+    expect(row?.passwordHash).toBeNull();
+    expect(row?.termsAcceptedAt).toBeInstanceOf(Date);
+
+    expect((await verifyCustomerSession(result.token))?.id).toBe(result.customer.id);
+    expect((await listOrdersForCustomer(result.customer.id, 20)).map((o) => o.id)).toEqual([guestOrder]);
+  });
+
+  it("logs into the SAME account on a second visit (sub match, nothing new created)", async () => {
+    const claims = googleClaims();
+    const first = await loginWithGoogle(claims);
+    if (!first.ok) throw new Error("first google login failed");
+
+    // even with a changed Google-side email, the sub wins and ours stays (v1: email immutable)
+    const second = await loginWithGoogle({ ...claims, email: testEmail("changed") });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.created).toBe(false);
+    expect(second.customer.id).toBe(first.customer.id);
+    expect(second.customer.email).toBe(claims.email);
+    expect(second.token).not.toBe(first.token);
+  });
+
+  it("links Google to an existing password account with the same verified email (D-e)", async () => {
+    const email = testEmail("linkme");
+    const password = await register({ email, password: "parola-clientului", firstName: "A", lastName: "B" });
+    if (!password.ok) throw new Error("register failed");
+
+    const result = await loginWithGoogle(googleClaims({ email }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.created).toBe(false);
+    expect(result.customer.id).toBe(password.customer.id);
+    expect(result.customer.hasPassword).toBe(true);
+    expect(result.customer.hasGoogle).toBe(true);
+
+    // both methods now reach the same account
+    expect((await loginCustomer(email, "parola-clientului", null)).ok).toBe(true);
   });
 });

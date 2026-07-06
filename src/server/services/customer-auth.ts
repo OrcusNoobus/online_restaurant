@@ -6,6 +6,7 @@
  * Contract: 005-conturi-clienti/06-contracts/api.md.
  */
 import { CUSTOMER_SESSION_COOKIE_NAME } from "@/lib/account-schemas";
+import type { GoogleClaims } from "@/server/auth/google";
 import {
   buildClearedSessionCookie,
   buildSessionCookie,
@@ -24,8 +25,10 @@ import {
   deleteCustomerSessionById,
   deleteCustomerSessionByTokenHash,
   findCustomerByEmail,
+  findCustomerByGoogleSub,
   findCustomerSessionByTokenHash,
   renewCustomerSession,
+  setCustomerGoogleSub,
   sweepExpiredCustomerSessions,
 } from "@/server/repositories/customers";
 import { claimGuestOrders } from "@/server/repositories/orders";
@@ -181,6 +184,88 @@ export async function loginCustomer(
 
   const { token, expiresAt } = await grantSession(customer.id, now);
   return { ok: true, customer: toAuthenticatedCustomer(customer), token, expiresAt };
+}
+
+export type GoogleLoginResult =
+  | {
+      ok: true;
+      customer: AuthenticatedCustomer;
+      token: string;
+      expiresAt: Date;
+      created: boolean;
+      claimedOrders: number;
+    }
+  | { ok: false; error: "google_email_unverified" };
+
+/**
+ * Resolution order (05-data-model rule): by googleSub → by verified email
+ * (links googleSub to the existing account, D-e) → create. An unverified
+ * Google email is refused OUTRIGHT — email is our account identifier, and
+ * without verification the email-linking path would hijack accounts.
+ */
+export async function loginWithGoogle(claims: GoogleClaims, now: Date = new Date()): Promise<GoogleLoginResult> {
+  if (!claims.emailVerified) return { ok: false, error: "google_email_unverified" };
+
+  const resolved = await resolveGoogleCustomer(claims, now, false);
+  const { token, expiresAt } = await grantSession(resolved.customer.id, now);
+  return {
+    ok: true,
+    customer: toAuthenticatedCustomer(resolved.customer),
+    token,
+    expiresAt,
+    created: resolved.created,
+    claimedOrders: resolved.claimedOrders,
+  };
+}
+
+async function resolveGoogleCustomer(
+  claims: GoogleClaims,
+  now: Date,
+  retried: boolean,
+): Promise<{ customer: CustomerRow; created: boolean; claimedOrders: number }> {
+  const bySub = await findCustomerByGoogleSub(claims.sub);
+  if (bySub) return { customer: bySub, created: false, claimedOrders: 0 };
+
+  const byEmail = await findCustomerByEmail(claims.email);
+  if (byEmail) {
+    await setCustomerGoogleSub(byEmail.id, claims.sub);
+    return { customer: { ...byEmail, googleSub: claims.sub }, created: false, claimedOrders: 0 };
+  }
+
+  try {
+    const customerId = await createCustomer({
+      email: claims.email,
+      googleSub: claims.sub,
+      firstName: claims.givenName,
+      lastName: claims.familyName,
+      termsAcceptedAt: now, // consent notice sits under the Google button (D-c)
+    });
+    // backfill by email only — a Google signup has no phone yet (D4/D-g)
+    const claimedOrders = await claimGuestOrders(customerId, { emailLower: claims.email });
+    return {
+      customer: {
+        id: customerId,
+        email: claims.email,
+        passwordHash: null,
+        googleSub: claims.sub,
+        firstName: claims.givenName,
+        lastName: claims.familyName,
+        phone: null,
+        addressStreet: null,
+        zoneId: null,
+        termsAcceptedAt: now,
+      },
+      created: true,
+      claimedOrders,
+    };
+  } catch (error) {
+    // double-submit race: another callback created the row between our
+    // lookups and the insert — resolve again, once
+    const constraint = (error as { cause?: { constraint?: string } }).cause?.constraint;
+    const lost = constraint === "customers_email_unique" || constraint === "customers_google_sub_unique";
+    if (lost && !retried) return resolveGoogleCustomer(claims, now, true);
+    throw error;
+  }
 }
 
 /** Idempotent — a missing session row is already the desired end state. */
