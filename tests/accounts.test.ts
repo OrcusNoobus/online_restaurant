@@ -8,6 +8,7 @@ import { execSync } from "node:child_process";
 import { inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { hashToken } from "@/server/auth/primitives";
 import { db } from "@/server/db/client";
 import { customers, orders, productVariants } from "@/server/db/schema";
 import {
@@ -30,6 +31,16 @@ import {
   listOrdersForCustomer,
   type NewOrder,
 } from "@/server/repositories/orders";
+import {
+  CUSTOMER_SESSION_COOKIE_NAME,
+  CUSTOMER_SESSION_TTL_MS,
+  loginCustomer,
+  logoutCustomer,
+  register,
+  requireCustomer,
+  resetCustomerLoginRateLimiter,
+  verifyCustomerSession,
+} from "@/server/services/customer-auth";
 
 // SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
 const skipDb = process.env.SKIP_DB === "1";
@@ -300,5 +311,145 @@ describe.skipIf(skipDb)("orders ownership + guest-order linking (T03)", () => {
 
     expect(await getOrderForCustomer(orderId, other)).toBeNull();
     expect(await getOrderForCustomer(99_999_999, owner)).toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("customer auth service (T04)", () => {
+  const PASSWORD = "parola-client-123";
+
+  function requestWithCookie(token: string | null): Request {
+    return new Request("http://localhost/api/account/test", {
+      headers: token ? { cookie: `${CUSTOMER_SESSION_COOKIE_NAME}=${token}` } : {},
+    });
+  }
+
+  it("registers, stores only a scrypt hash, auto-logs-in and links guest orders", async () => {
+    const email = testEmail("register");
+    const phone = `+4072${String(Date.now()).slice(-7)}`;
+    const guestOrder = await createTestOrder({ phone });
+
+    const result = await register({
+      email,
+      password: PASSWORD,
+      firstName: "Ana",
+      lastName: "Pop",
+      phone,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.claimedOrders).toBe(1);
+    expect(result.customer.email).toBe(email);
+    expect(result.customer.hasPassword).toBe(true);
+    expect(result.customer.hasGoogle).toBe(false);
+
+    const row = await findCustomerByEmail(email);
+    expect(row?.passwordHash).toMatch(/^scrypt:/);
+    expect(row?.passwordHash).not.toContain(PASSWORD);
+    expect(row?.termsAcceptedAt).toBeInstanceOf(Date);
+
+    // auto-login: the returned token verifies without a separate login
+    expect((await verifyCustomerSession(result.token))?.id).toBe(result.customer.id);
+    // the guest order is now in the account's history (FR6)
+    expect((await listOrdersForCustomer(result.customer.id, 20)).map((o) => o.id)).toEqual([guestOrder]);
+  });
+
+  it("refuses a duplicate email as email_taken, case-insensitively", async () => {
+    const email = testEmail("dupauth");
+    const base = { password: PASSWORD, firstName: "A", lastName: "B" };
+    expect((await register({ email, ...base })).ok).toBe(true);
+    // the boundary schema lowercases; the service arbiter is the unique index
+    expect(await register({ email, ...base })).toEqual({ ok: false, error: "email_taken" });
+  });
+
+  it("logs in with correct credentials and refuses wrong/unknown/google-only generically", async () => {
+    const email = testEmail("login");
+    await register({ email, password: PASSWORD, firstName: "A", lastName: "B" });
+
+    const ok = await loginCustomer(email, PASSWORD, null);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect((await verifyCustomerSession(ok.token))?.email).toBe(email);
+
+    expect(await loginCustomer(email, "gresita-parola", null)).toEqual({
+      ok: false,
+      error: "invalid_credentials",
+    });
+    expect(await loginCustomer(testEmail("ghost"), PASSWORD, null)).toEqual({
+      ok: false,
+      error: "invalid_credentials",
+    });
+
+    // Google-only account: no password to check — same generic refusal
+    const googleOnly = testEmail("gonly");
+    await createCustomer({ email: googleOnly, googleSub: `sub-login-${RUN}`, termsAcceptedAt: new Date() });
+    expect(await loginCustomer(googleOnly, PASSWORD, null)).toEqual({
+      ok: false,
+      error: "invalid_credentials",
+    });
+  });
+
+  it("logout invalidates the session server-side (FR2)", async () => {
+    const email = testEmail("logout");
+    const result = await register({ email, password: PASSWORD, firstName: "A", lastName: "B" });
+    if (!result.ok) throw new Error("register failed");
+
+    await logoutCustomer(result.token);
+    expect(await verifyCustomerSession(result.token)).toBeNull();
+    // idempotent
+    await logoutCustomer(result.token);
+  });
+
+  it("rolls the 30-day expiry on use (throttled) and drops expired sessions", async () => {
+    const email = testEmail("rolling");
+    const t0 = new Date();
+    const result = await register({ email, password: PASSWORD, firstName: "A", lastName: "B" }, t0);
+    if (!result.ok) throw new Error("register failed");
+    expect(result.expiresAt.getTime()).toBe(t0.getTime() + CUSTOMER_SESSION_TTL_MS);
+
+    // 2 minutes later (past the 60s throttle): verification extends the expiry
+    const t1 = new Date(t0.getTime() + 2 * 60 * 1000);
+    expect(await verifyCustomerSession(result.token, t1)).not.toBeNull();
+    const renewed = await findCustomerSessionByTokenHash(hashToken(result.token));
+    expect(renewed?.expiresAt.getTime()).toBe(t1.getTime() + CUSTOMER_SESSION_TTL_MS);
+
+    // past the (renewed) expiry: gone, and the row is deleted
+    const t2 = new Date(t1.getTime() + CUSTOMER_SESSION_TTL_MS + 1000);
+    expect(await verifyCustomerSession(result.token, t2)).toBeNull();
+    expect(await findCustomerSessionByTokenHash(hashToken(result.token))).toBeNull();
+  });
+
+  it("rate-limits login failures per ip+email (10/15min) and recovers on success elsewhere", async () => {
+    resetCustomerLoginRateLimiter();
+    const email = testEmail("ratelimit");
+    await register({ email, password: PASSWORD, firstName: "A", lastName: "B" });
+
+    for (let i = 0; i < 10; i += 1) {
+      expect((await loginCustomer(email, "gresit", "1.2.3.4")).ok).toBe(false);
+    }
+    // 11th attempt: limited BEFORE touching the password — even the right one
+    expect(await loginCustomer(email, PASSWORD, "1.2.3.4")).toEqual({
+      ok: false,
+      error: "too_many_attempts",
+    });
+    // a different IP is a different bucket
+    expect((await loginCustomer(email, PASSWORD, "5.6.7.8")).ok).toBe(true);
+    resetCustomerLoginRateLimiter();
+  });
+
+  it("requireCustomer guards routes by cookie", async () => {
+    const email = testEmail("guard");
+    const result = await register({ email, password: PASSWORD, firstName: "A", lastName: "B" });
+    if (!result.ok) throw new Error("register failed");
+
+    const granted = await requireCustomer(requestWithCookie(result.token));
+    expect(granted.ok).toBe(true);
+    if (granted.ok) expect(granted.customer.email).toBe(email);
+
+    expect(await requireCustomer(requestWithCookie(null))).toEqual({
+      ok: false,
+      status: 401,
+      error: "unauthenticated",
+    });
+    expect((await requireCustomer(requestWithCookie("token-inventat"))).ok).toBe(false);
   });
 });

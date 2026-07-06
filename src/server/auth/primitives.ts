@@ -43,6 +43,15 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return key.length === expected.length && timingSafeEqual(key, expected);
 }
 
+// Verified instead of the real hash when the account does not exist or has no
+// password, so unknown and known identifiers cost the same time (no
+// enumeration by timing).
+let dummyHashPromise: Promise<string> | null = null;
+export function dummyPasswordHash(): Promise<string> {
+  dummyHashPromise ??= hashPassword("timing-equalizer-not-a-real-password");
+  return dummyHashPromise;
+}
+
 /** Opaque session token — lives only in the httpOnly cookie, never in the DB. */
 export function generateSessionToken(): string {
   return randomBytes(32).toString("base64url");
@@ -72,4 +81,46 @@ export function tokenFromRequest(request: Request, cookieName: string): string |
     if (name === cookieName) return rest.join("=") || null;
   }
   return null;
+}
+
+export interface LoginRateLimiter {
+  isLimited(key: string, now: number): boolean;
+  recordFailure(key: string, now: number): void;
+  clearFailures(key: string): void;
+  /** Test hook — the limiter is process-global state. */
+  reset(): void;
+}
+
+/**
+ * In-memory fixed-window failure counter (003 research D1: single-instance
+ * VPS, acceptable v1). One instance per principal type — staff and customer
+ * failures must not share a bucket.
+ */
+export function createLoginRateLimiter(windowMs: number, maxFailures: number): LoginRateLimiter {
+  const failures = new Map<string, { count: number; windowStart: number }>();
+  return {
+    isLimited(key, now) {
+      const entry = failures.get(key);
+      if (!entry) return false;
+      if (now - entry.windowStart > windowMs) {
+        failures.delete(key);
+        return false;
+      }
+      return entry.count >= maxFailures;
+    },
+    recordFailure(key, now) {
+      const entry = failures.get(key);
+      if (!entry || now - entry.windowStart > windowMs) {
+        failures.set(key, { count: 1, windowStart: now });
+      } else {
+        entry.count += 1;
+      }
+    },
+    clearFailures(key) {
+      failures.delete(key);
+    },
+    reset() {
+      failures.clear();
+    },
+  };
 }

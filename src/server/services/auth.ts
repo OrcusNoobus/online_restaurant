@@ -11,6 +11,8 @@ import { SESSION_COOKIE_NAME } from "@/lib/admin-schemas";
 import {
   buildClearedSessionCookie,
   buildSessionCookie,
+  createLoginRateLimiter,
+  dummyPasswordHash,
   generateSessionToken,
   hashPassword,
   hashToken,
@@ -55,34 +57,15 @@ function toPublicUser(user: StaffUserRow): PublicStaffUser {
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_FAILURES = 10;
 
-const loginFailures = new Map<string, { count: number; windowStart: number }>();
+const rateLimiter = createLoginRateLimiter(RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_FAILURES);
 
 function rateLimitKey(ip: string | null, username: string): string {
   return `${ip ?? "unknown"}|${username}`;
 }
 
-function isRateLimited(key: string, now: number): boolean {
-  const entry = loginFailures.get(key);
-  if (!entry) return false;
-  if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
-    loginFailures.delete(key);
-    return false;
-  }
-  return entry.count >= RATE_LIMIT_MAX_FAILURES;
-}
-
-function recordFailure(key: string, now: number): void {
-  const entry = loginFailures.get(key);
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
-    loginFailures.set(key, { count: 1, windowStart: now });
-  } else {
-    entry.count += 1;
-  }
-}
-
 /** Test hook — the limiter is process-global state. */
 export function resetLoginRateLimiter(): void {
-  loginFailures.clear();
+  rateLimiter.reset();
 }
 
 // ---------------------------------------------------------------------------
@@ -93,14 +76,6 @@ export type LoginResult =
   | { ok: true; user: PublicStaffUser; token: string; expiresAt: Date }
   | { ok: false; error: "invalid_credentials" | "too_many_attempts" };
 
-// Verified instead of the real hash when the user does not exist, so unknown
-// and known usernames cost the same time (no enumeration by timing).
-let dummyHashPromise: Promise<string> | null = null;
-function dummyHash(): Promise<string> {
-  dummyHashPromise ??= hashPassword("timing-equalizer-not-a-real-password");
-  return dummyHashPromise;
-}
-
 export async function login(
   username: string,
   password: string,
@@ -109,18 +84,18 @@ export async function login(
 ): Promise<LoginResult> {
   const normalized = username.trim().toLowerCase();
   const key = rateLimitKey(clientIp, normalized);
-  if (isRateLimited(key, now.getTime())) return { ok: false, error: "too_many_attempts" };
+  if (rateLimiter.isLimited(key, now.getTime())) return { ok: false, error: "too_many_attempts" };
 
   const user = await findUserByUsername(normalized);
   // unknown user, wrong password and deactivated account are indistinguishable
   // on purpose (contract), and all three burn one scrypt verification
-  const passwordOk = await verifyPassword(password, user?.passwordHash ?? (await dummyHash()));
+  const passwordOk = await verifyPassword(password, user?.passwordHash ?? (await dummyPasswordHash()));
   if (!user || !user.active || !passwordOk) {
-    recordFailure(key, now.getTime());
+    rateLimiter.recordFailure(key, now.getTime());
     return { ok: false, error: "invalid_credentials" };
   }
 
-  loginFailures.delete(key);
+  rateLimiter.clearFailures(key);
   await sweepExpiredSessions(now);
 
   const token = generateSessionToken();

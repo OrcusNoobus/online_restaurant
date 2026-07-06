@@ -42,7 +42,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       claim by phone / by email / either-key-absent, first-claim never
       re-assigns, list/detail return ONLY the owner's rows
       (source: 03-research D4/D5; 05-data-model; 06-contracts).
-- [ ] T04 — Account boundary schemas + customer-auth service:
+- [x] T04 — Account boundary schemas + customer-auth service:
       `src/lib/account-schemas.ts` (`CUSTOMER_SESSION_COOKIE_NAME`,
       register/login/profile-patch zod, `CustomerView` type);
       `services/customer-auth.ts` — register (auto-login, terms timestamp,
