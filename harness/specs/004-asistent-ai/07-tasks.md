@@ -65,7 +65,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       contract; unknown conversationId → new conversation); tests at the
       route layer: 400 validation, 200 happy shape, 422/503 mapping
       (source: 06-contracts `POST /api/assistant`).
-- [ ] T08 — Chat UI: `ChatFab` (hidden on `/admin` and `/comanda`, not
+- [x] T08 — Chat UI: `ChatFab` (hidden on `/admin` and `/comanda`, not
       rendered when the assistant is unconfigured), `ChatPanel`
       (conversation, typing indicator, unavailable/limit states with
       restaurant phone, 375px-first), `useAssistant` (sessionStorage id,

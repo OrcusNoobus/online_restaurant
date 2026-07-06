@@ -39,6 +39,8 @@ export interface CartApi {
   add: (item: CartItem) => void;
   changeQuantity: (lineKey: string, quantity: number) => void;
   removeLines: (lineKeys: string[]) => void;
+  /** Overwrite the whole cart — the assistant writes the server-returned cart back verbatim (008 Q11). */
+  replace: (items: CartItem[]) => void;
   clear: () => void;
 }
 
@@ -46,6 +48,7 @@ const actions = {
   add: (item: CartItem) => write(addItem(read(), item)),
   changeQuantity: (lineKey: string, quantity: number) => write(setQuantity(read(), lineKey, quantity)),
   removeLines: (lineKeys: string[]) => write(read().filter((item) => !lineKeys.includes(cartLineKey(item)))),
+  replace: (next: CartItem[]) => write(next),
   clear: () => write([]),
 };
 

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { CartFab } from "@/components/cart/CartFab";
+import { ChatFab } from "@/components/chat/ChatFab";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         {children}
         <CartFab />
+        {/* unconfigured assistant = no chat entry point at all (008 research D3) */}
+        {process.env.ANTHROPIC_API_KEY ? <ChatFab /> : null}
       </body>
     </html>
   );
