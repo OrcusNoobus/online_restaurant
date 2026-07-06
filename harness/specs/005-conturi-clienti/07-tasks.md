@@ -19,7 +19,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — Shared auth primitives: `src/server/auth/primitives.ts`
+- [x] T01 — Shared auth primitives: `src/server/auth/primitives.ts`
       (scrypt hash/verify, `generateSessionToken`, `hashToken`,
       `buildSessionCookie`/`clearedSessionCookie`/`tokenFromRequest`
       parameterized by cookie name) moved VERBATIM from

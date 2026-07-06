@@ -4,10 +4,19 @@
  * httpOnly cookie; the DB stores its SHA-256. Passwords use Node's built-in
  * crypto.scrypt with per-user salt and parameters stored alongside the hash.
  * Contract: 003-panou-admin/06-contracts/api.md (Auth).
+ * The method-agnostic primitives live in src/server/auth/primitives.ts,
+ * shared with customer auth (005-conturi-clienti research D3).
  */
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
-
 import { SESSION_COOKIE_NAME } from "@/lib/admin-schemas";
+import {
+  buildClearedSessionCookie,
+  buildSessionCookie,
+  generateSessionToken,
+  hashPassword,
+  hashToken,
+  tokenFromRequest,
+  verifyPassword,
+} from "@/server/auth/primitives";
 import {
   createSession,
   deleteSessionById,
@@ -21,47 +30,10 @@ import {
 } from "@/server/repositories/staff";
 
 export { SESSION_COOKIE_NAME };
+export { hashPassword, verifyPassword };
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Skip the renewal write when the session was touched this recently — the 5s poller must not write on every tick. */
 const RENEWAL_MIN_INTERVAL_MS = 60 * 1000;
-
-// OWASP-recommended scrypt cost (2^17, r=8, p=1); parameters are stored in the
-// hash string, so they can be raised later without invalidating old hashes.
-const SCRYPT_N = 2 ** 17;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const SCRYPT_KEYLEN = 64;
-
-function scryptAsync(password: string, salt: Buffer, N: number, r: number, p: number): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    // maxmem must exceed 128*N*r; double it for headroom
-    scrypt(password, salt, SCRYPT_KEYLEN, { N, r, p, maxmem: 256 * N * r }, (error, key) => {
-      if (error) reject(error);
-      else resolve(key);
-    });
-  });
-}
-
-/** Format: scrypt:N:r:p:<salt base64url>:<hash base64url> — NEVER plaintext. */
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const key = await scryptAsync(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P);
-  return `scrypt:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt.toString("base64url")}:${key.toString("base64url")}`;
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  const parts = stored.split(":");
-  if (parts.length !== 6 || parts[0] !== "scrypt") return false;
-  const [, nRaw, rRaw, pRaw, saltRaw, hashRaw] = parts;
-  const salt = Buffer.from(saltRaw, "base64url");
-  const expected = Buffer.from(hashRaw, "base64url");
-  const key = await scryptAsync(password, salt, Number(nRaw), Number(rRaw), Number(pRaw));
-  return key.length === expected.length && timingSafeEqual(key, expected);
-}
-
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("base64url");
-}
 
 /** What leaves the auth layer — no hash, no internals. */
 export interface PublicStaffUser {
@@ -151,7 +123,7 @@ export async function login(
   loginFailures.delete(key);
   await sweepExpiredSessions(now);
 
-  const token = randomBytes(32).toString("base64url");
+  const token = generateSessionToken();
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
   await createSession(hashToken(token), user.id, expiresAt);
 
@@ -194,24 +166,16 @@ export type GuardResult =
   | { ok: false; status: 403; error: "forbidden_role" };
 
 export function sessionTokenFromRequest(request: Request): string | null {
-  const header = request.headers.get("cookie");
-  if (!header) return null;
-  for (const part of header.split(";")) {
-    const [name, ...rest] = part.trim().split("=");
-    if (name === SESSION_COOKIE_NAME) return rest.join("=") || null;
-  }
-  return null;
+  return tokenFromRequest(request, SESSION_COOKIE_NAME);
 }
 
 /** Set-Cookie values — contract: httpOnly, SameSite=Lax, Secure in production, path /. */
 export function sessionCookie(token: string, expiresAt: Date): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Expires=${expiresAt.toUTCString()}${secure}`;
+  return buildSessionCookie(SESSION_COOKIE_NAME, token, expiresAt);
 }
 
 export function clearedSessionCookie(): string {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
+  return buildClearedSessionCookie(SESSION_COOKIE_NAME);
 }
 
 export async function requireStaff(request: Request, now: Date = new Date()): Promise<GuardResult> {
