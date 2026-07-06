@@ -16,7 +16,9 @@
 - **Status:** complete on branch `feat/010-conturi-clienti` (worktree
   strange-hopper-b16056), T01–T10 committed.
 - **Branch / commit:** `feat/010-conturi-clienti`; last commits = T10
-  (ops + quickstart + harness bookkeeping) on top of 6a4f819 (T09).
+  (ops + quickstart + harness bookkeeping) on top of 95594ad (T09).
+  History rewritten 2026-07-06 (co-author trailers stripped, owner request);
+  content identical, SHAs remapped: T01 817fc4e→67d317a … T10 d2414fc→25db8f6.
 
 ## Completed This Session
 

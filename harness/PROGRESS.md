@@ -6,12 +6,13 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-010 DONE — T01–T10 complete, quickstart
-  flows 1–5 executed at 375px, evidence in harness/feature-list.json)
+- **Last updated:** 2026-07-06, later session (feat-010 merged to main and
+  pushed after stripping co-author trailers — owner request; SHAs remapped,
+  content identical: T01 817fc4e→67d317a … T10 d2414fc→25db8f6)
 - **Active feature:** none in progress. feat-010 (Conturi clienți și login
-  social) is done on branch `feat/010-conturi-clienti` (worktree
-  strange-hopper-b16056). Next feature = owner's pick (feat-009 canale
-  externe, feat-011 cupoane, feat-012 plată online).
+  social) is done and merged. Owner picked ALL THREE remaining features
+  (2026-07-06): feat-011 cupoane first (self-contained), then feat-009 /
+  feat-012 (both need owner-provided credentials — order TBD with owner).
 - **Verification status:** ./init.sh fully green 2026-07-06: 198 tests
   (43 accounts + 46 admin + 22 orders + assistant + menu; the assistant
   live smoke SKIPS — the owner revoked the shared Anthropic key, see
@@ -62,21 +63,20 @@
 
 ## Next Steps
 
-1. **Owner:** pick the next feature — feat-009 (WhatsApp/Telegram peste
-   asistent), feat-011 (cupoane), feat-012 (plată online). Agent starts at
-   01-spec per the document flow.
+1. Start feat-011 (Cupoane de reducere) at 01-spec per the document flow,
+   on branch `feat/011-cupoane` from main. Owner approved all three
+   remaining features 2026-07-06; 011 goes first because it needs no
+   external credentials. feat-009 needs a fresh ANTHROPIC_API_KEY +
+   Telegram/WhatsApp access; feat-012 needs the payment-provider choice —
+   both owner inputs, collect them while 011 is in flight.
 2. **Owner, small:** create the Google Cloud OAuth client (Web application;
    redirect URIs `http://localhost:3000/api/account/google/callback` + the
    production equivalent), put GOOGLE_CLIENT_ID/SECRET + APP_BASE_URL in
    `.env`, then run quickstart Flow 6 (005 08-quickstart.md) — the last
    feat-010 check. Not blocking anything.
-3. **Human decision (standing):** merge strategy. main (@ cdd18cb) holds
-   up to feat-008 T05; the feat-008 worktree branch
-   `claude/strange-hopper-b16056` (@ 1d8a87b) is a clean fast-forward of
-   main; `feat/010-conturi-clienti` continues FROM that branch (T01–T10).
-   So: fast-forward main → 1d8a87b, then merge/fast-forward
-   feat/010-conturi-clienti. Old `feat/007-panou-admin` (@ 19c6d45) is an
-   obsolete rebased duplicate — delete, don't merge.
+3. ~~Merge strategy~~ DONE 2026-07-06: main fast-forwarded to feat-010 head
+   (25db8f6 + this bookkeeping commit) and pushed to origin. The obsolete
+   `feat/007-panou-admin` had already been deleted by the owner.
 4. Still open (human): fresh production ANTHROPIC_API_KEY at deploy time;
    hear the new-order tone on the restaurant device; hide the shop cart FAB
    on /admin routes (parked chip); lawyer-reviewed T&C/GDPR texts (now incl.
