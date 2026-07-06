@@ -26,6 +26,30 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-06] — feat-008 T08+T09: chat UI + privacy — backend↔UI loop closed
+- Status: Completed (feature still in-progress: T10 quickstart remains)
+- Action: Chat UI shipped (ChatFab bottom-left behind server-side
+  ANTHROPIC_API_KEY check, ChatPanel 375px-first with typing indicator +
+  placedOrder card, useAssistant with sessionStorage transcript and the
+  shared-cart write-back per Q11); privacy page gained the chat/30-day
+  retention section and the panel shows the checkout's T&C links; live
+  smoke test added, gated on the key. Verified in the live browser with a
+  dummy key: FAB routing rules, 375px + desktop layouts, the full
+  send → typing → 503 → polite-bubble degradation path, transcript
+  surviving navigation; ./init.sh green (153 passed + 1 gated skip).
+- Challenge: (1) The 04-plan requires the response cart written into the
+  store "verbatim", but cart-store only exposed add/clear — a clear+add
+  loop would re-merge duplicate lines and re-cap quantities. (2) The
+  contract has no key in dev, so the happy path is not exercisable
+  offline at the UI layer.
+- Solution: (1) One documented file-target deviation: cart-store.ts
+  gained a one-line pure `replace(items)` action (recorded in PROGRESS
+  decisions + commit message). (2) Verified the degradation path live
+  instead (dummy key → 503 bubble with the restaurant phone) and left
+  the happy-path UI proof to T10's real-API quickstart; the API-layer
+  happy path is already covered by the T07 route tests. T10 now needs
+  the human to provide ANTHROPIC_API_KEY.
+
 ## [2026-07-05] — feat-007 Panou admin complete (T01–T15, done with evidence)
 - Status: Completed
 - Action: Finished the admin panel across two sessions on feat/007-panou-admin
