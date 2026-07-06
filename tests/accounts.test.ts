@@ -5,11 +5,11 @@
  */
 import { execSync } from "node:child_process";
 
-import { like } from "drizzle-orm";
+import { inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/server/db/client";
-import { customers } from "@/server/db/schema";
+import { customers, orders, productVariants } from "@/server/db/schema";
 import {
   createCustomer,
   createCustomerSession,
@@ -23,6 +23,13 @@ import {
   sweepExpiredCustomerSessions,
   updateCustomerProfile,
 } from "@/server/repositories/customers";
+import {
+  claimGuestOrders,
+  getOrderForCustomer,
+  insertOrder,
+  listOrdersForCustomer,
+  type NewOrder,
+} from "@/server/repositories/orders";
 
 // SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
 const skipDb = process.env.SKIP_DB === "1";
@@ -56,11 +63,75 @@ beforeAll(async () => {
   await db.delete(customers).where(like(customers.email, "test-acc-%"));
 }, 120_000);
 
+const testOrderIds: number[] = [];
+
 afterAll(async () => {
   if (skipDb) return;
+  if (testOrderIds.length > 0) {
+    await db.delete(orders).where(inArray(orders.id, testOrderIds));
+  }
   // cascades customer_sessions
   await db.delete(customers).where(like(customers.email, "test-acc-%"));
 });
+
+/** Minimal valid guest/account order against seeded catalog — pre-priced, pickup. */
+async function createTestOrder(input: {
+  phone?: string;
+  email?: string | null;
+  customerId?: number | null;
+  quantity?: number;
+}): Promise<number> {
+  const [variant] = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      priceBani: productVariants.priceBani,
+    })
+    .from(productVariants)
+    .limit(1);
+
+  const quantity = input.quantity ?? 1;
+  const order: NewOrder = {
+    mode: "pickup",
+    customerFirstName: "Test",
+    customerLastName: "Client",
+    phone: input.phone ?? "+40712345678",
+    email: input.email ?? null,
+    zoneId: null,
+    addressStreet: null,
+    notes: null,
+    scheduledFor: null,
+    estimateMinutes: 25,
+    paymentMethod: "cash",
+    subtotalBani: variant.priceBani * quantity,
+    sgrBani: 0,
+    deliveryFeeBani: 0,
+    totalBani: variant.priceBani * quantity,
+    termsAcceptedAt: new Date(),
+    clientIp: null,
+    customerId: input.customerId,
+    items: [
+      {
+        productId: variant.productId,
+        variantId: variant.id,
+        productName: "Produs test",
+        variantName: variant.name,
+        unitPriceBani: variant.priceBani,
+        quantity,
+        lineTotalBani: variant.priceBani * quantity,
+        options: [],
+      },
+    ],
+  };
+  const orderId = await insertOrder(order);
+  testOrderIds.push(orderId);
+  return orderId;
+}
+
+async function createTestCustomer(tag: string): Promise<number> {
+  return createCustomer({ email: testEmail(tag), passwordHash: "x", termsAcceptedAt: new Date() });
+}
 
 describe.skipIf(skipDb)("customers repository (T02)", () => {
   it("round-trips a customer through create and the three lookups", async () => {
@@ -148,5 +219,86 @@ describe.skipIf(skipDb)("customers repository (T02)", () => {
     await sweepExpiredCustomerSessions(new Date());
     expect(await findCustomerSessionByTokenHash(`hash-expired-${RUN}`)).toBeNull();
     expect(await findCustomerSessionByTokenHash(`hash-live-${RUN}`)).not.toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("orders ownership + guest-order linking (T03)", () => {
+  it("stamps customer_id at insert when given, NULL when absent", async () => {
+    const customerId = await createTestCustomer("stamp");
+    const owned = await createTestOrder({ customerId });
+    const guest = await createTestOrder({});
+
+    const rows = await db
+      .select({ id: orders.id, customerId: orders.customerId })
+      .from(orders)
+      .where(inArray(orders.id, [owned, guest]));
+    expect(rows.find((r) => r.id === owned)?.customerId).toBe(customerId);
+    expect(rows.find((r) => r.id === guest)?.customerId).toBeNull();
+  });
+
+  it("claims unclaimed guest orders by phone — first claim wins, second gets none", async () => {
+    const phone = `+4073${String(Date.now()).slice(-7)}`;
+    const a = await createTestOrder({ phone });
+    const b = await createTestOrder({ phone });
+    await createTestOrder({ phone: "+40799999999" }); // different phone — untouched
+
+    const first = await createTestCustomer("claim1");
+    expect(await claimGuestOrders(first, { phone })).toBe(2);
+
+    const second = await createTestCustomer("claim2");
+    expect(await claimGuestOrders(second, { phone })).toBe(0);
+
+    const rows = await db
+      .select({ id: orders.id, customerId: orders.customerId })
+      .from(orders)
+      .where(inArray(orders.id, [a, b]));
+    expect(rows.every((r) => r.customerId === first)).toBe(true);
+  });
+
+  it("claims by lowercase email regardless of how the guest typed it", async () => {
+    const email = testEmail("claimmail");
+    const orderId = await createTestOrder({ email: email.toUpperCase() });
+    const customerId = await createTestCustomer("claimer");
+
+    expect(await claimGuestOrders(customerId, { emailLower: email })).toBe(1);
+    const [row] = await db
+      .select({ customerId: orders.customerId })
+      .from(orders)
+      .where(inArray(orders.id, [orderId]));
+    expect(row.customerId).toBe(customerId);
+  });
+
+  it("claims nothing when no keys are provided", async () => {
+    const customerId = await createTestCustomer("nokeys");
+    expect(await claimGuestOrders(customerId, {})).toBe(0);
+    expect(await claimGuestOrders(customerId, { phone: null, emailLower: null })).toBe(0);
+  });
+
+  it("lists ONLY the owner's orders, newest first, with item counts", async () => {
+    const alice = await createTestCustomer("alice");
+    const bob = await createTestCustomer("bob");
+    const older = await createTestOrder({ customerId: alice });
+    const newer = await createTestOrder({ customerId: alice, quantity: 2 });
+    await createTestOrder({ customerId: bob });
+
+    const list = await listOrdersForCustomer(alice, 20);
+    expect(list.map((o) => o.id)).toEqual([newer, older]);
+    expect(list[0].itemCount).toBe(1);
+    expect(list[0].totalBani).toBeGreaterThan(0);
+    expect(await listOrdersForCustomer(bob, 20)).toHaveLength(1);
+  });
+
+  it("detail answers for the owner and stays silent for everyone else", async () => {
+    const owner = await createTestCustomer("owner");
+    const other = await createTestCustomer("other");
+    const orderId = await createTestOrder({ customerId: owner });
+
+    const detail = await getOrderForCustomer(orderId, owner);
+    expect(detail?.status).toBe("new");
+    expect(detail?.mode).toBe("pickup");
+    expect(detail?.totalBani).toBeGreaterThan(0);
+
+    expect(await getOrderForCustomer(orderId, other)).toBeNull();
+    expect(await getOrderForCustomer(99_999_999, owner)).toBeNull();
   });
 });

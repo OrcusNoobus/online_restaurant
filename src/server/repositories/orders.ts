@@ -6,7 +6,7 @@
  * SQL (`AT TIME ZONE`), status transitions are CONDITIONAL updates + journal
  * event in one transaction (research D4 — loser gets zero rows, no write).
  */
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 
 import type { OrderMode, OrderStatus } from "@/lib/order-status";
 import { RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
@@ -51,6 +51,8 @@ export interface NewOrder {
   totalBani: number;
   termsAcceptedAt: Date;
   clientIp: string | null;
+  /** Session-derived by the route (never client input); absent/null = guest order (010). */
+  customerId?: number | null;
   items: NewOrderItem[];
 }
 
@@ -74,6 +76,116 @@ export async function insertOrder(order: NewOrder): Promise<number> {
 
     return orderId;
   });
+}
+
+// --- Customer accounts (005 research D4/D5) ----------------------------------
+
+/**
+ * One-shot guest-order backfill: claims UNCLAIMED orders matching the
+ * normalized phone and/or lowercase email. First-claim by construction —
+ * `customer_id IS NULL` means a row already claimed by another account is
+ * never re-assigned (Q5 risk narrowing). Returns the claimed count.
+ */
+export async function claimGuestOrders(
+  customerId: number,
+  keys: { phone?: string | null; emailLower?: string | null },
+): Promise<number> {
+  const matchers = [
+    ...(keys.phone ? [eq(orders.phone, keys.phone)] : []),
+    ...(keys.emailLower ? [sql`lower(${orders.email}) = ${keys.emailLower}`] : []),
+  ];
+  if (matchers.length === 0) return 0;
+
+  const claimed = await db
+    .update(orders)
+    .set({ customerId })
+    .where(and(sql`${orders.customerId} IS NULL`, or(...matchers)))
+    .returning({ id: orders.id });
+  return claimed.length;
+}
+
+export interface CustomerOrderListRow {
+  id: number;
+  createdAt: Date;
+  mode: OrderMode;
+  status: OrderStatus;
+  scheduledFor: Date | null;
+  estimateMinutes: number | null;
+  totalBani: number;
+  itemCount: number;
+}
+
+/** "My orders" — the WHERE on customer_id is the isolation boundary (FR5). */
+export async function listOrdersForCustomer(customerId: number, limit: number): Promise<CustomerOrderListRow[]> {
+  return db
+    .select({
+      id: orders.id,
+      createdAt: orders.createdAt,
+      mode: orders.mode,
+      status: orders.status,
+      scheduledFor: orders.scheduledFor,
+      estimateMinutes: orders.estimateMinutes,
+      totalBani: orders.totalBani,
+      // raw identifiers on purpose: in a single-table projection drizzle
+      // strips column qualification inside sql``, which turns the
+      // correlation into order_items.order_id = order_items.id (always 0)
+      itemCount: sql<number>`(select count(*)::int from order_items oi where oi.order_id = orders.id)`,
+    })
+    .from(orders)
+    .where(eq(orders.customerId, customerId))
+    .orderBy(desc(orders.createdAt), desc(orders.id))
+    .limit(limit);
+}
+
+/** Customer-safe detail row — no clientIp, no journal (006-contracts). */
+export interface CustomerOrderRow {
+  id: number;
+  createdAt: Date;
+  mode: OrderMode;
+  status: OrderStatus;
+  customerFirstName: string;
+  customerLastName: string;
+  phone: string;
+  email: string | null;
+  zoneName: string | null;
+  addressStreet: string | null;
+  notes: string | null;
+  scheduledFor: Date | null;
+  estimateMinutes: number | null;
+  paymentMethod: "cash" | "card_delivery" | "card_restaurant";
+  subtotalBani: number;
+  sgrBani: number;
+  deliveryFeeBani: number;
+  totalBani: number;
+}
+
+/** Ownership is part of the WHERE — a non-owned id is indistinguishable from a missing one. */
+export async function getOrderForCustomer(orderId: number, customerId: number): Promise<CustomerOrderRow | null> {
+  const rows = await db
+    .select({
+      id: orders.id,
+      createdAt: orders.createdAt,
+      mode: orders.mode,
+      status: orders.status,
+      customerFirstName: orders.customerFirstName,
+      customerLastName: orders.customerLastName,
+      phone: orders.phone,
+      email: orders.email,
+      zoneName: deliveryZones.name,
+      addressStreet: orders.addressStreet,
+      notes: orders.notes,
+      scheduledFor: orders.scheduledFor,
+      estimateMinutes: orders.estimateMinutes,
+      paymentMethod: orders.paymentMethod,
+      subtotalBani: orders.subtotalBani,
+      sgrBani: orders.sgrBani,
+      deliveryFeeBani: orders.deliveryFeeBani,
+      totalBani: orders.totalBani,
+    })
+    .from(orders)
+    .leftJoin(deliveryZones, eq(orders.zoneId, deliveryZones.id))
+    .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)));
+  return rows[0] ?? null;
 }
 
 // --- Admin day view (003 research D3/D10) -----------------------------------

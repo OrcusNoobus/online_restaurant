@@ -34,7 +34,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       create/find/renew/delete/sweep). First `tests/accounts.test.ts`
       cases: customer round-trip, lowercase-unique email, credential
       CHECK, session round-trip (source: 05-data-model).
-- [ ] T03 — Orders repository extensions: `NewOrder.customerId` stamped in
+- [x] T03 — Orders repository extensions: `NewOrder.customerId` stamped in
       `insertOrder`; `claimGuestOrders(customerId, {phone?, emailLower?})`
       first-claim UPDATE returning count; `listOrdersForCustomer` (LIMIT
       20, newest first, itemCount); `getOrderForCustomer(orderId,
