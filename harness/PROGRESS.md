@@ -6,22 +6,28 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-008 T06 done)
+- **Last updated:** 2026-07-06 (feat-008 T07 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
   complete and approved; implementation in progress. T01 (LLM module) DONE
   @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
   T03 (service core + read tools + fake provider) DONE @ 259678a; T04
   (cart bridge + update_cart) DONE @ 4e5b5cb; T05 (place_order) DONE
-  @ f63d14a; T06 (limits + degradation + retention) DONE @ b42c82b —
-  T01–T05 on worktree branch `claude/distracted-jang-33b090`, T06 on
-  worktree branch `claude/strange-hopper-b16056` (contains all prior
-  commits). feat-007 remains DONE on `feat/007-panou-admin` @ 19c6d45,
-  still NOT merged into main — merge + push stays the human's call.
+  @ f63d14a; T06 (limits + degradation + retention) DONE @ b42c82b; T07
+  (HTTP boundary: assistant-schemas + POST /api/assistant + route tests)
+  DONE — T01–T05 on worktree branch `claude/distracted-jang-33b090`,
+  T06–T07 on worktree branch `claude/strange-hopper-b16056` (contains all
+  prior commits). feat-007 remains DONE on `feat/007-panou-admin`
+  @ 19c6d45, still NOT merged into main — merge + push stays the human's
+  call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
-  migrate incl. 0005, lint, typecheck, boundary checks, build); full test
-  suite 147/147 incl. tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03
-  + 5 T04 + 3 T05 + 6 T06 integration on real Postgres with the scripted
-  fake provider); feature verification `npm test -- tests/assistant` 35/35.
+  migrate incl. 0005, lint, typecheck, boundary checks, build with the
+  new ƒ /api/assistant route); full test suite 153/153 incl.
+  tests/assistant.test.ts (8 T01 + 7 T02 + 6 T03 + 5 T04 + 3 T05 + 6 T06)
+  and tests/assistant-route.test.ts (6 T07); feature verification
+  `npm test -- tests/assistant` 41/41 (matches both files). Live smoke on
+  dev server (no API key): valid body → 503 assistant_unavailable,
+  invalid body → 400 validation, service+route log lines present; the
+  test conversation row was deleted afterwards.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -69,20 +75,27 @@
   `deleteConversationsOlderThan(30)` on conversation create;
   `LlmUnavailableError` escapes for the route's 503 mapping; one
   structured key=value log line per turn; 6 integration tests).
-  Next task: T07 (HTTP boundary: assistant-schemas + POST /api/assistant).
+  T07 done (`src/lib/assistant-schemas.ts`: zod body — message trimmed
+  1–500, `z.uuid()` conversationId optional, cart via `cartItemSchema`
+  max 100; `POST /api/assistant`: validate → `runAssistantTurn` →
+  contract shape, `ok:false` → 422 `{error}`, `LlmUnavailableError` →
+  503 `assistant_unavailable`, provider constructed LAZILY so limits
+  answer 422 even when unconfigured; x-forwarded-for first hop, fallback
+  `"unknown"` bucket; `ASSISTANT_MAX_REPLY_TOKENS` wired from env; 6
+  route tests in tests/assistant-route.test.ts with the Anthropic class
+  module-mocked to the scripted fake).
+  Next task: T08 (chat UI: ChatFab + ChatPanel + useAssistant + layout).
 
 ## Next Steps
 
-1. feat-008 T07 — HTTP boundary: `src/lib/assistant-schemas.ts` (zod body:
-   message trimmed 1–500, optional conversationId, cart via the existing
-   `cartItemSchema`, max 100 lines) + `POST /api/assistant` route
-   (validate → `runAssistantTurn` → shape per 06-contracts; `ok:false`
-   → 422 `{error}`, `LlmUnavailableError`/missing key → 503
-   `assistant_unavailable`; unknown conversationId → new conversation);
-   route-layer tests: 400 validation, 200 happy shape, 422/503 mapping.
-   Note: the zod message cap mirrors `MAX_MESSAGE_LENGTH` exported by the
-   service (lib cannot import server — keep the literal in sync).
-2. Then T08–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T08 — Chat UI: `ChatFab` (hidden on `/admin` and `/comanda`,
+   not rendered when the assistant is unconfigured — layout checks
+   `ANTHROPIC_API_KEY` server-side), `ChatPanel` (conversation, typing
+   indicator, unavailable/limit states with the restaurant phone,
+   375px-first), `useAssistant` (sessionStorage conversationId, sends the
+   cart from `useCart()`, writes the returned cart back), mount in
+   `layout.tsx` (source: 04-plan UI; Q8/Q11; 03-research D10).
+2. Then T09–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -141,6 +154,20 @@
   can never race a live chat. Limit constants exported by the service —
   tests derive fixtures from them; T07's zod cap mirrors the 500 literal
   (lib cannot import server).
+- T07 implementation-level: the route constructs the Anthropic provider
+  LAZILY (first `complete()` call) so the service's limit checks run
+  before the key is looked at — a capped visitor gets the accurate 422
+  even while the assistant is unconfigured/down; the missing-key throw
+  then flows through the service's `outcome=unavailable` turn log. A
+  malformed conversationId is 400 (protects the uuid column cast); only
+  VALID-but-unknown ids reach the service's fresh-conversation path.
+  clientIp falls back to the shared `"unknown"` bucket (column is NOT
+  NULL; fail-closed for the daily limit). Route tests live in a separate
+  file (tests/assistant-route.test.ts) because `vi.mock` of the adapter
+  module is file-global and would break the T01 real-adapter tests;
+  Next 16 forbids extra exports from route.ts, so a test seam inside the
+  route was not an option. Verification command still matches: vitest
+  filters by substring, `tests/assistant` covers both files.
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -159,6 +186,9 @@
 - tests/helpers/fake-llm.ts (new — T03)
 - tests/assistant.test.ts (8 T01 unit + 7 T02 + 6 T03 + 5 T04 + 3 T05 +
   6 T06)
+- src/lib/assistant-schemas.ts (new — T07)
+- src/app/api/assistant/route.ts (new — T07)
+- tests/assistant-route.test.ts (new — T07, 6 route tests)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
 - harness/specs/004-asistent-ai/07-tasks.md (T01–T05 ticked), harness/PROGRESS.md
