@@ -6,25 +6,30 @@
  * usage land in Postgres via repositories/assistant (T02). The cart
  * bridge (03-research D7): the request carries the SITE cart, tools
  * mutate a working copy, the response returns the final cart + last
- * quote — prices only ever come from quoteCart. Anti-abuse limits,
- * retention wiring and the per-turn log line arrive in T06; the
- * place_order tool in T05.
+ * quote — prices only ever come from quoteCart. Anti-abuse limits
+ * (03-research D3) refuse a turn BEFORE anything persists or reaches the
+ * provider; 30-day retention (D6) rides on conversation creation; every
+ * turn ends with one structured log line (ARCHITECTURE.md observability).
  */
 import type { CartItem } from "@/lib/cart";
 import { orderRequestSchema, quoteRequestSchema } from "@/lib/order-schemas";
 import type { PlacedOrderView, QuoteView } from "@/lib/quote-types";
 import { RESTAURANT_ADDRESS, RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
 import { formatMinutesAsTime } from "@/lib/schedule";
-import type {
-  LlmMessage,
-  LlmProvider,
-  LlmToolDefinition,
-  LlmToolResult,
+import {
+  type LlmMessage,
+  type LlmProvider,
+  type LlmToolDefinition,
+  type LlmToolResult,
+  LlmUnavailableError,
 } from "@/server/llm/provider";
 import {
   appendMessage,
   type AssistantMessageRow,
+  countUserMessages,
+  countUserMessagesForIpLast24h,
   createConversation,
+  deleteConversationsOlderThan,
   getConversation,
   getConversationMessages,
 } from "@/server/repositories/assistant";
@@ -40,6 +45,17 @@ const MAX_TOOL_ROUNDS = 6;
 const HISTORY_MESSAGE_CAP = 30;
 /** 06-contracts env: ASSISTANT_MAX_REPLY_TOKENS is optional, default in code. */
 export const DEFAULT_MAX_REPLY_TOKENS = 1000;
+
+/**
+ * Anti-abuse limits (03-research D3) — service policy, so every channel
+ * (web today, feat-009 adapters later) gets them for free. The zod cap at
+ * the HTTP boundary mirrors MAX_MESSAGE_LENGTH; this is defense in depth.
+ */
+export const MAX_MESSAGE_LENGTH = 500;
+export const MAX_USER_MESSAGES_PER_CONVERSATION = 40;
+export const MAX_USER_MESSAGES_PER_IP_PER_DAY = 60;
+/** Conversations idle longer than this are reaped on the next create (D6, Q9). */
+export const RETENTION_DAYS = 30;
 
 /** Sent when the round cap is hit without a final reply — never leaves the customer hanging. */
 const ROUND_CAP_REPLY =
@@ -366,7 +382,7 @@ function toLlmHistory(rows: AssistantMessageRow[]): LlmMessage[] {
 export interface AssistantTurnRequest {
   /** Unknown/expired ids start a fresh conversation — never an error (06-contracts). */
   conversationId?: string;
-  /** Pre-validated at the boundary (zod, T07); length limits enforced in T06. */
+  /** Pre-validated at the boundary (zod, T07); the service re-checks MAX_MESSAGE_LENGTH. */
   message: string;
   /** The SITE cart, pre-validated with cartItemSchema at the boundary (Q11). */
   cart: CartItem[];
@@ -392,18 +408,75 @@ export interface AssistantTurnResponse {
   placedOrder: PlacedOrderView | null;
 }
 
+/** The 422 codes of the /api/assistant contract — refusals, not errors. */
+export type AssistantLimitCode = "message_too_long" | "conversation_limit" | "daily_limit";
+
+export type AssistantTurnResult =
+  | ({ ok: true } & AssistantTurnResponse)
+  | { ok: false; error: AssistantLimitCode };
+
+/** Per-turn observability counters — feed the one structured log line. */
+interface TurnStats {
+  rounds: number;
+  tools: string[];
+  tokensIn: number;
+  tokensOut: number;
+}
+
+/** One parseable key=value line per turn (ARCHITECTURE.md observability). */
+function logTurn(conversationId: string | null, outcome: string, stats: TurnStats, startedAt: number): void {
+  console.log(
+    `service=assistant conversationId=${conversationId ?? "-"} outcome=${outcome} ` +
+      `rounds=${stats.rounds} tools=${stats.tools.join(",") || "-"} ` +
+      `tokensIn=${stats.tokensIn} tokensOut=${stats.tokensOut} durationMs=${Date.now() - startedAt}`,
+  );
+}
+
+/**
+ * Retention rides on conversation creation (03-research D6): no cron to
+ * deploy, and the reaper can never touch a live chat — anything it deletes
+ * has been idle for RETENTION_DAYS.
+ */
+async function startConversation(clientIp: string) {
+  const reaped = await deleteConversationsOlderThan(RETENTION_DAYS);
+  if (reaped > 0) {
+    console.log(`service=assistant event=retention deletedConversations=${reaped}`);
+  }
+  return createConversation(clientIp);
+}
+
 /**
  * One user message → one final reply, with up to MAX_TOOL_ROUNDS provider
  * rounds in between. Every step (user text, tool calls, tool results,
  * final reply) is persisted before the turn returns — the transcript is
- * the audit trail AND the next turn's replay source.
+ * the audit trail AND the next turn's replay source. Limit refusals
+ * (ok:false) persist NOTHING and never reach the provider.
  */
 export async function runAssistantTurn(
   provider: LlmProvider,
   request: AssistantTurnRequest,
   options: AssistantTurnOptions = {},
-): Promise<AssistantTurnResponse> {
+): Promise<AssistantTurnResult> {
+  const startedAt = Date.now();
+  const stats: TurnStats = { rounds: 0, tools: [], tokensIn: 0, tokensOut: 0 };
   const maxTokens = options.maxReplyTokens ?? DEFAULT_MAX_REPLY_TOKENS;
+
+  if (request.message.length > MAX_MESSAGE_LENGTH) {
+    logTurn(request.conversationId ?? null, "message_too_long", stats, startedAt);
+    return { ok: false, error: "message_too_long" };
+  }
+
+  const existing = request.conversationId ? await getConversation(request.conversationId) : null;
+
+  if (existing && (await countUserMessages(existing.id)) >= MAX_USER_MESSAGES_PER_CONVERSATION) {
+    logTurn(existing.id, "conversation_limit", stats, startedAt);
+    return { ok: false, error: "conversation_limit" };
+  }
+  if ((await countUserMessagesForIpLast24h(request.clientIp)) >= MAX_USER_MESSAGES_PER_IP_PER_DAY) {
+    logTurn(existing?.id ?? null, "daily_limit", stats, startedAt);
+    return { ok: false, error: "daily_limit" };
+  }
+
   const state: TurnState = {
     cart: request.cart,
     quote: null,
@@ -411,86 +484,101 @@ export async function runAssistantTurn(
     clientIp: request.clientIp,
     now: options.now,
   };
+  const conversation = existing ?? (await startConversation(request.clientIp));
 
-  const existing = request.conversationId ? await getConversation(request.conversationId) : null;
-  const conversation = existing ?? (await createConversation(request.clientIp));
-
-  await appendMessage({
-    conversationId: conversation.id,
-    role: "user",
-    content: { text: request.message },
-  });
-
-  const messages = toLlmHistory(await getConversationMessages(conversation.id));
-
-  for (let round = 1; round <= MAX_TOOL_ROUNDS; round++) {
-    const turn = await provider.complete({
-      system: SYSTEM_PROMPT,
-      messages,
-      tools: TOOL_DEFINITIONS,
-      maxTokens,
+  try {
+    await appendMessage({
+      conversationId: conversation.id,
+      role: "user",
+      content: { text: request.message },
     });
 
-    if (turn.kind === "reply") {
+    const messages = toLlmHistory(await getConversationMessages(conversation.id));
+
+    for (let round = 1; round <= MAX_TOOL_ROUNDS; round++) {
+      const turn = await provider.complete({
+        system: SYSTEM_PROMPT,
+        messages,
+        tools: TOOL_DEFINITIONS,
+        maxTokens,
+      });
+      stats.rounds = round;
+      stats.tokensIn += turn.usage.inputTokens;
+      stats.tokensOut += turn.usage.outputTokens;
+
+      if (turn.kind === "reply") {
+        await appendMessage({
+          conversationId: conversation.id,
+          role: "assistant",
+          content: { text: turn.text },
+          inputTokens: turn.usage.inputTokens,
+          outputTokens: turn.usage.outputTokens,
+        });
+        logTurn(conversation.id, "reply", stats, startedAt);
+        return {
+          ok: true,
+          conversationId: conversation.id,
+          reply: turn.text,
+          cart: state.cart,
+          quote: state.quote ? toQuoteView(state.quote) : null,
+          placedOrder: state.placedOrder,
+        };
+      }
+
       await appendMessage({
         conversationId: conversation.id,
         role: "assistant",
-        content: { text: turn.text },
+        content: { toolCalls: turn.calls },
         inputTokens: turn.usage.inputTokens,
         outputTokens: turn.usage.outputTokens,
       });
-      return {
-        conversationId: conversation.id,
-        reply: turn.text,
-        cart: state.cart,
-        quote: state.quote ? toQuoteView(state.quote) : null,
-        placedOrder: state.placedOrder,
-      };
+      messages.push({ role: "assistant_tool_calls", calls: turn.calls });
+
+      // executed for the last round too: every persisted tool call gets its
+      // result, so the stored transcript always replays cleanly next turn
+      const results: LlmToolResult[] = [];
+      for (const call of turn.calls) {
+        stats.tools.push(call.name);
+        const execution = await executeTool(call.name, call.input, state);
+        await appendMessage({
+          conversationId: conversation.id,
+          role: "tool",
+          content: {
+            toolCallId: call.id,
+            name: call.name,
+            result: execution.result,
+            ...(execution.isError ? { isError: true as const } : {}),
+          },
+        });
+        results.push({
+          toolCallId: call.id,
+          content: JSON.stringify(execution.result),
+          ...(execution.isError ? { isError: true } : {}),
+        });
+      }
+      messages.push({ role: "tool_results", results });
     }
 
     await appendMessage({
       conversationId: conversation.id,
       role: "assistant",
-      content: { toolCalls: turn.calls },
-      inputTokens: turn.usage.inputTokens,
-      outputTokens: turn.usage.outputTokens,
+      content: { text: ROUND_CAP_REPLY },
     });
-    messages.push({ role: "assistant_tool_calls", calls: turn.calls });
-
-    // executed for the last round too: every persisted tool call gets its
-    // result, so the stored transcript always replays cleanly next turn
-    const results: LlmToolResult[] = [];
-    for (const call of turn.calls) {
-      const execution = await executeTool(call.name, call.input, state);
-      await appendMessage({
-        conversationId: conversation.id,
-        role: "tool",
-        content: {
-          toolCallId: call.id,
-          name: call.name,
-          result: execution.result,
-          ...(execution.isError ? { isError: true as const } : {}),
-        },
-      });
-      results.push({
-        toolCallId: call.id,
-        content: JSON.stringify(execution.result),
-        ...(execution.isError ? { isError: true } : {}),
-      });
-    }
-    messages.push({ role: "tool_results", results });
+    logTurn(conversation.id, "round_cap", stats, startedAt);
+    return {
+      ok: true,
+      conversationId: conversation.id,
+      reply: ROUND_CAP_REPLY,
+      cart: state.cart,
+      quote: state.quote ? toQuoteView(state.quote) : null,
+      placedOrder: state.placedOrder,
+    };
+  } catch (error) {
+    // The already-persisted user message stays — the transcript is the
+    // audit trail, and consecutive user turns replay fine at the wire.
+    // LlmUnavailableError becomes 503 assistant_unavailable at the route
+    // (06-contracts); anything else surfaces as a plain 500.
+    logTurn(conversation.id, error instanceof LlmUnavailableError ? "unavailable" : "error", stats, startedAt);
+    throw error;
   }
-
-  await appendMessage({
-    conversationId: conversation.id,
-    role: "assistant",
-    content: { text: ROUND_CAP_REPLY },
-  });
-  return {
-    conversationId: conversation.id,
-    reply: ROUND_CAP_REPLY,
-    cart: state.cart,
-    quote: state.quote ? toQuoteView(state.quote) : null,
-    placedOrder: state.placedOrder,
-  };
 }

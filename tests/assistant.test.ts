@@ -7,12 +7,14 @@
  * provider: tool wiring on real data, transcript persistence, round cap.
  * T04 covers the cart bridge: update_cart prices through quoteCart only.
  * T05 covers place_order: same placeOrder as the web, confirmation flow.
+ * T06 covers the limits (each 422 code), provider degradation, retention
+ * on conversation create, and the structured per-turn log line.
  */
 import { execSync } from "node:child_process";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { CartItem } from "@/lib/cart";
 import { RESTAURANT_PHONE, RESTAURANT_TIMEZONE } from "@/lib/restaurant-config";
@@ -33,7 +35,7 @@ import {
   fromAnthropicResponse,
   toAnthropicMessages,
 } from "@/server/llm/anthropic";
-import { LlmMessage, LlmUnavailableError } from "@/server/llm/provider";
+import { LlmMessage, LlmProvider, LlmUnavailableError } from "@/server/llm/provider";
 import {
   appendMessage,
   countUserMessages,
@@ -45,7 +47,14 @@ import {
 } from "@/server/repositories/assistant";
 import { getMenu } from "@/server/repositories/menu";
 import { getActiveZones } from "@/server/repositories/zones";
-import { type AssistantTurnOptions, runAssistantTurn } from "@/server/services/assistant";
+import {
+  type AssistantTurnOptions,
+  MAX_MESSAGE_LENGTH,
+  MAX_USER_MESSAGES_PER_CONVERSATION,
+  MAX_USER_MESSAGES_PER_IP_PER_DAY,
+  RETENTION_DAYS,
+  runAssistantTurn,
+} from "@/server/services/assistant";
 import { quoteCart } from "@/server/services/pricing";
 import { getScheduleConfig } from "@/server/services/settings";
 
@@ -396,7 +405,7 @@ describe.skipIf(skipDb)("T02 — retention", () => {
 
 const TURN_IP = "203.0.113.99";
 
-/** runAssistantTurn + track the conversation for the shared afterAll cleanup. */
+/** runAssistantTurn, unwrapped (ok expected) + conversation tracked for the shared afterAll cleanup. */
 async function runTurn(
   provider: FakeLlmProvider,
   message: string,
@@ -405,6 +414,7 @@ async function runTurn(
   options: AssistantTurnOptions = {},
 ) {
   const turn = await runAssistantTurn(provider, { conversationId, message, cart, clientIp: TURN_IP }, options);
+  if (!turn.ok) throw new Error(`expected an ok turn, got ${turn.error}`);
   if (!createdConversationIds.includes(turn.conversationId)) {
     createdConversationIds.push(turn.conversationId);
   }
@@ -897,6 +907,178 @@ describe.skipIf(skipDb)("T05 — place_order + confirmation flow", () => {
     expect(lastEntry.results[0].isError).toBe(true);
     expect(turn.placedOrder).toBeNull();
     expect(await ordersPlacedByThisSuite()).toHaveLength(countBefore);
+  });
+});
+
+// --- T06 — limits, degradation, retention, observability ----------------------
+
+/** Seeds N role-user rows — the fixture for the 40/conversation and 60/IP/day caps. */
+async function seedUserMessages(conversationId: string, count: number) {
+  for (let i = 0; i < count; i++) {
+    await appendMessage({ conversationId, role: "user", content: { text: `mesaj ${i + 1}` } });
+  }
+}
+
+async function conversationIdsForIp(clientIp: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: assistantConversations.id })
+    .from(assistantConversations)
+    .where(eq(assistantConversations.clientIp, clientIp));
+  return rows.map(({ id }) => id);
+}
+
+describe.skipIf(skipDb)("T06 — anti-abuse limits", () => {
+  it("refuses an over-long message before persisting anything or calling the provider", async () => {
+    const ip = "203.0.113.71";
+    const fake = new FakeLlmProvider([]);
+
+    const result = await runAssistantTurn(fake, {
+      message: "a".repeat(MAX_MESSAGE_LENGTH + 1),
+      cart: [],
+      clientIp: ip,
+    });
+
+    expect(result).toEqual({ ok: false, error: "message_too_long" });
+    expect(fake.calls).toHaveLength(0);
+    // nothing persisted: no conversation was opened for the refused turn
+    expect(await conversationIdsForIp(ip)).toEqual([]);
+  });
+
+  it("allows user message 40 and refuses message 41 (conversation_limit)", async () => {
+    const ip = "203.0.113.72";
+    const conversation = await newConversation(ip);
+    await seedUserMessages(conversation.id, MAX_USER_MESSAGES_PER_CONVERSATION - 1);
+
+    const atLimit = await runAssistantTurn(new FakeLlmProvider([reply("Sigur!")]), {
+      conversationId: conversation.id,
+      message: "mai am o întrebare",
+      cart: [],
+      clientIp: ip,
+    });
+    expect(atLimit.ok).toBe(true);
+
+    const fake = new FakeLlmProvider([]);
+    const refused = await runAssistantTurn(fake, {
+      conversationId: conversation.id,
+      message: "și încă una",
+      cart: [],
+      clientIp: ip,
+    });
+
+    expect(refused).toEqual({ ok: false, error: "conversation_limit" });
+    expect(fake.calls).toHaveLength(0);
+    // the refused message was never stored — the cap cannot overshoot
+    expect(await countUserMessages(conversation.id)).toBe(MAX_USER_MESSAGES_PER_CONVERSATION);
+  });
+
+  it("counts the daily cap per IP across conversations and refuses message 61 (daily_limit)", async () => {
+    const ip = "203.0.113.73";
+    const first = await newConversation(ip);
+    const second = await newConversation(ip);
+    await seedUserMessages(first.id, 30);
+    await seedUserMessages(second.id, MAX_USER_MESSAGES_PER_IP_PER_DAY - 30 - 1);
+
+    const atLimit = await runAssistantTurn(new FakeLlmProvider([reply("Da!")]), {
+      conversationId: second.id,
+      message: "ultima pe azi",
+      cart: [],
+      clientIp: ip,
+    });
+    expect(atLimit.ok).toBe(true);
+
+    const fake = new FakeLlmProvider([]);
+    const refused = await runAssistantTurn(fake, { message: "încă una", cart: [], clientIp: ip });
+
+    expect(refused).toEqual({ ok: false, error: "daily_limit" });
+    expect(fake.calls).toHaveLength(0);
+    // the refused turn opened no conversation for this IP
+    expect(await conversationIdsForIp(ip)).toHaveLength(2);
+
+    // an unrelated visitor is unaffected by someone else's cap
+    const other = await runAssistantTurn(new FakeLlmProvider([reply("Bună!")]), {
+      message: "salut",
+      cart: [],
+      clientIp: "203.0.113.74",
+    });
+    expect(other.ok).toBe(true);
+    if (other.ok) createdConversationIds.push(other.conversationId);
+  });
+});
+
+describe.skipIf(skipDb)("T06 — provider degradation", () => {
+  it("lets LlmUnavailableError escape after persisting the user message", async () => {
+    const ip = "203.0.113.75";
+    const down: LlmProvider = {
+      async complete() {
+        throw new LlmUnavailableError("simulated outage");
+      },
+    };
+
+    await expect(
+      runAssistantTurn(down, { message: "mai livrați azi?", cart: [], clientIp: ip }),
+    ).rejects.toBeInstanceOf(LlmUnavailableError);
+
+    // the audit trail survives the outage: conversation + user row exist
+    const ids = await conversationIdsForIp(ip);
+    expect(ids).toHaveLength(1);
+    createdConversationIds.push(ids[0]);
+    const rows = await getConversationMessages(ids[0]);
+    expect(rows.map(({ role }) => role)).toEqual(["user"]);
+    expect(rows[0].content).toEqual({ text: "mai livrați azi?" });
+  });
+});
+
+describe.skipIf(skipDb)("T06 — retention rides on conversation create", () => {
+  it("reaps idle conversations on create, never on turns of existing conversations", async () => {
+    const stale = await newConversation(IP_A);
+    await backdateConversation(stale.id, RETENTION_DAYS + 1);
+    const active = await newConversation(IP_A);
+
+    // a turn on an EXISTING conversation does not run the reaper
+    const existingTurn = await runAssistantTurn(new FakeLlmProvider([reply("Bună!")]), {
+      conversationId: active.id,
+      message: "salut",
+      cart: [],
+      clientIp: IP_A,
+    });
+    expect(existingTurn.ok).toBe(true);
+    expect(await getConversation(stale.id)).not.toBeNull();
+
+    // a turn that CREATES a conversation reaps the idle one first
+    const freshTurn = await runAssistantTurn(new FakeLlmProvider([reply("Bună!")]), {
+      message: "salut",
+      cart: [],
+      clientIp: IP_A,
+    });
+    expect(freshTurn.ok).toBe(true);
+    if (freshTurn.ok) createdConversationIds.push(freshTurn.conversationId);
+    expect(await getConversation(stale.id)).toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("T06 — structured turn log", () => {
+  it("emits one parseable line with outcome, rounds, tools and token totals", async () => {
+    const logSpy = vi.spyOn(console, "log");
+    try {
+      const fake = new FakeLlmProvider([
+        toolCalls([{ id: "call_s", name: "get_schedule", input: {} }], usage(300, 15)),
+        reply("Suntem deschiși până la 22:00.", usage(700, 30)),
+      ]);
+      const turn = await runTurn(fake, "până la ce oră sunteți deschiși?");
+
+      const lines = logSpy.mock.calls
+        .map((args) => String(args[0]))
+        .filter((line) => line.startsWith("service=assistant") && line.includes(turn.conversationId));
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain("outcome=reply");
+      expect(lines[0]).toContain("rounds=2");
+      expect(lines[0]).toContain("tools=get_schedule");
+      expect(lines[0]).toContain("tokensIn=1000");
+      expect(lines[0]).toContain("tokensOut=45");
+      expect(lines[0]).toMatch(/durationMs=\d+/);
+    } finally {
+      logSpy.mockRestore();
+    }
   });
 });
 

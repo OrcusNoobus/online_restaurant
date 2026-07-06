@@ -54,7 +54,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       identical in shape to a web order (snapshot totals in bani, phone
       normalized, estimate), scripted no-confirmation scenario places
       NOTHING, failure reasons round-trip (source: spec FR3/FR4; Q5).
-- [ ] T06 — Limits + degradation + retention wiring: anti-abuse checks
+- [x] T06 — Limits + degradation + retention wiring: anti-abuse checks
       (message length, 40/conversation, 60/IP/day → 422 codes),
       `LlmUnavailableError` → 503 `assistant_unavailable`, opportunistic
       retention on conversation create, structured log line per turn;
