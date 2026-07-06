@@ -40,7 +40,7 @@ import {
   isGoogleConfigured,
 } from "@/server/auth/google";
 import {
-  absorbOrderIntoEmptyProfile,
+  absorbOrderIntoProfile,
   getCustomerOrderDetail,
   getProfile,
   listCustomerOrders,
@@ -57,6 +57,10 @@ import {
   resetCustomerLoginRateLimiter,
   verifyCustomerSession,
 } from "@/server/services/customer-auth";
+import { placeOrder } from "@/server/services/orders";
+import { orderRequestSchema } from "@/lib/order-schemas";
+import { products, toppingGroups, toppings } from "@/server/db/schema";
+import { and, eq } from "drizzle-orm";
 
 // SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
 const skipDb = process.env.SKIP_DB === "1";
@@ -714,17 +718,18 @@ describe.skipIf(skipDb)("customer-account service (T06)", () => {
     if (samePhone.ok) expect(samePhone.claimedOrders).toBe(0);
   });
 
-  it("absorbs the first logged-in order into an EMPTY profile and links by its phone (D-h)", async () => {
+  it("absorbs a logged-in order into an empty profile — fields, zone and phone linking (D-h)", async () => {
     const phone = `+4075${String(Date.now()).slice(-7)}`;
     const olderGuestOrder = await createTestOrder({ phone });
     const customerId = await createTestCustomer("absorb");
+    const [zone] = await db.select({ slug: deliveryZones.slug }).from(deliveryZones).limit(1);
 
-    const result = await absorbOrderIntoEmptyProfile(customerId, {
+    const result = await absorbOrderIntoProfile(customerId, {
       firstName: "Radu",
       lastName: "Marin",
       phone,
       addressStreet: "Str. Absorbției 9",
-      zoneId: null,
+      zoneSlug: zone.slug,
     });
     expect(result.absorbed).toBe(true);
     expect(result.claimedOrders).toBe(1);
@@ -732,23 +737,48 @@ describe.skipIf(skipDb)("customer-account service (T06)", () => {
     const view = await getProfile(customerId);
     expect(view?.firstName).toBe("Radu");
     expect(view?.phone).toBe(phone);
+    expect(view?.zoneSlug).toBe(zone.slug);
     expect((await listCustomerOrders(customerId)).map((o) => o.id)).toEqual([olderGuestOrder]);
   });
 
-  it("never overwrites a profile that has ANY contact field set", async () => {
-    const customerId = await createTestCustomer("noabsorb");
+  it("fills ONLY the missing fields — anything set is never overwritten (D-h per-field)", async () => {
+    const customerId = await createTestCustomer("gaps");
     await updateCustomerProfile(customerId, { firstName: "Deja" });
 
-    const result = await absorbOrderIntoEmptyProfile(customerId, {
+    const result = await absorbOrderIntoProfile(customerId, {
       firstName: "Alt",
       lastName: "Nume",
       phone: "+40761234567",
       addressStreet: null,
-      zoneId: null,
+      zoneSlug: null,
     });
-    expect(result).toEqual({ absorbed: false, claimedOrders: 0 });
-    expect((await getProfile(customerId))?.firstName).toBe("Deja");
-    expect((await getProfile(customerId))?.phone).toBeNull();
+    expect(result.absorbed).toBe(true);
+    expect(result.claimedOrders).toBe(0); // no unclaimed guest orders with this phone
+
+    const view = await getProfile(customerId);
+    expect(view?.firstName).toBe("Deja"); // set → untouched
+    expect(view?.lastName).toBe("Nume"); // was null → filled
+    expect(view?.phone).toBe("+40761234567"); // was null → filled
+    expect(view?.addressStreet).toBeNull(); // order had none
+
+    // a fully-filled profile: nothing left to absorb
+    const again = await absorbOrderIntoProfile(customerId, {
+      firstName: "X",
+      lastName: "Y",
+      phone: "+40769999999",
+      addressStreet: "Alta 1",
+      zoneSlug: null,
+    });
+    expect(again.absorbed).toBe(true); // addressStreet was still null → filled
+    expect((await getProfile(customerId))?.phone).toBe("+40761234567"); // NOT overwritten
+    const done = await absorbOrderIntoProfile(customerId, {
+      firstName: "X",
+      lastName: "Y",
+      phone: "+40769999999",
+      addressStreet: "Alta 2",
+      zoneSlug: null,
+    });
+    expect(done.absorbed).toBe(false);
   });
 
   it("shapes the order list and detail views per the contract, isolation included", async () => {
@@ -771,5 +801,92 @@ describe.skipIf(skipDb)("customer-account service (T06)", () => {
     expect(detail).not.toHaveProperty("clientIp");
 
     expect(await getCustomerOrderDetail(stranger, orderId)).toBeNull();
+  });
+});
+
+describe.skipIf(skipDb)("checkout integration (T08)", () => {
+  // Saturday 2026-07-04, 18:00 restaurant time (EEST = UTC+3) — open (same as tests/orders).
+  const OPEN_NOW = new Date("2026-07-04T15:00:00Z");
+
+  /** Real order request through the real pricing — pickup, one seeded beverage + its mandatory SGR. */
+  async function pickupOrderBody(phone: string) {
+    const [heineken] = await db
+      .select({ productId: products.id, variantId: productVariants.id })
+      .from(products)
+      .innerJoin(productVariants, eq(productVariants.productId, products.id))
+      .where(eq(products.slug, "heineken-0-5-l"));
+    const [sgr] = await db
+      .select({ id: toppings.id })
+      .from(toppings)
+      .innerJoin(toppingGroups, eq(toppings.groupId, toppingGroups.id))
+      .where(and(eq(toppingGroups.name, "Garantie SGR"), eq(toppings.name, "Garanție SGR")));
+    return orderRequestSchema.parse({
+      mode: "pickup",
+      items: [
+        { productId: heineken.productId, variantId: heineken.variantId, quantity: 1, toppingIds: [sgr.id] },
+      ],
+      customer: { firstName: "Chel", lastName: "Ner", phone, email: null },
+      paymentMethod: "cash",
+      termsAccepted: true,
+    });
+  }
+
+  it("placeOrder stamps the session customer and leaves guests NULL (FR3/FR4)", async () => {
+    const customerId = await createTestCustomer("stamp-svc");
+    const body = await pickupOrderBody("0745000111");
+
+    const logged = await placeOrder(body, { clientIp: null, now: OPEN_NOW, customerId });
+    expect(logged.ok).toBe(true);
+    if (!logged.ok) return;
+    testOrderIds.push(logged.order.orderId);
+
+    const guest = await placeOrder(body, { clientIp: null, now: OPEN_NOW });
+    expect(guest.ok).toBe(true);
+    if (!guest.ok) return;
+    testOrderIds.push(guest.order.orderId);
+
+    const rows = await db
+      .select({ id: orders.id, customerId: orders.customerId })
+      .from(orders)
+      .where(inArray(orders.id, [logged.order.orderId, guest.order.orderId]));
+    expect(rows.find((r) => r.id === logged.order.orderId)?.customerId).toBe(customerId);
+    expect(rows.find((r) => r.id === guest.order.orderId)?.customerId).toBeNull();
+
+    // and the customer sees exactly their own order
+    expect((await listCustomerOrders(customerId)).map((o) => o.id)).toEqual([logged.order.orderId]);
+  });
+
+  it("the route chain (stamp + absorb) gives a Google-signup prefill and links old guest orders", async () => {
+    const phone = `+4076${String(Date.now()).slice(-7)}`;
+    const oldGuestOrder = await createTestOrder({ phone });
+
+    // Google signup: name from claims, NO phone — the D-h motivating case
+    const google = await loginWithGoogle(googleClaims());
+    if (!google.ok) throw new Error("google login failed");
+    const customerId = google.customer.id;
+
+    // what /api/orders does after a successful logged-in placement
+    const body = await pickupOrderBody(phone);
+    const placed = await placeOrder(body, { clientIp: null, now: OPEN_NOW, customerId });
+    expect(placed.ok).toBe(true);
+    if (!placed.ok) return;
+    testOrderIds.push(placed.order.orderId);
+    const absorbed = await absorbOrderIntoProfile(customerId, {
+      firstName: body.customer.firstName,
+      lastName: body.customer.lastName,
+      phone: body.customer.phone,
+      addressStreet: body.addressStreet ?? null,
+      zoneSlug: body.zoneSlug ?? null,
+    });
+
+    expect(absorbed.absorbed).toBe(true);
+    expect(absorbed.claimedOrders).toBe(1); // the old guest order, via the absorbed phone
+
+    const view = await getProfile(customerId);
+    expect(view?.firstName).toBe("Gigi"); // Google claim, NOT the order's name
+    expect(view?.phone).toBe(phone); // filled from the order
+
+    const history = (await listCustomerOrders(customerId)).map((o) => o.id);
+    expect(history).toEqual([placed.order.orderId, oldGuestOrder]);
   });
 });

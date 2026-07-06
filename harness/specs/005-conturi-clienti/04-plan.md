@@ -161,10 +161,10 @@ Tests:
 - **Checkout integration:** `/api/orders` resolves the customer session
   BEFORE `placeOrder` and passes `customerId` in the existing context —
   invalid/absent cookie degrades silently to guest (FR3). After a
-  successful placement, `absorbOrderIntoEmptyProfile` copies the order's
-  contact+address into the profile ONLY when profile contact fields are all
-  empty (D-h), which itself triggers phone linking. Per-order edits never
-  overwrite a filled profile (Q2).
+  successful placement, `absorbOrderIntoProfile` fills the profile's
+  MISSING contact fields (per-field, D-h as refined at T08 — see
+  02-clarify) from the order's data; a filled phone triggers linking. A
+  field that is already set is never overwritten by checkout (Q2).
 - **Own-orders read path (D5):** repository queries filter by
   `customer_id` from the verified session — the id NEVER comes from client
   input. List = newest first, LIMIT 20 (constant; pagination is a recorded

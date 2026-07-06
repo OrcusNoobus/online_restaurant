@@ -91,12 +91,17 @@ pe 2026-07-06 — de la această dată sunt definitive.
   simetric cu Google (care nu are telefon deloc); legarea comenzilor guest
   după telefon rulează când profilul primește/schimbă telefonul. Flagat în
   03-research, aprobat de proprietar 2026-07-06.
-- **D-h Prima comandă logată umple profilul GOL:** dacă toate câmpurile de
-  contact din profil sunt goale, datele primei comenzi plasate logat se
-  copiază în profil (un cont Google capătă astfel precompletare + legare
-  după telefon fără o corvoadă separată). Un profil deja completat nu e
-  suprascris niciodată de editările per-comandă. Flagat în 03-research,
-  aprobat de proprietar 2026-07-06.
+- **D-h Comanda logată umple GOLURILE din profil:** câmpurile de contact
+  LIPSĂ din profil (nume, telefon, adresă, zonă — cele null) se completează
+  cu datele comenzii plasate logat; un câmp deja setat nu e suprascris
+  NICIODATĂ de editările per-comandă (un cont Google capătă astfel
+  precompletare + legare după telefon fără o corvoadă separată). Flagat în
+  03-research, aprobat de proprietar 2026-07-06. *Precizare la implementare
+  (T08, 2026-07-06):* formularea inițială „doar dacă TOATE câmpurile sunt
+  goale" se contrazicea cu propria motivație — un cont Google are deja
+  numele din claims, deci n-ar fi beneficiat niciodată; semantica
+  per-câmp („umple golurile") păstrează integral garanția de
+  ne-suprascriere și livrează cazul Google.
 - **D-a (precizare la research):** durata sesiunii de client = 30 de zile
   rolling, prag de reîmprospătare 60s — fixată în 03-research D3.
 

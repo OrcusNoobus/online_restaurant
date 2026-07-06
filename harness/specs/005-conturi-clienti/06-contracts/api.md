@@ -195,11 +195,11 @@ additive only:
   passes `customerId` via `PlaceOrderContext` and the order row is stamped
   at insert. Absent/invalid cookie → `customerId` null → byte-identical to
   today.
-- After a successful logged-in placement: if the profile's contact fields
-  (firstName, lastName, phone, addressStreet) are ALL empty, the order's
-  customer data is copied into the profile (D-h) — which may itself trigger
-  guest-order linking via the now-set phone. A non-empty profile is never
-  modified by checkout.
+- After a successful logged-in placement: contact fields MISSING from the
+  profile (firstName, lastName, phone, addressStreet, zone — the null ones)
+  are filled from the order's customer data (D-h, per-field); a field that
+  is already set is NEVER overwritten by checkout. When the phone was
+  missing and gets filled, guest-order linking runs with it.
 
 ## Service-internal contracts (authoritative)
 

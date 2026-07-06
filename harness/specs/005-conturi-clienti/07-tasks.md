@@ -77,7 +77,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       callback happy + state-mismatch redirects (vi.mock in a separate
       test file if needed — 008 T07 lesson)
       (source: 06-contracts endpoints).
-- [ ] T08 — Checkout integration: `PlaceOrderContext.customerId?` stamped
+- [x] T08 — Checkout integration: `PlaceOrderContext.customerId?` stamped
       into the order row; `/api/orders` resolves `rf_client_session`
       before placing and calls `absorbOrderIntoEmptyProfile` on success.
       Tests: logged-in placement stamps + absorbs into an empty profile,

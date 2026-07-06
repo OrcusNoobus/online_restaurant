@@ -41,6 +41,8 @@ const ALLOWED_PAYMENT: Record<OrderRequest["mode"], OrderRequest["paymentMethod"
 export interface PlaceOrderContext {
   clientIp: string | null;
   now?: Date;
+  /** Session-derived by the route (never client input); absent/null = guest (010, FR3). */
+  customerId?: number | null;
 }
 
 export async function placeOrder(request: OrderRequest, context: PlaceOrderContext): Promise<PlaceOrderResult> {
@@ -103,6 +105,7 @@ export async function placeOrder(request: OrderRequest, context: PlaceOrderConte
     totalBani: quote.totalBani,
     termsAcceptedAt: now,
     clientIp: context.clientIp,
+    customerId: context.customerId ?? null,
     items: quote.items.map((item) => ({
       productId: item.productId,
       variantId: item.variantId,

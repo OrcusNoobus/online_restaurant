@@ -90,39 +90,44 @@ export async function updateProfile(customerId: number, patch: ProfilePatch): Pr
 export interface OrderCustomerData {
   firstName: string;
   lastName: string;
+  /** Normalized +40… — it arrives through orderRequestSchema. */
   phone: string;
   addressStreet: string | null;
-  zoneId: number | null;
+  /** The order request's vocabulary; resolved to zoneId here. */
+  zoneSlug: string | null;
 }
 
 /**
- * D-h: the FIRST logged-in order fills an EMPTY profile (a Google signup gets
- * prefill + phone linking without a separate profile chore). A profile with
- * ANY contact field set is never touched — per-order edits stay per-order.
+ * D-h (refined at T08 — 02-clarify): a logged-in order fills the profile's
+ * MISSING contact fields, per-field; anything already set is NEVER
+ * overwritten by checkout — per-order edits stay per-order (Q2). This is how
+ * a Google signup (name from claims, no phone) gets prefill + phone linking
+ * without a separate profile chore.
  */
-export async function absorbOrderIntoEmptyProfile(
+export async function absorbOrderIntoProfile(
   customerId: number,
   order: OrderCustomerData,
 ): Promise<{ absorbed: boolean; claimedOrders: number }> {
   const current = await findCustomerById(customerId);
   if (!current) return { absorbed: false, claimedOrders: 0 };
 
-  const profileEmpty =
-    current.firstName === null &&
-    current.lastName === null &&
-    current.phone === null &&
-    current.addressStreet === null;
-  if (!profileEmpty) return { absorbed: false, claimedOrders: 0 };
+  const patch: CustomerProfilePatch = {};
+  if (current.firstName === null) patch.firstName = order.firstName;
+  if (current.lastName === null) patch.lastName = order.lastName;
+  const fillsPhone = current.phone === null;
+  if (fillsPhone) patch.phone = order.phone;
+  if (current.addressStreet === null && order.addressStreet !== null) {
+    patch.addressStreet = order.addressStreet;
+  }
+  if (current.zoneId === null && order.zoneSlug !== null) {
+    const zone = await getZoneBySlug(order.zoneSlug);
+    if (zone) patch.zoneId = zone.id;
+  }
+  if (Object.keys(patch).length === 0) return { absorbed: false, claimedOrders: 0 };
 
-  await updateCustomerProfile(customerId, {
-    firstName: order.firstName,
-    lastName: order.lastName,
-    phone: order.phone,
-    addressStreet: order.addressStreet,
-    zoneId: order.zoneId,
-  });
+  await updateCustomerProfile(customerId, patch);
   // the profile just gained a phone — link any prior guest orders (D4)
-  const claimedOrders = await claimGuestOrders(customerId, { phone: order.phone });
+  const claimedOrders = fillsPhone ? await claimGuestOrders(customerId, { phone: order.phone }) : 0;
   return { absorbed: true, claimedOrders };
 }
 
