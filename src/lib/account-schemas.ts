@@ -10,6 +10,9 @@ import { phoneSchema } from "./order-schemas";
 /** Customer session cookie — SEPARATE from the staff cookie by design (Q1). */
 export const CUSTOMER_SESSION_COOKIE_NAME = "rf_client_session";
 
+/** OAuth state + PKCE verifier between google/start and the callback (10 min). */
+export const GOOGLE_OAUTH_COOKIE_NAME = "rf_google_oauth";
+
 const emailSchema = z.string().trim().toLowerCase().email().max(200);
 
 export const registerRequestSchema = z.object({

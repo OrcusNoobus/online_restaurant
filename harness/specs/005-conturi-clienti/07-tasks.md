@@ -68,7 +68,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       list/detail views. Tests: patch + re-link, absorb on empty / never
       on filled, view shapes match the contract
       (source: 03-research D4; 06-contracts profile/orders).
-- [ ] T07 — HTTP boundary `/api/account/*`: register, login, logout, me,
+- [x] T07 — HTTP boundary `/api/account/*`: register, login, logout, me,
       profile (PATCH), orders, orders/[id], google/start (503 when
       unconfigured; transient `rf_google_oauth` cookie + 302), google/
       callback (state check → injectable exchange → session → 302 /cont;
