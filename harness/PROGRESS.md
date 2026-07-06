@@ -6,15 +6,16 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-008 COMPLETE — T01–T10 done with
-  evidence)
-- **Active feature:** none in progress. feat-008 (Asistent AI pe site)
-  is DONE: full chain 01–09 + quickstart executed against the REAL API
-  (claude-opus-4-8, owner-provided key). All feat-008 work sits on
-  worktree branch `claude/strange-hopper-b16056` (last code commit
-  1d8a87b). main (@ cdd18cb) already contains feat-007 (rebased) +
-  feat-008 T01–T05; this branch adds T06–T10 as a clean fast-forward —
-  the merge + push stays the human's call (Next Steps 1).
+- **Last updated:** 2026-07-06 (feat-010 spec + clarify + research done;
+  next: owner approves research → 04-plan)
+- **Active feature:** feat-010 (Conturi clienți și login social),
+  in-progress on branch `feat/010-conturi-clienti`. Chain so far:
+  01-spec (owner interview Q1–Q5 recorded), 02-clarify (Q1–Q5 answered,
+  defaults D-a…D-f), 03-research (D1–D8 written 2026-07-06, awaiting
+  owner approval — two flagged defaults: phone optional at signup;
+  first logged-in order fills an empty profile). feat-008 remains DONE
+  with evidence; its merge to main (fast-forward from
+  `claude/strange-hopper-b16056` @ 1d8a87b) stays the human's call.
 - **Verification status:** ./init.sh fully green with the REAL key in
   .env: 156/156 tests (incl. the live T09 smoke and 2 new T10
   cart-context tests), lint, typecheck, boundary checks, build with
@@ -76,22 +77,30 @@
 
 ## In Progress
 
-- none — feat-008 delivered with evidence; the next feature is the
-  owner's pick (feat-009 WhatsApp/Telegram / feat-010 accounts /
-  feat-011 coupons / feat-012 online payment), starting at spec time.
+- feat-010 Conturi clienți și login social (owner's pick 2026-07-06):
+  spec + clarify committed (8a0f1c8), 03-research written 2026-07-06
+  (Google OIDC hand-rolled zero-deps; one `customers` table, Google
+  links by verified email; sessions mirror feat-007 with shared
+  primitives extracted; guest-order linking = stamped `customer_id`
+  backfill; isolation via requireCustomer + repository filter; /cont +
+  /api/account surface; deterministic tests with injectable token
+  exchange; Google runtime-optional like the assistant key). Next
+  artifact: 04-plan + 05-data-model + 06-contracts after the owner
+  approves the research decisions.
 
 ## Next Steps
 
-1. **Human decision:** fast-forward main to the feat-008 worktree branch
-   `claude/strange-hopper-b16056` and push. Verified 2026-07-06:
-   main (@ cdd18cb) ALREADY contains feat-007 (rebased commits, new
-   SHAs) + feat-008 T01–T05; this branch is main + 10 commits
-   (T06–T10), main is its ancestor — a plain fast-forward. The old
-   `feat/007-panou-admin` branch (@ 19c6d45) is an obsolete duplicate
-   of the rebased 007 content and can be deleted, NOT merged.
-2. **Human decision:** pick the next feature (feat-009 WhatsApp/Telegram /
-   feat-010 accounts / feat-011 coupons / feat-012 online payment) —
-   start at spec time per the document flow.
+1. **Owner:** review/approve 03-research D1–D8 for feat-010 — especially
+   the two flagged defaults (phone OPTIONAL at signup; first logged-in
+   order fills an EMPTY profile). Then the agent writes 04-plan +
+   05-data-model + 06-contracts.
+2. **Human decision (standing):** fast-forward main to the feat-008
+   worktree branch `claude/strange-hopper-b16056` and push. Verified
+   2026-07-06: main (@ cdd18cb) ALREADY contains feat-007 (rebased
+   commits, new SHAs) + feat-008 T01–T05; this branch is main + 10
+   commits (T06–T10), main is its ancestor — a plain fast-forward. The
+   old `feat/007-panou-admin` branch (@ 19c6d45) is an obsolete
+   duplicate of the rebased 007 content and can be deleted, NOT merged.
 3. Still open (human): revoke the shared API key (owner said he will) and
    issue a production key at deploy time; hear the new-order tone on the
    restaurant device; hide the shop cart FAB on /admin routes (parked
