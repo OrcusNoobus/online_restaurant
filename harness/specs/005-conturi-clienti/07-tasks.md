@@ -26,7 +26,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `services/auth.ts`; staff auth delegates, public exports unchanged.
       Gate: `npm test -- tests/admin` (46) green, boundary checks pass
       (source: 03-research D3; 04-plan).
-- [ ] T02 — Schema migration 0006 + customers repository: `customers` +
+- [x] T02 — Schema migration 0006 + customers repository: `customers` +
       `customer_sessions` tables (+ `customers_has_credential` CHECK),
       `orders.customer_id` FK SET NULL + the 3 indexes, per 05-data-model;
       `drizzle-kit generate`; `repositories/customers.ts` (find by

@@ -2,8 +2,9 @@
  * Menu + ordering + admin + assistant schema — mirrors
  * harness/specs/001-meniu-catalog/05-data-model.md,
  * harness/specs/002-cos-comanda/05-data-model.md,
- * harness/specs/003-panou-admin/05-data-model.md and
- * harness/specs/004-asistent-ai/05-data-model.md.
+ * harness/specs/003-panou-admin/05-data-model.md,
+ * harness/specs/004-asistent-ai/05-data-model.md and
+ * harness/specs/005-conturi-clienti/05-data-model.md.
  * If they disagree, one of them is a bug.
  * Prices are integer bani everywhere (see harness/docs/ARCHITECTURE.md).
  */
@@ -200,9 +201,22 @@ export const orders = pgTable(
     totalBani: integer("total_bani").notNull(),
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }).notNull(),
     clientIp: text("client_ip"),
+    // NULL = guest order (or erased account — SET NULL keeps the restaurant
+    // record). Set at insert for logged-in checkouts or ONCE by the
+    // guest-order backfill; a non-NULL value is never rewritten (010 D4).
+    customerId: integer("customer_id").references((): AnyPgColumn => customers.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // the "my orders" read path (010 05-data-model)
+    index("orders_customer_idx").on(t.customerId),
+    // backfill probes: unclaimed rows by normalized phone / lowercase email
+    index("orders_claim_phone_idx").on(t.phone).where(sql`${t.customerId} IS NULL`),
+    index("orders_claim_email_idx")
+      .on(sql`lower(${t.email})`)
+      .where(sql`${t.customerId} IS NULL`),
     check("orders_subtotal_non_negative", sql`${t.subtotalBani} >= 0`),
     check("orders_sgr_non_negative", sql`${t.sgrBani} >= 0`),
     check("orders_fee_non_negative", sql`${t.deliveryFeeBani} >= 0`),
@@ -415,3 +429,56 @@ export const assistantMessages = pgTable(
   // transcript reads and the per-conversation counter go by (conversation, id)
   (t) => [index("assistant_messages_conversation_id_idx").on(t.conversationId, t.id)],
 );
+
+/**
+ * One customer account (005 05-data-model). Email is the account identifier
+ * (both v1 methods guarantee one) — stored lowercase, immutable in v1.
+ * password_hash NULL = Google-only account; google_sub NULL = password-only;
+ * the CHECK forbids a row with neither. Profile fields are the guest-checkout
+ * fields (D-b), phone always normalized +40… by phoneSchema at the boundary.
+ */
+export const customers = pgTable(
+  "customers",
+  {
+    id: serial("id").primaryKey(),
+    // stored lowercase — uniqueness is case-insensitive by construction
+    email: text("email").notNull().unique(),
+    // scrypt, format scrypt:N:r:p:salt:hash (base64url); NEVER plaintext
+    passwordHash: text("password_hash"),
+    // Google's stable OIDC `sub` claim; set at Google signup or when linking
+    // by verified email (D-e)
+    googleSub: text("google_sub").unique(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    // normalized +40…; the PRIMARY guest-order linking key (Q3/Q5); not
+    // unique — households share numbers
+    phone: text("phone"),
+    addressStreet: text("address_street"),
+    zoneId: integer("zone_id").references(() => deliveryZones.id, { onDelete: "set null" }),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "customers_has_credential",
+      sql`${t.passwordHash} IS NOT NULL OR ${t.googleSub} IS NOT NULL`,
+    ),
+  ],
+);
+
+/**
+ * One logged-in customer device (005 05-data-model — mirror of
+ * staff_sessions with a 30-day rolling TTL). The opaque token lives only in
+ * the httpOnly rf_client_session cookie; the DB stores its SHA-256.
+ */
+export const customerSessions = pgTable("customer_sessions", {
+  id: serial("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  customerId: integer("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  // rolling: extended to now + 30 days on authenticated use (D-a)
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+});
