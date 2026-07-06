@@ -60,7 +60,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       retention on conversation create, structured log line per turn;
       tests for each limit code, unavailability, retention run
       (source: 03-research D3/D6; 06-contracts errors).
-- [ ] T07 — HTTP boundary: `src/lib/assistant-schemas.ts` (zod body) +
+- [x] T07 — HTTP boundary: `src/lib/assistant-schemas.ts` (zod body) +
       `POST /api/assistant` route (validate → service → shape per
       contract; unknown conversationId → new conversation); tests at the
       route layer: 400 validation, 200 happy shape, 422/503 mapping
