@@ -6,28 +6,33 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06 (feat-008 T07 done)
+- **Last updated:** 2026-07-06 (feat-008 T08 done)
 - **Active feature:** feat-008 (Asistent AI pe site) — doc chain 01–07
   complete and approved; implementation in progress. T01 (LLM module) DONE
   @ cf446ea; T02 (migration 0005 + assistant repository) DONE @ e829b10;
   T03 (service core + read tools + fake provider) DONE @ 259678a; T04
   (cart bridge + update_cart) DONE @ 4e5b5cb; T05 (place_order) DONE
   @ f63d14a; T06 (limits + degradation + retention) DONE @ b42c82b; T07
-  (HTTP boundary: assistant-schemas + POST /api/assistant + route tests)
-  DONE — T01–T05 on worktree branch `claude/distracted-jang-33b090`,
-  T06–T07 on worktree branch `claude/strange-hopper-b16056` (contains all
-  prior commits). feat-007 remains DONE on `feat/007-panou-admin`
-  @ 19c6d45, still NOT merged into main — merge + push stays the human's
-  call.
+  (HTTP boundary) DONE @ 4b03991; T08 (chat UI: ChatFab + ChatPanel +
+  useAssistant + layout mount) DONE — T01–T05 on worktree branch
+  `claude/distracted-jang-33b090`, T06–T08 on worktree branch
+  `claude/strange-hopper-b16056` (contains all prior commits). feat-007
+  remains DONE on `feat/007-panou-admin` @ 19c6d45, still NOT merged into
+  main — merge + push stays the human's call.
 - **Verification status:** ./init.sh fully green on this branch (Postgres,
   migrate incl. 0005, lint, typecheck, boundary checks, build with the
   new ƒ /api/assistant route); full test suite 153/153 incl.
   tests/assistant.test.ts (8 T01 + 7 T02 + 6 T03 + 5 T04 + 3 T05 + 6 T06)
   and tests/assistant-route.test.ts (6 T07); feature verification
-  `npm test -- tests/assistant` 41/41 (matches both files). Live smoke on
-  dev server (no API key): valid body → 503 assistant_unavailable,
-  invalid body → 400 validation, service+route log lines present; the
-  test conversation row was deleted afterwards.
+  `npm test -- tests/assistant` 41/41 (matches both files). T08 UI
+  verified live in the browser (dev server, temporary DUMMY
+  ANTHROPIC_API_KEY, restored to empty afterwards): FAB renders
+  bottom-left on / and /cos, absent on /comanda and /admin, absent
+  everywhere with the key empty; panel opens 375px-first and as a desktop
+  card; send → optimistic user bubble → typing indicator → 503 → polite
+  unavailable bubble with the restaurant phone; transcript +
+  conversationId survive navigation via sessionStorage; the test
+  conversation row created by the 503 turn was deleted from the dev DB.
 - **Dev DB state:** catalog/zones force-reseeded clean; protection flags
   NULL; dev accounts `admin` (#45, admin) and `angajat` (#48, staff) exist
   (passwords not recorded — recreate via scripts/create-staff-user.ts if
@@ -84,18 +89,29 @@
   `"unknown"` bucket; `ASSISTANT_MAX_REPLY_TOKENS` wired from env; 6
   route tests in tests/assistant-route.test.ts with the Anthropic class
   module-mocked to the scripted fake).
-  Next task: T08 (chat UI: ChatFab + ChatPanel + useAssistant + layout).
+  T08 done (chat UI: `useAssistant` — sessionStorage `rfd-chat-v1` holds
+  conversationId + transcript for the tab session (Q8), request carries
+  the cart from `useCart()`, response cart written back via a new
+  `replace` store action (Q11), 422 codes and 503/network/timeout mapped
+  to error-role bubbles with the restaurant phone; `ChatPanel` —
+  presentational bottom sheet (375px) / floating card (sm+), typing
+  indicator, placedOrder confirmation card reusing the checkout wording,
+  input maxLength 500; `ChatFab` — bottom-LEFT (cart FAB owns the
+  right), hidden on /admin + /comanda, owns the hook so the transcript
+  survives panel close; `layout.tsx` renders ChatFab only when
+  `ANTHROPIC_API_KEY` is set, server-side).
+  Next task: T09 (privacy paragraph + T&C link near the input + optional
+  live smoke gated on the key).
 
 ## Next Steps
 
-1. feat-008 T08 — Chat UI: `ChatFab` (hidden on `/admin` and `/comanda`,
-   not rendered when the assistant is unconfigured — layout checks
-   `ANTHROPIC_API_KEY` server-side), `ChatPanel` (conversation, typing
-   indicator, unavailable/limit states with the restaurant phone,
-   375px-first), `useAssistant` (sessionStorage conversationId, sends the
-   cart from `useCart()`, writes the returned cart back), mount in
-   `layout.tsx` (source: 04-plan UI; Q8/Q11; 03-research D10).
-2. Then T09–T10 in order per harness/specs/004-asistent-ai/07-tasks.md.
+1. feat-008 T09 — Privacy + polish: `confidentialitate/page.tsx`
+   paragraph (transcripts, 30-day retention), T&C link near the chat
+   input (place_order sends `termsAccepted: true`), optional live smoke
+   test gated on `ANTHROPIC_API_KEY`; full `./init.sh` green
+   (source: Q9; 06-contracts place_order note).
+2. Then T10 (08-quickstart executed against the real API — needs a key)
+   per harness/specs/004-asistent-ai/07-tasks.md.
 3. **Human decision (still open):** merge `feat/007-panou-admin` into main
    and push — after that the shop can take real orders. Also still open:
    hear the new-order tone on the restaurant device; hide the shop cart FAB
@@ -168,6 +184,24 @@
   Next 16 forbids extra exports from route.ts, so a test seam inside the
   route was not an option. Verification command still matches: vitest
   filters by substring, `tests/assistant` covers both files.
+- T08 implementation-level: ONE deviation from the 04-plan file-target
+  list, documented here — `src/components/cart/cart-store.ts` gained a
+  `replace(items)` action. The plan itself requires the response cart to
+  be written back "verbatim" into the store (Q11), but the store only
+  had `add`/`clear`: a clear+add loop would re-merge duplicate lines and
+  re-cap quantities, i.e. NOT verbatim. `replace` is one pure line over
+  the existing `write()`. Other T08 choices: chat FAB sits bottom-LEFT
+  because the cart FAB owns bottom-right and both show on menu pages;
+  the FAB stays visible on /cos (only /admin and /comanda are excluded,
+  per Q8's "checkout already started"); the panel is a modal with
+  backdrop on all sizes (OptionsSheet idiom) — browsing while chatting
+  was not required in v1; `useAssistant` lives in ChatFab (always
+  mounted on shop pages) so the transcript survives open/close; the
+  error bubbles are client-side texts keyed on the contract's 422 codes,
+  anything else (400/500/503/network/AbortSignal.timeout at 90s) shows
+  the generic unavailable text with the phone. The welcome bubble is a
+  static placeholder shown only while the transcript is empty — not a
+  persisted message.
 - Worktree note: the dev Postgres container `royal-db` belongs to compose
   project `magazin_online`; in this worktree `./init.sh` needs
   `COMPOSE_PROJECT_NAME=magazin_online` in the git-ignored `.env` (added
@@ -189,9 +223,13 @@
 - src/lib/assistant-schemas.ts (new — T07)
 - src/app/api/assistant/route.ts (new — T07)
 - tests/assistant-route.test.ts (new — T07, 6 route tests)
+- src/components/chat/{useAssistant.ts,ChatPanel.tsx,ChatFab.tsx} (new — T08)
+- src/components/cart/cart-store.ts (+replace action — T08, documented
+  file-target deviation)
+- src/app/layout.tsx (mount ChatFab behind ANTHROPIC_API_KEY — T08)
 - .env.example (ANTHROPIC_API_KEY, ASSISTANT_MODEL,
   ASSISTANT_MAX_REPLY_TOKENS)
-- harness/specs/004-asistent-ai/07-tasks.md (T01–T05 ticked), harness/PROGRESS.md
+- harness/specs/004-asistent-ai/07-tasks.md (T01–T08 ticked), harness/PROGRESS.md
 
 ## Notes for the Next Session
 
