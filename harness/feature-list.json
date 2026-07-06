@@ -75,12 +75,12 @@
     {
       "id": "feat-011",
       "name": "Cupoane de reducere",
-      "behavior": "Un client introduce un cod de cupon în coș și reducerea se aplică la total, calculată pe server; cupoanele se definesc și se limitează din admin. Scos explicit din feat-006 la interviul din 2026-07-04",
-      "verification": "(defined at spec time) integration tests: valid/expired/exhausted coupon, discount math server-side",
+      "behavior": "Un client introduce un cod de cupon în coș și reducerea (procent / sumă fixă / livrare gratuită — Q1) se aplică DOAR la subtotalul produselor (Q2; SGR și taxa de livrare neatinse), calculată pe server la cotare și re-validată la plasare; cupoanele au perioadă de valabilitate + activ/inactiv (Q3 — limite de utilizare amânate, risc de refolosire acceptat) și se administrează doar de rolul admin (Q4); comanda stochează codul + reducerea, vizibile în panou. Scos explicit din feat-006 la interviul din 2026-07-04, detaliat la interviul din 2026-07-06",
+      "verification": "npm test -- tests/coupons",
       "dependencies": ["feat-006", "feat-007"],
-      "status": "not-started",
+      "status": "in-progress",
       "evidence": "",
-      "spec": ""
+      "spec": "harness/specs/006-cupoane/"
     },
     {
       "id": "feat-012",
