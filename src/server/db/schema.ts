@@ -174,6 +174,39 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card_delivery", "card_restaurant"]);
 
+export const couponTypeEnum = pgEnum("coupon_type", ["percent", "fixed", "free_delivery"]);
+
+/**
+ * One promotional code (006 05-data-model). code is stored NORMALIZED
+ * (trim + uppercase) — the boundary normalizes every spelling, so UNIQUE is
+ * case-insensitive by construction. value semantics depend on type:
+ * percent 1–100, fixed = bani, free_delivery = NULL. No usage counters in
+ * v1 (Q3 — limits deferred); retirement is active=false, never delete.
+ */
+export const coupons = pgTable(
+  "coupons",
+  {
+    id: serial("id").primaryKey(),
+    code: text("code").notNull().unique(),
+    type: couponTypeEnum("type").notNull(),
+    value: integer("value"),
+    // NULL starts_at = valid immediately; NULL ends_at = until deactivated (D-f)
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // IS NOT NULL guards are load-bearing: a NULL value would make BETWEEN/>=
+    // evaluate to NULL and the CHECK would silently pass (SQL 3-valued logic)
+    check(
+      "coupons_value_by_type",
+      sql`(${t.type} = 'percent' AND ${t.value} IS NOT NULL AND ${t.value} BETWEEN 1 AND 100) OR (${t.type} = 'fixed' AND ${t.value} IS NOT NULL AND ${t.value} >= 1) OR (${t.type} = 'free_delivery' AND ${t.value} IS NULL)`,
+    ),
+    check("coupons_window", sql`${t.startsAt} IS NULL OR ${t.endsAt} IS NULL OR ${t.startsAt} < ${t.endsAt}`),
+  ],
+);
+
 /**
  * One placed order (002 05-data-model.md). Money and names are snapshots —
  * the menu may change later, the order must not. RESTRICT FKs make catalog
@@ -207,6 +240,12 @@ export const orders = pgTable(
     customerId: integer("customer_id").references((): AnyPgColumn => customers.id, {
       onDelete: "set null",
     }),
+    // Coupon SNAPSHOT (006 05-data-model): code + discount are copied at
+    // placement so later coupon edits never change what an order says it
+    // got. RESTRICT guards manual deletes — the app never deletes coupons.
+    couponId: integer("coupon_id").references(() => coupons.id, { onDelete: "restrict" }),
+    couponCode: text("coupon_code"),
+    discountBani: integer("discount_bani").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -220,10 +259,20 @@ export const orders = pgTable(
     check("orders_subtotal_non_negative", sql`${t.subtotalBani} >= 0`),
     check("orders_sgr_non_negative", sql`${t.sgrBani} >= 0`),
     check("orders_fee_non_negative", sql`${t.deliveryFeeBani} >= 0`),
-    check("orders_total_positive", sql`${t.totalBani} > 0`),
+    check("orders_discount_non_negative", sql`${t.discountBani} >= 0`),
+    // >= 0 (was > 0 pre-011): a 100% percent coupon on an SGR-free cart is a
+    // legitimate 0-lei order
+    check("orders_total_non_negative", sql`${t.totalBani} >= 0`),
     check(
       "orders_total_is_sum",
-      sql`${t.totalBani} = ${t.subtotalBani} + ${t.sgrBani} + ${t.deliveryFeeBani}`,
+      sql`${t.totalBani} = ${t.subtotalBani} + ${t.sgrBani} + ${t.deliveryFeeBani} - ${t.discountBani}`,
+    ),
+    // snapshot pairing: no coupon → no code and zero discount; with a coupon
+    // both id and code are present (discount may be 0 — free_delivery at
+    // pickup / above threshold, D-h)
+    check(
+      "orders_coupon_pairing",
+      sql`(${t.couponId} IS NULL AND ${t.couponCode} IS NULL AND ${t.discountBani} = 0) OR (${t.couponId} IS NOT NULL AND ${t.couponCode} IS NOT NULL)`,
     ),
     check(
       "orders_delivery_has_zone_and_address",
