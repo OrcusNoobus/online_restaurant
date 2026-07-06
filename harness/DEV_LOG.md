@@ -26,6 +26,33 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-06] — feat-010 Conturi clienți COMPLETE (T01–T10, done with evidence)
+- Status: Completed
+- Action: Closed feat-010 with T10 — scripts/set-customer-password.ts (Q4
+  phone recovery), .env.example Google vars, 08-quickstart.md written and
+  EXECUTED at 375px (flows 1–5 all PASS: signup→prefilled checkout→order
+  #1156 stamped at insert + D-h absorb→«În livrare» via 15s polling without
+  refresh→logout/re-login; guest #1157 claimed by phone at register with
+  404 isolation; guest regression customer_id NULL; no-Google degradation;
+  password CLI old-401/new-200), 09-debug.md, evidence in feature-list.json,
+  D3+D4 promoted to DECISIONS.md. `npm test -- tests/accounts` 43/43;
+  ./init.sh green (198 tests). Flow 6 (real Google round-trip) pending the
+  owner's OAuth client — deterministic Google paths test-covered via the
+  injected exchange.
+- Challenge: (1) Session start: the owner-revoked ANTHROPIC_API_KEY made
+  the live smoke fail 401 — baseline repaired by commenting the dead key
+  out of the git-ignored .env (smoke skips by design). (2) Quickstart
+  signup rejected "0740 000 111" — phoneSchema (feat-006 contract) refuses
+  inner spaces; identical in checkout, so recorded as an observation, not
+  changed. (3) DB cleanup: a psql -c batch is ONE transaction — the first
+  cleanup silently rolled back everything when a late statement hit the
+  RESTRICT FK from order_status_events to the temp staff user.
+- Solution: (3) Re-ran the cleanup ordered so the orders delete cascades
+  the events before the staff delete, with verification SELECTs in the
+  same batch. Lesson recorded in PROGRESS: verify deletes in-batch;
+  RESTRICT FKs make status-event actors undeletable while their events
+  exist — by design (feat-007 journal).
+
 ## [2026-07-06] — feat-008 Asistent AI COMPLETE (T01–T10, done with evidence)
 - Status: Completed
 - Action: T10 executed with the owner's real API key (claude-opus-4-8):

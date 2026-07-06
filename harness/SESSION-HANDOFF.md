@@ -8,69 +8,73 @@
 
 ## Current Objective
 
-- **Goal:** feat-008 (Asistent AI pe site) delivered end-to-end: LLM
-  module → assistant service with tool loop → storage/limits → HTTP
-  boundary → chat UI → privacy → quickstart against the REAL API.
-- **Active feature:** none in progress — feat-008 is DONE with evidence.
-- **Status:** complete on worktree branch `claude/strange-hopper-b16056`;
-  main (@ cdd18cb) already holds feat-007 (rebased) + feat-008 T01–T05,
-  this branch adds T06–T10 as a verified clean fast-forward.
-- **Branch / commit:** `claude/strange-hopper-b16056`, last code commit
-  1d8a87b (10 commits ahead of main).
+- **Goal:** feat-010 (Conturi clienți și login social) delivered end-to-end:
+  shared auth primitives → schema + repos → services (customer-auth, Google
+  OIDC, account) → /api/account/* → checkout integration → /cont UI →
+  ops CLI → quickstart executed.
+- **Active feature:** none in progress — feat-010 is DONE with evidence.
+- **Status:** complete on branch `feat/010-conturi-clienti` (worktree
+  strange-hopper-b16056), T01–T10 committed.
+- **Branch / commit:** `feat/010-conturi-clienti`; last commits = T10
+  (ops + quickstart + harness bookkeeping) on top of 6a4f819 (T09).
 
 ## Completed This Session
 
-- [x] T08 — chat UI (ChatFab key-gated in layout, ChatPanel 375px-first,
-      useAssistant with sessionStorage transcript + shared-cart write-back)
-- [x] T09 — privacy section (30-day retention), T&C links under the chat
-      input, key-gated live smoke test
-- [x] T10 — 08-quickstart.md written AND executed against the real API
-      (flows 1–8, all PASS); 09-debug.md; evidence in feature-list.json;
-      feat-008 marked done
-- [x] Fix @ 1d8a87b (T10 finding): wire-only current-cart context every
-      turn — site-side cart edits are now visible to the model
+- [x] T10 — scripts/set-customer-password.ts (Q4 phone recovery; env/stdin
+      password, never argv), .env.example Google vars + APP_BASE_URL
+- [x] 08-quickstart.md written AND executed at 375px — flows 1–5 all PASS
+      (results recorded in the file); Flow 6 (real Google) documented,
+      pending the owner's OAuth client — deterministic Google paths are
+      test-covered via the injected exchange
+- [x] 09-debug.md (two recorded observations, no code changes needed);
+      D3 + D4 promoted to harness/docs/DECISIONS.md
+- [x] feat-010 → done in harness/feature-list.json with full evidence;
+      test data cleaned from the dev DB
+- [x] Baseline repair at session start: the owner-revoked ANTHROPIC_API_KEY
+      made the live smoke fail 401 — commented it out in the git-ignored
+      .env (smoke now skips by design; shop unaffected, ChatFab hidden)
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh pass |
-| Tests (layer 2) | `npm test` | 156/156 | incl. live smoke on the real key + 2 new cart-context tests |
-| E2E (layer 3) | `npm test -- tests/assistant` + quickstart 1–8 | pass | real API 2026-07-06: chat order #821 in the admin panel, 24 prices exact vs DB, guardrails held — details in 004-asistent-ai/08-quickstart.md "Rezultate" |
+| Tests (layer 2) | `npm test` | 198 passed, 1 skipped | skip = assistant live smoke, key-gated by design (key revoked by owner) |
+| E2E (layer 3) | `npm test -- tests/accounts` + quickstart 1–5 | 43/43 + all PASS | 375px, 2026-07-06: signup #433, order #1156 stamped + absorbed, 15s status polling, guest #1157 claimed by phone, isolation 404, no-Google 503, password CLI |
 
 ## Files Changed
 
-See PROGRESS.md "Files Modified This Session". Key artifacts this
-session: chat components, cart-store `replace`, privacy section, the
-cart-context fix in services/assistant.ts, 08-quickstart.md + 09-debug.md.
+See PROGRESS.md "Files Modified This Session". Code: only
+scripts/set-customer-password.ts + .env.example (everything else this
+session is harness/docs bookkeeping — T01–T09 were prior sessions).
 
 ## Decisions Made
 
-- Implementation-level only, recorded in PROGRESS "Decisions Made This
-  Session"; the T10 one that outlives this feature: per-turn channel
-  state (the cart) reaches the model as regenerated wire-only context,
-  never via conversation memory — feat-009 adapters must do the same.
+- DECISIONS.md gained the two promoted feat-010 entries (shared auth
+  primitives; write-time stamped ownership). Session-local notes in
+  PROGRESS "Decisions Made This Session".
 
 ## Blockers / Risks
 
-- None technical. The shared API key sits ONLY in the git-ignored `.env`;
-  the owner said he will revoke it — a fresh production key goes into the
-  host's `.env` at deploy time (absent key = shop unaffected, chat hidden).
+- None technical. Q5 unverified-linking risk is live and disclosed on
+  /confidentialitate (owner accepted it; verification = future feature).
 
 ## Next Session Startup
 
 1. Read `AGENTS.md`.
 2. Read `harness/feature-list.json` and `harness/PROGRESS.md`.
 3. Review this handoff.
-4. Run `./init.sh` before editing anything.
+4. Run `./init.sh` before editing anything (Docker Desktop up; this
+   worktree needs COMPOSE_PROJECT_NAME=magazin_online in .env).
 
 ## Recommended Next Step
 
 Ask the human two things (PROGRESS "Next Steps"):
-1. Fast-forward main to `claude/strange-hopper-b16056` and push (the old
-   `feat/007-panou-admin` branch is an obsolete rebased duplicate —
-   delete, don't merge). After that the shop can go live with the
-   assistant.
-2. Pick the next feature: feat-009 WhatsApp/Telegram (builds directly on
-   the assistant service), feat-010 accounts, feat-011 coupons, or
-   feat-012 online payment. Start at spec time per the document flow.
+1. Merge strategy: fast-forward main → `claude/strange-hopper-b16056`
+   (@ 1d8a87b), then merge `feat/010-conturi-clienti`; delete the obsolete
+   `feat/007-panou-admin`. After push, the shop can go live with accounts.
+2. Pick the next feature: feat-009 WhatsApp/Telegram (builds on the
+   assistant service), feat-011 cupoane, or feat-012 plată online. Start
+   at 01-spec per the document flow. Also remind the owner of the two
+   small standing items: Google OAuth client (then run 005 quickstart
+   Flow 6) and a fresh production ANTHROPIC_API_KEY at deploy time.

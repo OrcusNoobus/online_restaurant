@@ -93,7 +93,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `confidentialitate` account section (incl. Q5 linking disclosure).
       Gate: lint + typecheck + build; behavior proven in T10 flows
       (source: 04-plan UI; 06-contracts; spec FR3/FR5).
-- [ ] T10 — Ops + quickstart: `scripts/set-customer-password.ts` (Q4 phone
+- [x] T10 — Ops + quickstart: `scripts/set-customer-password.ts` (Q4 phone
       recovery), `.env.example` (GOOGLE_CLIENT_ID/SECRET, APP_BASE_URL);
       `08-quickstart.md` written AND executed at 375px: email+parolă
       journey (signup → prefilled checkout → order in history with live

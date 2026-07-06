@@ -29,6 +29,20 @@
 
 ## Decisions
 
+## [2026-07-06]: One shared auth-primitives module for every principal type
+- Decision: The method-agnostic auth primitives (scrypt hash/verify, opaque token generate/hash, session-cookie build/parse/clear parameterized by cookie name, login rate limiter) live in ONE module, `src/server/auth/primitives.ts`; staff auth (feat-007) and customer auth (feat-010) both delegate to it. New principal types (future channels, integrations) do the same — never copy the crypto.
+- Reason: The primitives are identical by design (NFR: customer auth follows feat-007 practices); a fork means the next scrypt cost bump or cookie fix must be made N times. Extraction was mechanical and `tests/admin` (46) proved staff behavior unchanged. (Promoted from 005-conturi-clienti 03-research D3, owner-approved 2026-07-06.)
+- Rejected alternatives: Copy-paste per principal (drift risk); one shared sessions table with a role column (customers are not staff — separate tables and cookies stay).
+- Constraints created: Auth mechanics changes happen in `src/server/auth/` once; principal-specific policy (TTL, cookie name, rate-limit keys) stays in each service. `src/server/auth/` imports `src/lib` only (same layering as `src/server/llm/`).
+- Supersedes / superseded by: —
+
+## [2026-07-06]: Cross-feature identity linking = write-time stamped ownership
+- Decision: When rows gain an owner across features (guest orders → customer accounts), ownership is STAMPED once into a nullable FK (`orders.customer_id`) — at insert when the actor is known, else by an explicit one-shot backfill with a first-claim rule (already-claimed rows are never re-assigned). Read paths filter by the FK, never by re-matching contact fields.
+- Reason: Read-time matching keeps the unverified-linking exposure window (Q5) open forever and makes "whose row is this" a moving answer; stamping gives a stable owner, an indexed read path, and one SELECT as evidence. (Promoted from 005-conturi-clienti 03-research D4, owner-approved 2026-07-06; confirmed by the quickstart run — see 005 09-debug.md.)
+- Rejected alternatives: Read-time matching by phone/email on every view.
+- Constraints created: Future identity features (SMS verification, feat-012 payments, Facebook/TikTok login) attach to the stamped FK model; erasing an account reverts its rows via `ON DELETE SET NULL`, never deletes business records.
+- Supersedes / superseded by: —
+
 ## [2026-07-05]: LLM access is provider-agnostic behind our own interface; the model is configuration
 - Decision: All LLM calls go through a minimal self-owned `LlmProvider` interface (`src/server/llm/`); the Anthropic SDK adapter is the first implementation and the only file importing the vendor SDK. The model id is a single env config (`ASSISTANT_MODEL`, default `claude-opus-4-8`) read in one place — swapping models is a config edit, swapping providers is a new adapter, never a rewrite of the assistant.
 - Reason: Owner requirement (2026-07-05): change models freely as real usage data arrives, and keep the door open to other providers. Also enables deterministic testing — the test suite injects a scripted fake through the same interface, so `./init.sh` stays green offline without secrets.

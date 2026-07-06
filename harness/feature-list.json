@@ -68,8 +68,8 @@
       "behavior": "Un client își poate crea cont opțional (email+parolă sau login Google în v1; Facebook/TikTok amânate — Q1), rămâne autentificat, datele lui de livrare se precompletează la checkout și își vede comenzile proprii cu status (Q2); comenzile guest anterioare se leagă după telefon/email (Q3/Q5, risc acceptat, verificare amânată); guest checkout rămâne disponibil și neschimbat. Decis de proprietar la interviul feat-006 (2026-07-04), detaliat 2026-07-06",
       "verification": "npm test -- tests/accounts",
       "dependencies": ["feat-006"],
-      "status": "in-progress",
-      "evidence": "",
+      "status": "done",
+      "evidence": "commits 817fc4e..T10 on feat/010-conturi-clienti (T01 shared auth primitives, T02 schema 0006 + customers repo, T03 order ownership stamp/claim/reads, T04 customer-auth service, T05 Google OIDC module, T06 account service, T07 /api/account/* routes, T08 checkout stamping + fill-the-gaps absorb, T09 /cont UI + prefill, T10 ops + quickstart); npm test -- tests/accounts: 43/43 passing 2026-07-06 (hashed-only passwords, sessions rolling+invalidation, rate limit 429, Google resolution via injected exchange incl. unverified-email refusal, claim by phone/email + first-claim, isolation both directions, guest regression, route layer incl. cookies and google redirects); ./init.sh green (198 tests; assistant live smoke skips — key revoked by owner); 08-quickstart.md flows 1-5 executed 2026-07-06 at 375px — signup+auto-login (#433, scrypt-only in DB), silent checkout prefill, order #1156 stamped at insert + D-h absorb into empty profile, status «În livrare» via 15s polling without refresh, logout/re-login, guest order #1157 claimed by phone at register with 404 cross-customer isolation, guest placement customer_id NULL, no-Google degradation (no button + google/start 503), password-recovery CLI (old 401 / new 200); test data cleaned up after; remaining owner check: real Google round-trip (Flow 6) once the owner creates the Google Cloud OAuth client — deterministic Google paths already test-covered",
       "spec": "harness/specs/005-conturi-clienti/"
     },
     {
