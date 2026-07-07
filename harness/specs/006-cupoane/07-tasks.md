@@ -53,7 +53,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       re-validation (deactivate after quote → 422, no order row), guest
       and logged-in identical, `npm test -- tests/orders` still 22/22
       (source: 03-research D1; 06-contracts orders/views).
-- [ ] T05 — Admin HTTP boundary: `GET|POST /api/admin/coupons`,
+- [x] T05 — Admin HTTP boundary: `GET|POST /api/admin/coupons`,
       `PATCH /api/admin/coupons/[id]`, `requireAdmin` at the route.
       Route-layer tests: status mapping (400/401/403/404/422), role
       matrix BOTH directions on all three handlers (admin 200 / angajat
