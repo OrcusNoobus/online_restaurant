@@ -25,6 +25,9 @@ export interface PlacedOrder {
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
+  /** Coupon snapshot (006): 0 / null without a coupon; totalBani is discounted. */
+  discountBani: number;
+  couponCode: string | null;
   totalBani: number;
 }
 
@@ -48,7 +51,9 @@ export interface PlaceOrderContext {
 export async function placeOrder(request: OrderRequest, context: PlaceOrderContext): Promise<PlaceOrderResult> {
   const now = context.now ?? new Date();
 
-  const quoted = await quoteCart(request);
+  // the same engine re-validates everything at placement — including the
+  // coupon window against THIS clock (006 D3)
+  const quoted = await quoteCart(request, now);
   if (!quoted.ok) return { ok: false, error: "invalid_cart", reasons: quoted.reasons };
   const { quote } = quoted;
 
@@ -102,6 +107,10 @@ export async function placeOrder(request: OrderRequest, context: PlaceOrderConte
     subtotalBani: quote.subtotalBani,
     sgrBani: quote.sgrBani,
     deliveryFeeBani: quote.deliveryFeeBani,
+    // coupon SNAPSHOT (006 D1) — later coupon edits never change this order
+    couponId: quote.coupon?.id ?? null,
+    couponCode: quote.coupon?.code ?? null,
+    discountBani: quote.discountBani,
     totalBani: quote.totalBani,
     termsAcceptedAt: now,
     clientIp: context.clientIp,
@@ -126,6 +135,10 @@ export async function placeOrder(request: OrderRequest, context: PlaceOrderConte
 
   const orderId = await insertOrder(order);
 
+  if (quote.coupon) {
+    console.log(`order=${orderId} coupon=${quote.coupon.code} discountBani=${quote.discountBani}`);
+  }
+
   return {
     ok: true,
     order: {
@@ -138,6 +151,8 @@ export async function placeOrder(request: OrderRequest, context: PlaceOrderConte
       subtotalBani: quote.subtotalBani,
       sgrBani: quote.sgrBani,
       deliveryFeeBani: quote.deliveryFeeBani,
+      discountBani: quote.discountBani,
+      couponCode: quote.coupon?.code ?? null,
       totalBani: quote.totalBani,
     },
   };

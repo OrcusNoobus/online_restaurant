@@ -48,6 +48,10 @@ export interface NewOrder {
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
+  /** Coupon snapshot (006 D1) — the three travel together; absent = no coupon. */
+  couponId?: number | null;
+  couponCode?: string | null;
+  discountBani?: number;
   totalBani: number;
   termsAcceptedAt: Date;
   clientIp: string | null;
@@ -156,6 +160,8 @@ export interface CustomerOrderRow {
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
+  discountBani: number;
+  couponCode: string | null;
   totalBani: number;
 }
 
@@ -180,6 +186,8 @@ export async function getOrderForCustomer(orderId: number, customerId: number): 
       subtotalBani: orders.subtotalBani,
       sgrBani: orders.sgrBani,
       deliveryFeeBani: orders.deliveryFeeBani,
+      discountBani: orders.discountBani,
+      couponCode: orders.couponCode,
       totalBani: orders.totalBani,
     })
     .from(orders)
@@ -262,6 +270,8 @@ export interface AdminOrderRow extends AdminOrderListRow {
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
+  discountBani: number;
+  couponCode: string | null;
   termsAcceptedAt: Date;
   clientIp: string | null;
 }
@@ -287,6 +297,8 @@ export async function getOrderRow(orderId: number): Promise<AdminOrderRow | null
       subtotalBani: orders.subtotalBani,
       sgrBani: orders.sgrBani,
       deliveryFeeBani: orders.deliveryFeeBani,
+      discountBani: orders.discountBani,
+      couponCode: orders.couponCode,
       totalBani: orders.totalBani,
       termsAcceptedAt: orders.termsAcceptedAt,
       clientIp: orders.clientIp,

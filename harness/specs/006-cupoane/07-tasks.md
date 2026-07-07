@@ -19,7 +19,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
 
 ## Task List (ordered by dependency)
 
-- [ ] T01 — Schema migration 0007 + coupons repository: `couponTypeEnum`,
+- [x] T01 — Schema migration 0007 + coupons repository: `couponTypeEnum`,
       `coupons` table (+ `coupons_value_by_type` and `coupons_window`
       CHECKs, UNIQUE code), `orders.coupon_id` (FK RESTRICT) /
       `coupon_code` / `discount_bani` per 05-data-model; `drizzle-kit
@@ -27,7 +27,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       `listAllCoupons`, `createCoupon`, `patchCoupon`). First
       `tests/coupons.test.ts` cases: coupon round-trip, normalized-unique
       code, both CHECKs enforced (source: 05-data-model).
-- [ ] T02 — Admin coupons service + boundary schemas:
+- [x] T02 — Admin coupons service + boundary schemas:
       `src/lib/admin-schemas.ts` (`couponCreateSchema`/`couponPatchSchema`
       with `normalizeCouponCode`), `services/admin-coupons.ts` (list /
       create / patch; `code_taken`, `invalid_value_for_type`,
@@ -35,7 +35,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       value-per-type matrix (percent 0/101 rejected, fixed 0 rejected,
       free_delivery with value rejected), window rule, duplicate code,
       patch type/value consistency (source: 06-contracts admin; 04-plan).
-- [ ] T03 — Money engine: `couponCodeSchema` + optional `couponCode` on
+- [x] T03 — Money engine: `couponCodeSchema` + optional `couponCode` on
       `quoteRequestSchema` (order schema inherits); `quoteCart` gains
       `now` param + coupon resolution → `discountBani` + `coupon` on
       `Quote`, 4 reason codes, `totalBani` − discount, invariant asserts;
@@ -45,7 +45,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       pre-discount (D-d), validity matrix incl. window edges driven by
       `now`, case-insensitive input, quote WITHOUT couponCode byte-
       identical (source: 03-research D2/D3; 06-contracts quote).
-- [ ] T04 — Placement snapshot: `placeOrder` forwards `context.now` to the
+- [x] T04 — Placement snapshot: `placeOrder` forwards `context.now` to the
       quote and copies `coupon.id`/`code`/`discountBani` into `NewOrder`;
       `insertOrder` writes the three columns; `PlacedOrderView` +
       admin/account order-detail views gain `discountBani`/`couponCode`;

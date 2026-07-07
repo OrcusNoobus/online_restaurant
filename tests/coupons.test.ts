@@ -1,7 +1,7 @@
 /**
  * Integration tests for feat-011 (discount coupons). Needs the dev Postgres
  * from docker-compose (./init.sh starts it); the suite migrates and seeds
- * itself. Fixtures use "TEST-CPN-" codes and clean up after themselves.
+ * itself. Fixtures use "T-CPN-" codes and clean up after themselves.
  */
 import { execSync } from "node:child_process";
 
@@ -11,9 +11,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 
 import { couponCreateSchema, couponPatchSchema } from "@/lib/admin-schemas";
-import { couponCodeSchema, quoteRequestSchema } from "@/lib/order-schemas";
+import { couponCodeSchema, orderRequestSchema, quoteRequestSchema } from "@/lib/order-schemas";
 import { db } from "@/server/db/client";
-import { coupons, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
+import { coupons, orders, products, productVariants, toppingGroups, toppings } from "@/server/db/schema";
 import {
   createCoupon,
   getCouponByCode,
@@ -22,6 +22,7 @@ import {
   patchCoupon,
 } from "@/server/repositories/coupons";
 import { adminCreateCoupon, adminListCoupons, adminPatchCoupon } from "@/server/services/admin-coupons";
+import { placeOrder } from "@/server/services/orders";
 import { type QuoteReason, quoteCart } from "@/server/services/pricing";
 
 // SKIP_DB=1 runs ./init.sh without Docker (e.g. CI); these suites need Postgres.
@@ -41,12 +42,16 @@ async function violatedConstraint(promise: Promise<unknown>): Promise<string | u
   }
 }
 
-/** Unique per-run suffix — the suite can rerun after a crashed cleanup. */
-const RUN = `${process.pid}-${Date.now()}`;
+/**
+ * Unique per-run suffix — the suite can rerun after a crashed cleanup.
+ * Kept SHORT: codes must satisfy couponCodeSchema (max 32 chars) so the
+ * same fixtures can travel through the real request schemas.
+ */
+const RUN = `${Date.now().toString(36).slice(-6)}${process.pid.toString(36)}`;
 let seq = 0;
 function testCode(tag: string): string {
   seq += 1;
-  return `TEST-CPN-${tag}-${RUN}-${seq}`.toUpperCase();
+  return `T-CPN-${tag}-${RUN}${seq}`.toUpperCase();
 }
 
 function couponInput(overrides: Partial<NewCouponInput> & { code: string }): NewCouponInput {
@@ -57,12 +62,12 @@ beforeAll(async () => {
   if (skipDb) return;
   run("npm run db:migrate");
   run("npm run db:seed");
-  await db.delete(coupons).where(like(coupons.code, "TEST-CPN-%"));
+  await db.delete(coupons).where(like(coupons.code, "T-CPN-%"));
 }, 120_000);
 
 afterAll(async () => {
   if (skipDb) return;
-  await db.delete(coupons).where(like(coupons.code, "TEST-CPN-%"));
+  await db.delete(coupons).where(like(coupons.code, "T-CPN-%"));
 });
 
 describe.skipIf(skipDb)("coupons repository (T01)", () => {
@@ -310,7 +315,7 @@ describe.skipIf(skipDb)("quoteCart with coupons (T03)", () => {
     if (!inactive.ok || !notStarted.ok || !expired.ok) throw new Error("setup failed");
 
     const cases: [string, QuoteReason["code"]][] = [
-      ["TEST-CPN-NO-SUCH-CODE", "coupon_unknown"],
+      ["T-CPN-NO-SUCH-CODE", "coupon_unknown"],
       [inactive.coupon.code, "coupon_inactive"],
       [notStarted.coupon.code, "coupon_not_started"],
       [expired.coupon.code, "coupon_expired"],
@@ -367,6 +372,92 @@ describe.skipIf(skipDb)("quoteCart with coupons (T03)", () => {
       expect(result.quote.discountBani).toBe(0);
       expect(result.quote.coupon).toBeNull();
       expect(result.quote.totalBani).toBe(4500);
+    }
+  });
+});
+
+describe.skipIf(skipDb)("placeOrder with coupons (T04)", () => {
+  // Saturday 2026-07-04, 18:00 restaurant time (EEST = UTC+3) — open.
+  const OPEN_NOW = new Date("2026-07-04T15:00:00Z");
+
+  async function orderBody(couponCode?: string) {
+    const pizza30 = await findProduct("pizza-bambini", "30 cm");
+    const ambalajId = await findTopping("Ambalaj", "Ambalaj");
+    return orderRequestSchema.parse({
+      mode: "pickup",
+      items: [{ ...pizza30, quantity: 1, toppingIds: [ambalajId] }],
+      customer: { firstName: "Ion", lastName: "Pop", phone: "0740123456", email: null },
+      pickupEstimateMinutes: 25,
+      paymentMethod: "cash",
+      termsAccepted: true,
+      ...(couponCode ? { couponCode } : {}),
+    });
+  }
+
+  it("snapshots coupon id + code + discount on the order row and the placed view", async () => {
+    const created = await createCoupon(couponInput({ code: testCode("PLACE"), type: "percent", value: 10 }));
+    if (!created.ok) throw new Error("setup failed");
+
+    const result = await placeOrder(await orderBody(created.coupon.code), { clientIp: null, now: OPEN_NOW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    try {
+      // subtotal 4000 (3700 + 300 ambalaj), 10% → 400
+      expect(result.order).toMatchObject({
+        subtotalBani: 4000,
+        discountBani: 400,
+        couponCode: created.coupon.code,
+        totalBani: 3600,
+      });
+
+      const [row] = await db.select().from(orders).where(eq(orders.id, result.order.orderId));
+      expect(row).toMatchObject({
+        couponId: created.coupon.id,
+        couponCode: created.coupon.code,
+        discountBani: 400,
+        subtotalBani: 4000,
+        totalBani: 3600,
+      });
+    } finally {
+      await db.delete(orders).where(eq(orders.id, result.order.orderId));
+    }
+  });
+
+  it("re-validates at placement: a coupon deactivated after the quote is refused, no order row", async () => {
+    const created = await createCoupon(couponInput({ code: testCode("RACE"), type: "fixed", value: 500 }));
+    if (!created.ok) throw new Error("setup failed");
+    const body = await orderBody(created.coupon.code);
+
+    // the cart quoted fine while the coupon was live…
+    const quoted = await quoteCart(body, OPEN_NOW);
+    expect(quoted.ok).toBe(true);
+
+    // …but the admin retires it before the customer hits "Trimite comanda"
+    await patchCoupon(created.coupon.id, { active: false });
+
+    const result = await placeOrder(body, { clientIp: null, now: OPEN_NOW });
+    expect(result).toMatchObject({
+      ok: false,
+      error: "invalid_cart",
+      reasons: [{ code: "coupon_inactive", detail: created.coupon.code }],
+    });
+
+    const rows = await db.select({ id: orders.id }).from(orders).where(eq(orders.couponCode, created.coupon.code));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("without a coupon the placed order carries the empty snapshot (regression)", async () => {
+    const result = await placeOrder(await orderBody(), { clientIp: null, now: OPEN_NOW });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    try {
+      expect(result.order).toMatchObject({ discountBani: 0, couponCode: null, totalBani: 4000 });
+      const [row] = await db.select().from(orders).where(eq(orders.id, result.order.orderId));
+      expect(row).toMatchObject({ couponId: null, couponCode: null, discountBani: 0, totalBani: 4000 });
+    } finally {
+      await db.delete(orders).where(eq(orders.id, result.order.orderId));
     }
   });
 });
