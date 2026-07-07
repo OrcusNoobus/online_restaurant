@@ -72,9 +72,10 @@ See PROGRESS.md "Files Modified This Session" — feat-011 full chain
 
 ## Recommended Next Step
 
-Ask the human (PROGRESS "Next Steps"):
-1. Merge `feat/011-cupoane` → main (clean fast-forward) and push?
-2. Which gated feature to unblock first — feat-012 (pick payment provider,
-   sandbox account) or feat-009 (channel choice + fresh Anthropic key)?
-   Agent starts at 01-spec once the input exists; the spec interview can
-   happen before the credentials arrive if the owner prefers.
+Both end-of-session questions were answered by the owner (2026-07-07):
+1. feat-011 merged to main and pushed (fast-forward; commits verified
+   trailer-free — the standing no-co-author rule).
+2. Next feature: STAND BY — the owner will pick between feat-009
+   (WhatsApp/Telegram: channel + fresh Anthropic key) and feat-012 (plată
+   online: provider + sandbox) at the NEXT session. Start there at 01-spec;
+   the gating inputs are listed in PROGRESS "Next Steps".
