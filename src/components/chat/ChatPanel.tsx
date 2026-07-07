@@ -15,6 +15,21 @@ import { formatBani } from "@/lib/money";
 import type { PlacedOrderView } from "@/lib/quote-types";
 import { RESTAURANT_ADDRESS } from "@/lib/restaurant-config";
 
+/**
+ * Minimal formatting for assistant text (Q13, owner 2026-07-06): only
+ * `**bold**` becomes <strong>; everything else stays plain text (React
+ * escapes it) and line breaks / `- ` lists read fine via pre-wrap. No
+ * Markdown dependency — the system prompt caps what the model may emit.
+ */
+function renderAssistantText(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*\n]+\*\*)/g).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 interface ChatPanelProps {
   messages: ChatMessage[];
   pending: boolean;
@@ -111,7 +126,9 @@ export function ChatPanel({ messages, pending, onSend, onClose }: ChatPanelProps
           )}
           {messages.map((message) => (
             <div key={message.id} className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${BUBBLE_STYLES[message.role]}`}>
-              <p className="whitespace-pre-wrap">{message.text}</p>
+              <p className="whitespace-pre-wrap">
+                {message.role === "user" ? message.text : renderAssistantText(message.text)}
+              </p>
               {message.placedOrder && <PlacedOrderCard order={message.placedOrder} />}
             </div>
           ))}
