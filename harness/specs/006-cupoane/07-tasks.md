@@ -74,7 +74,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       422 message map; confirmation page + `/cont/comenzi/[id]` discount
       line. Gate: lint + typecheck + build; behavior proven in T08 flows
       (source: 04-plan UI shop; 06-contracts message map; spec FR1/FR4).
-- [ ] T08 — Quickstart + close-out: `08-quickstart.md` written AND
+- [x] T08 — Quickstart + close-out: `08-quickstart.md` written AND
       executed at 375px (create coupons of all 3 types in admin as admin;
       angajat cannot see the section; apply percent code in cart → line
       visible → place order → code + discount in admin order detail;
