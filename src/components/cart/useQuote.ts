@@ -9,13 +9,22 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { type CartItem, cartLineKey } from "@/lib/cart";
-import { type InvalidCartReason, LINE_REASON_CODES, type QuoteView } from "@/lib/quote-types";
+import {
+  COUPON_REASON_CODES,
+  COUPON_REASON_MESSAGES_RO,
+  type InvalidCartReason,
+  LINE_REASON_CODES,
+  type QuoteView,
+} from "@/lib/quote-types";
 
 interface UseQuoteArgs {
   items: CartItem[];
   mode: "delivery" | "pickup";
   zoneSlug?: string;
+  couponCode?: string | null;
   removeLines: (lineKeys: string[]) => void;
+  /** Called when the server refuses the stored coupon (006 D3) — triggers a clean re-quote. */
+  clearCoupon?: () => void;
 }
 
 interface UseQuoteResult {
@@ -23,6 +32,8 @@ interface UseQuoteResult {
   loading: boolean;
   /** Set when the server rejected lines and the cart dropped them. */
   droppedNotice: string | null;
+  /** Set when the server refused the coupon and the cart dropped IT (never the lines). */
+  couponNotice: string | null;
   /** Unresolvable failure (network/500) — totals unavailable. */
   failed: boolean;
   /** Zone-level 422 reasons, for the checkout form. */
@@ -34,19 +45,21 @@ interface AnsweredState {
   quote: QuoteView | null;
   failed: boolean;
   droppedNotice: string | null;
+  couponNotice: string | null;
   zoneReasons: InvalidCartReason[];
 }
 
-export function useQuote({ items, mode, zoneSlug, removeLines }: UseQuoteArgs): UseQuoteResult {
+export function useQuote({ items, mode, zoneSlug, couponCode, removeLines, clearCoupon }: UseQuoteArgs): UseQuoteResult {
   const requestKey = useMemo(
-    () => JSON.stringify({ mode, zoneSlug: zoneSlug ?? null, items }),
-    [mode, zoneSlug, items],
+    () => JSON.stringify({ mode, zoneSlug: zoneSlug ?? null, couponCode: couponCode ?? null, items }),
+    [mode, zoneSlug, couponCode, items],
   );
   const [answered, setAnswered] = useState<AnsweredState>({
     key: null,
     quote: null,
     failed: false,
     droppedNotice: null,
+    couponNotice: null,
     zoneReasons: [],
   });
 
@@ -61,6 +74,7 @@ export function useQuote({ items, mode, zoneSlug, removeLines }: UseQuoteArgs): 
       body: JSON.stringify({
         mode,
         ...(zoneSlug ? { zoneSlug } : {}),
+        ...(couponCode ? { couponCode } : {}),
         items: items.map(({ productId, variantId, quantity, toppingIds }) => ({
           productId,
           variantId,
@@ -78,22 +92,33 @@ export function useQuote({ items, mode, zoneSlug, removeLines }: UseQuoteArgs): 
               .filter((reason) => LINE_REASON_CODES.has(reason.code) && reason.itemIndex !== undefined)
               .map((reason) => reason.itemIndex as number),
           );
-          if (badIndexes.size > 0) {
+          // an invalid coupon drops the COUPON, never the cart (006 D3)
+          const couponReason = reasons.find((reason) => COUPON_REASON_CODES.has(reason.code));
+          if (badIndexes.size > 0 || couponReason) {
             setAnswered((current) => ({
               ...current,
-              droppedNotice: "Unele produse nu mai sunt disponibile și au fost scoase din coș.",
+              ...(badIndexes.size > 0
+                ? { droppedNotice: "Unele produse nu mai sunt disponibile și au fost scoase din coș." }
+                : {}),
+              ...(couponReason
+                ? { couponNotice: COUPON_REASON_MESSAGES_RO[couponReason.code] ?? "Cuponul nu a putut fi aplicat." }
+                : {}),
             }));
-            // triggers a re-quote with the cleaned cart
-            removeLines(items.filter((_, index) => badIndexes.has(index)).map(cartLineKey));
+            // either change triggers a re-quote with the cleaned state
+            if (couponReason) clearCoupon?.();
+            if (badIndexes.size > 0) {
+              removeLines(items.filter((_, index) => badIndexes.has(index)).map(cartLineKey));
+            }
             return;
           }
-          setAnswered({
+          setAnswered((current) => ({
             key: requestKey,
             quote: null,
             failed: false,
             droppedNotice: null,
+            couponNotice: current.couponNotice,
             zoneReasons: reasons.filter((reason) => reason.code.startsWith("zone_")),
-          });
+          }));
           return;
         }
 
@@ -104,24 +129,40 @@ export function useQuote({ items, mode, zoneSlug, removeLines }: UseQuoteArgs): 
           quote,
           failed: false,
           droppedNotice: current.droppedNotice,
+          couponNotice: current.couponNotice,
           zoneReasons: [],
         }));
       })
       .catch((error: Error) => {
         if (error.name === "AbortError") return;
-        setAnswered({ key: requestKey, quote: null, failed: true, droppedNotice: null, zoneReasons: [] });
+        setAnswered({
+          key: requestKey,
+          quote: null,
+          failed: true,
+          droppedNotice: null,
+          couponNotice: null,
+          zoneReasons: [],
+        });
       });
 
     return () => controller.abort();
-  }, [requestKey, items, mode, zoneSlug, removeLines]);
+  }, [requestKey, items, mode, zoneSlug, couponCode, removeLines, clearCoupon]);
 
   if (items.length === 0) {
-    return { quote: null, loading: false, droppedNotice: answered.droppedNotice, failed: false, zoneReasons: [] };
+    return {
+      quote: null,
+      loading: false,
+      droppedNotice: answered.droppedNotice,
+      couponNotice: answered.couponNotice,
+      failed: false,
+      zoneReasons: [],
+    };
   }
   return {
     quote: answered.quote,
     loading: answered.key !== requestKey,
     droppedNotice: answered.droppedNotice,
+    couponNotice: answered.couponNotice,
     failed: answered.failed && answered.key === requestKey,
     zoneReasons: answered.zoneReasons,
   };

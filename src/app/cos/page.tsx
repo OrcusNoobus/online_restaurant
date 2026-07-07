@@ -3,9 +3,12 @@
 /**
  * Cart page: server-quoted lines with editable quantities. The delivery fee
  * depends on the locality, so it is computed at checkout — this page shows
- * subtotal + SGR and a clear note about the fee.
+ * subtotal + SGR and a clear note about the fee. The coupon input lives here
+ * (006 D5); the quote is pickup-mode, so a free-delivery coupon shows its
+ * effect only at checkout (D-h honest display).
  */
 import Link from "next/link";
+import { useState } from "react";
 
 import { useCart } from "@/components/cart/cart-store";
 import { useQuote } from "@/components/cart/useQuote";
@@ -13,8 +16,14 @@ import { cartLineKey } from "@/lib/cart";
 import { formatBani } from "@/lib/money";
 
 export default function CartPage() {
-  const { items, changeQuantity, removeLines } = useCart();
-  const { quote, loading, droppedNotice, failed } = useQuote({ items, mode: "pickup", removeLines });
+  const { items, changeQuantity, removeLines, couponCode, setCoupon, clearCoupon } = useCart();
+  const { quote, loading, droppedNotice, couponNotice, failed } = useQuote({
+    items,
+    mode: "pickup",
+    couponCode,
+    removeLines,
+    clearCoupon,
+  });
 
   return (
     <div className="flex-1 bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
@@ -114,7 +123,15 @@ export default function CartPage() {
               })}
             </ul>
 
-            <dl className="mt-6 space-y-2 rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <CouponBox
+              appliedCode={couponCode}
+              appliedType={quote.coupon?.type ?? null}
+              notice={couponNotice}
+              onApply={setCoupon}
+              onRemove={clearCoupon}
+            />
+
+            <dl className="mt-4 space-y-2 rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <div className="flex justify-between">
                 <dt className="text-zinc-500 dark:text-zinc-400">Subtotal</dt>
                 <dd className="font-semibold tabular-nums">{formatBani(quote.subtotalBani)}</dd>
@@ -125,9 +142,15 @@ export default function CartPage() {
                   <dd className="font-semibold tabular-nums">{formatBani(quote.sgrBani)}</dd>
                 </div>
               )}
+              {quote.coupon && quote.discountBani > 0 && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                  <dt>Reducere ({quote.coupon.code})</dt>
+                  <dd className="font-semibold tabular-nums">−{formatBani(quote.discountBani)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-zinc-200 pt-2 text-base dark:border-zinc-700">
                 <dt className="font-semibold">Total produse</dt>
-                <dd className="font-bold tabular-nums">{formatBani(quote.subtotalBani + quote.sgrBani)}</dd>
+                <dd className="font-bold tabular-nums">{formatBani(quote.totalBani)}</dd>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                 Taxa de livrare (dacă e cazul) se calculează la finalizare, în funcție de localitate.
@@ -147,6 +170,107 @@ export default function CartPage() {
           <p className="pt-12 text-center text-zinc-500 dark:text-zinc-400">Se calculează…</p>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Coupon disclosure (006 D5): discreet when empty, one applied code at a
+ * time (D-a — applying another replaces it). Validity is the SERVER's call;
+ * this only pre-checks the format so a typo never becomes a 400.
+ */
+function CouponBox({
+  appliedCode,
+  appliedType,
+  notice,
+  onApply,
+  onRemove,
+}: Readonly<{
+  appliedCode: string | null;
+  appliedType: "percent" | "fixed" | "free_delivery" | null;
+  notice: string | null;
+  onApply: (code: string) => void;
+  onRemove: () => void;
+}>) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [formatError, setFormatError] = useState(false);
+
+  function apply() {
+    const code = text.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,32}$/.test(code)) {
+      setFormatError(true);
+      return;
+    }
+    onApply(code);
+    setText("");
+    setOpen(false);
+  }
+
+  if (appliedCode) {
+    return (
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm dark:border-emerald-900 dark:bg-emerald-950">
+        <span className="text-emerald-800 dark:text-emerald-300">
+          Cupon aplicat: <span className="font-mono font-semibold">{appliedCode}</span>
+          {appliedType === "free_delivery" && (
+            <span className="block text-xs">Livrare gratuită — se aplică la finalizare, dacă alegi livrarea.</span>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-sm text-emerald-800 underline dark:text-emerald-300"
+        >
+          Scoate cuponul
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      {notice && (
+        <p className="mb-2 rounded-xl bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          {notice}
+        </p>
+      )}
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-sm font-medium text-amber-700 underline decoration-dotted underline-offset-4 dark:text-amber-400"
+        >
+          Ai un cod de reducere?
+        </button>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            autoFocus
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value.toUpperCase());
+              setFormatError(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") apply();
+              if (event.key === "Escape") setOpen(false);
+            }}
+            placeholder="CODUL TĂU"
+            className={`w-40 rounded-xl border bg-white px-3 py-2 font-mono text-sm uppercase dark:bg-zinc-900 ${
+              formatError ? "border-red-500" : "border-zinc-300 dark:border-zinc-700"
+            }`}
+            aria-label="Cod de reducere"
+          />
+          <button
+            type="button"
+            onClick={apply}
+            className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Aplică
+          </button>
+          {formatError && <p className="w-full text-xs text-red-600 dark:text-red-400">Codul are 3–32 de caractere: litere, cifre, liniuță.</p>}
+        </div>
+      )}
     </div>
   );
 }

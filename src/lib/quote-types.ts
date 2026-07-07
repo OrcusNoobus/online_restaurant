@@ -56,6 +56,9 @@ export interface PlacedOrderView {
   subtotalBani: number;
   sgrBani: number;
   deliveryFeeBani: number;
+  /** Coupon snapshot (006): 0 / null without a coupon; totalBani is discounted. */
+  discountBani: number;
+  couponCode: string | null;
   totalBani: number;
 }
 
@@ -90,3 +93,11 @@ export const COUPON_REASON_CODES = new Set([
   "coupon_not_started",
   "coupon_expired",
 ]);
+
+/** One message map shared by /cos and /comanda (006 06-contracts). */
+export const COUPON_REASON_MESSAGES_RO: Record<string, string> = {
+  coupon_unknown: "Codul introdus nu există.",
+  coupon_inactive: "Codul nu mai este activ.",
+  coupon_not_started: "Codul nu este încă activ.",
+  coupon_expired: "Codul a expirat.",
+};

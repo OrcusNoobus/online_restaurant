@@ -13,7 +13,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/cart/cart-store";
 import { useQuote } from "@/components/cart/useQuote";
 import { formatBani } from "@/lib/money";
-import { type InvalidCartReason, type PlacedOrderView, type ZoneView } from "@/lib/quote-types";
+import {
+  COUPON_REASON_MESSAGES_RO,
+  type InvalidCartReason,
+  type PlacedOrderView,
+  type ZoneView,
+} from "@/lib/quote-types";
 import {
   DEFAULT_SCHEDULE_CONFIG,
   RESTAURANT_ADDRESS,
@@ -26,7 +31,7 @@ type Mode = "delivery" | "pickup";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, removeLines, clear } = useCart();
+  const { items, removeLines, clear, couponCode, clearCoupon } = useCart();
 
   const [mode, setMode] = useState<Mode>("delivery");
   const [zones, setZones] = useState<ZoneView[] | null>(null);
@@ -59,13 +64,17 @@ export default function CheckoutPage() {
     schedule_out_of_hours: `Ora aleasă nu este disponibilă. Comenzile se onorează azi, între ${earliestLabel} și ${closeLabel}, cu timpul de pregătire inclus.`,
     payment_not_allowed_for_mode: "Metoda de plată aleasă nu este disponibilă pentru acest tip de comandă.",
     invalid_pickup_estimate: "Opțiunea de ridicare aleasă nu mai este disponibilă. Alege alta și reîncearcă.",
+    // an invalid coupon at placement uses the same shared texts (006)
+    ...COUPON_REASON_MESSAGES_RO,
   };
 
-  const { quote, loading, failed } = useQuote({
+  const { quote, loading, failed, couponNotice } = useQuote({
     items,
     mode,
     zoneSlug: mode === "delivery" ? zoneSlug : undefined,
+    couponCode,
     removeLines,
+    clearCoupon,
   });
 
   // 010 T09: silent prefill for logged-in customers. 401 = guest → nothing
@@ -189,6 +198,7 @@ export default function CheckoutPage() {
           notes: notes.trim() === "" ? null : notes.trim(),
           scheduledFor,
           ...(mode === "pickup" && when === "asap" ? { pickupEstimateMinutes: pickupEstimate } : {}),
+          ...(couponCode ? { couponCode } : {}),
           paymentMethod: effectivePayment,
           termsAccepted: terms,
         }),
@@ -455,20 +465,35 @@ export default function CheckoutPage() {
                   <div className="flex justify-between">
                     <dt className="text-zinc-500 dark:text-zinc-400">Taxă de livrare</dt>
                     <dd className="font-semibold tabular-nums">
-                      {quote.deliveryFeeBani === 0 ? "gratuită" : formatBani(quote.deliveryFeeBani)}
+                      {quote.coupon?.type === "free_delivery" && quote.deliveryFeeBani > 0
+                        ? "gratuită (cupon)"
+                        : quote.deliveryFeeBani === 0
+                          ? "gratuită"
+                          : formatBani(quote.deliveryFeeBani)}
                     </dd>
                   </div>
                 )}
-                {quote.freeDeliveryGapBani > 0 && (
+                {quote.freeDeliveryGapBani > 0 && quote.coupon?.type !== "free_delivery" && (
                   <p className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                     Mai adaugă {formatBani(quote.freeDeliveryGapBani)} și livrarea devine gratuită.
                   </p>
+                )}
+                {quote.coupon && quote.discountBani > 0 && quote.coupon.type !== "free_delivery" && (
+                  <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                    <dt>Reducere ({quote.coupon.code})</dt>
+                    <dd className="font-semibold tabular-nums">−{formatBani(quote.discountBani)}</dd>
+                  </div>
                 )}
                 <div className="flex justify-between border-t border-zinc-200 pt-2 text-base dark:border-zinc-700">
                   <dt className="font-semibold">Total</dt>
                   <dd className="font-bold tabular-nums">{formatBani(quote.totalBani)}</dd>
                 </div>
               </dl>
+            )}
+            {couponNotice && (
+              <p className="rounded-xl bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                {couponNotice}
+              </p>
             )}
             {mode === "delivery" && !zoneSlug && (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">

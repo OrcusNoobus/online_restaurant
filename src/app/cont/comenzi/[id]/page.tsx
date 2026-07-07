@@ -111,6 +111,12 @@ export default async function AccountOrderPage({ params }: { params: Promise<{ i
                 <dd>{order.deliveryFeeBani === 0 ? "gratuită" : formatBani(order.deliveryFeeBani)}</dd>
               </div>
             )}
+            {order.couponCode !== null && (
+              <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                <dt>Reducere ({order.couponCode})</dt>
+                <dd>−{formatBani(order.discountBani)}</dd>
+              </div>
+            )}
             <div className="flex justify-between text-base font-bold">
               <dt>Total</dt>
               <dd>{formatBani(order.totalBani)}</dd>

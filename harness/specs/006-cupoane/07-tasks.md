@@ -65,7 +65,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       ZonesTable pattern); `OrderDetailPanel` + admin types: discount +
       code line in the money block. Gate: lint + typecheck + build;
       behavior proven in T08 flows (source: 04-plan UI admin; Q4).
-- [ ] T07 — Shop UI: `cart-store` gains persisted `couponCode`
+- [x] T07 — Shop UI: `cart-store` gains persisted `couponCode`
       (+ set/clear, cleared with the cart, old stored carts still parse);
       `useQuote` sends the code and auto-drops it on coupon reasons with
       the per-code Romanian notice; `/cos` input («Ai un cod de
