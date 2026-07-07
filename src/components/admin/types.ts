@@ -95,6 +95,20 @@ export interface CatalogData {
 
 // --- Zones + settings admin (003 06-contracts Zones/Settings) ----------------
 
+export type CouponType = "percent" | "fixed" | "free_delivery";
+
+/** Mirror of the /api/admin/coupons row (006 06-contracts); dates arrive as ISO strings. */
+export interface CouponRow {
+  id: number;
+  code: string;
+  type: CouponType;
+  value: number | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface ZoneRow {
   id: number;
   slug: string;
@@ -144,6 +158,9 @@ export interface OrderDetailPayload {
     subtotalBani: number;
     sgrBani: number;
     deliveryFeeBani: number;
+    /** Coupon snapshot (006): 0 / null without a coupon; totalBani is discounted. */
+    discountBani: number;
+    couponCode: string | null;
     totalBani: number;
     termsAcceptedAt: string;
     clientIp: string | null;

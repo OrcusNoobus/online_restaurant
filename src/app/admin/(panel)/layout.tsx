@@ -28,6 +28,7 @@ export default async function PanelLayout({ children }: Readonly<{ children: Rea
     ...(user.role === "admin"
       ? [
           { href: "/admin/zone", label: "Zone" },
+          { href: "/admin/cupoane", label: "Cupoane" },
           { href: "/admin/setari", label: "Setări" },
         ]
       : []),

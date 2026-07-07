@@ -59,7 +59,7 @@ One task ≈ one focused session step ≈ one commit. If a task says only
       matrix BOTH directions on all three handlers (admin 200 / angajat
       403), angajat still reads a discounted order's detail
       (source: 06-contracts admin; spec FR6).
-- [ ] T06 — Admin UI: nav «Cupoane» in the admin-only block
+- [x] T06 — Admin UI: nav «Cupoane» in the admin-only block
       (layout.tsx), `/admin/cupoane` page + `CouponsTable` (list, create
       with per-type value units «%»/«lei», edit, activate/deactivate —
       ZonesTable pattern); `OrderDetailPanel` + admin types: discount +

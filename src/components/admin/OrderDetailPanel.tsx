@@ -177,6 +177,12 @@ export function OrderDetailPanel({
               </dd>
             </div>
           )}
+          {order.couponCode !== null && (
+            <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+              <dt>Reducere ({order.couponCode})</dt>
+              <dd className="tabular-nums">−{formatBani(order.discountBani)}</dd>
+            </div>
+          )}
           <div className="flex justify-between text-base font-bold">
             <dt>Total</dt>
             <dd className="tabular-nums">{formatBani(order.totalBani)}</dd>
