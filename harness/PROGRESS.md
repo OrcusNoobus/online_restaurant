@@ -6,116 +6,112 @@
 
 ## Current State
 
-- **Last updated:** 2026-07-06, later session (feat-010 merged to main and
-  pushed after stripping co-author trailers — owner request; SHAs remapped,
-  content identical: T01 817fc4e→67d317a … T10 d2414fc→25db8f6)
-- **Active feature:** none in progress. feat-010 (Conturi clienți și login
-  social) is done and merged. Owner picked ALL THREE remaining features
-  (2026-07-06): feat-011 cupoane first (self-contained), then feat-009 /
-  feat-012 (both need owner-provided credentials — order TBD with owner).
-- **Verification status:** ./init.sh fully green 2026-07-06: 198 tests
-  (43 accounts + 46 admin + 22 orders + assistant + menu; the assistant
-  live smoke SKIPS — the owner revoked the shared Anthropic key, see
-  below), lint, typecheck, boundary checks, build with the /cont +
-  /api/account/* routes. `npm test -- tests/accounts`: 43/43.
-- **API keys:** the revoked ANTHROPIC_API_KEY is commented out in the
-  git-ignored `.env` (a 401 from the live smoke proved it dead). With no
-  key: shop unaffected, ChatFab hidden, smoke skips. A fresh key re-enables
-  both. GOOGLE_CLIENT_ID/SECRET not yet created (owner) — accounts work
-  fully without them; the Google button simply does not render (D8).
-- **Dev DB state:** clean — quickstart test data removed (customers,
-  their sessions, orders #1156/#1157, temp staff user #131). Dev staff
-  accounts `admin` (#45) / `angajat` (#48) still exist (passwords not
-  recorded — recreate via scripts/create-staff-user.ts if needed).
+- **Last updated:** 2026-07-07 (feat-011 DONE — full chain spec→quickstart
+  in one session; evidence in harness/feature-list.json. Same session:
+  feat-010 merged to main and pushed after stripping co-author trailers —
+  owner request, standing rule: NO Co-Authored-By trailers in this repo.)
+- **Active feature:** none in progress. feat-011 (Cupoane) is done on
+  branch `feat/011-cupoane` (worktree strange-hopper-b16056), which sits
+  directly on top of main (@ 83f77b6 = origin/main) — a clean fast-forward
+  away. Owner picked ALL remaining features (2026-07-06): next are
+  feat-009 (WhatsApp/Telegram) and feat-012 (plată online), BOTH gated on
+  owner inputs (see Next Steps).
+- **Verification status:** ./init.sh fully green 2026-07-07: 226 tests +
+  1 skip (assistant live smoke — key revoked by owner, skips by design),
+  lint, typecheck, boundary checks, build incl. /admin/cupoane +
+  /api/admin/coupons*. `npm test -- tests/coupons`: 28/28.
+- **API keys:** ANTHROPIC_API_KEY still revoked/commented out in the
+  git-ignored .env (shop unaffected; ChatFab hidden; smoke skips).
+  GOOGLE_CLIENT_ID/SECRET still not created (owner) — accounts fully
+  functional without them (D8).
+- **Dev DB state:** clean — feat-011 quickstart data removed (order #1687,
+  4 coupons, temp staff #172/#173) and `open_minutes` restored to 660.
+  Dev staff `admin` (#45) / `angajat` (#48) exist (passwords not recorded —
+  recreate via scripts/create-staff-user.ts if needed).
 
 ## Done
 
-- [x] feat-001 Setup; feat-002 Meniu; feat-006 Coș și comandă (main @ cf3d2a6)
-- [x] feat-007 Panou admin (chain 01–09, T01–T15) — see feature-list evidence
-- [x] feat-008 Asistent AI (chain 01–09, T01–T10) — live-API quickstart done;
-      remaining human checks: hear the alert tone on the restaurant device
-- [x] feat-010 Conturi clienți și login social (chain 01–09, T01–T10) on
-      `feat/010-conturi-clienti`:
-  - shared auth primitives extracted to `src/server/auth/primitives.ts`
-    (staff regression: tests/admin 46/46)
-  - schema 0006: customers (has_credential CHECK), customer_sessions,
-    orders.customer_id FK SET NULL + indexes
-  - customer-auth service: register/login/logout, 30d rolling
-    `rf_client_session`, rate limit ip|email, dummy-hash timing
-  - Google OIDC hand-rolled (state+PKCE, iss/aud/exp/email_verified),
-    injectable exchange as the only test seam; runtime-optional like the
-    assistant key (no button + 503 when unconfigured)
-  - order ownership: stamp at insert, first-claim backfill on register and
-    on profile phone/email change; isolation via requireCustomer +
-    repository filter (404 for foreign orders)
-  - checkout: silent prefill from GET /api/account/me; after a logged-in
-    order, D-h fill-the-gaps absorb into EMPTY profile fields only
-  - UI: /cont (auth panel / profile + orders with 15s polling),
-    /cont/comenzi/[id], header "Cont" entry, privacy section (Q5
-    disclosure); ops: scripts/set-customer-password.ts (Q4)
-  - quickstart flows 1–5 executed 2026-07-06 at 375px; results in
-    005-conturi-clienti/08-quickstart.md "Rezultate", observations in
-    09-debug.md; D3+D4 promoted to harness/docs/DECISIONS.md
+- [x] feat-001 Setup; feat-002 Meniu; feat-006 Coș și comandă
+- [x] feat-007 Panou admin; feat-008 Asistent AI (remaining human check:
+      hear the alert tone on the restaurant device)
+- [x] feat-010 Conturi clienți — MERGED to main @ 83f77b6 (pushed);
+      remaining owner check: real Google round-trip (005 quickstart Flow 6)
+      once the Google Cloud OAuth client exists
+- [x] feat-011 Cupoane de reducere (chain 01–09, T01–T08) on
+      `feat/011-cupoane`:
+  - coupons table (normalized unique code, coupon_type enum, per-type value
+    CHECKs with IS NOT NULL guards — see 006 09-debug.md) + orders snapshot
+    columns (coupon_id RESTRICT, coupon_code, discount_bani; total CHECKs
+    extended with −discount, relaxed to ≥ 0)
+  - discount computed INSIDE quoteCart (single money engine): floor
+    percent / capped fixed / fee-equal free_delivery; 4 granular reason
+    codes; injectable `now` end-to-end (placeOrder passes context.now)
+  - admin: /api/admin/coupons* (requireAdmin, no delete) + /admin/cupoane
+    page (ZonesTable pattern); angajat sees the discount on orders only
+  - shop: coupon under its own localStorage key (old carts parse), applied
+    chip + discount lines in /cos, /comanda («gratuită (cupon)» for
+    free_delivery), confirmation, /cont order detail, admin panel
+  - quickstart flows 1–7 executed 2026-07-07 at 375px live (order #1687
+    end-to-end, cleaned up after)
 
 ## In Progress
 
-- Nothing. Next session starts a new feature at spec time (owner's pick).
+- Nothing. Next session starts feat-009 or feat-012 at 01-spec (owner
+  inputs pending — see below).
 
 ## Next Steps
 
-1. Start feat-011 (Cupoane de reducere) at 01-spec per the document flow,
-   on branch `feat/011-cupoane` from main. Owner approved all three
-   remaining features 2026-07-06; 011 goes first because it needs no
-   external credentials. feat-009 needs a fresh ANTHROPIC_API_KEY +
-   Telegram/WhatsApp access; feat-012 needs the payment-provider choice —
-   both owner inputs, collect them while 011 is in flight.
-2. **Owner, small:** create the Google Cloud OAuth client (Web application;
-   redirect URIs `http://localhost:3000/api/account/google/callback` + the
-   production equivalent), put GOOGLE_CLIENT_ID/SECRET + APP_BASE_URL in
-   `.env`, then run quickstart Flow 6 (005 08-quickstart.md) — the last
-   feat-010 check. Not blocking anything.
-3. ~~Merge strategy~~ DONE 2026-07-06: main fast-forwarded to feat-010 head
-   (25db8f6 + this bookkeeping commit) and pushed to origin. The obsolete
-   `feat/007-panou-admin` had already been deleted by the owner.
-4. Still open (human): fresh production ANTHROPIC_API_KEY at deploy time;
-   hear the new-order tone on the restaurant device; hide the shop cart FAB
-   on /admin routes (parked chip); lawyer-reviewed T&C/GDPR texts (now incl.
-   chat retention + account/linking sections).
+1. **Owner (gating feat-012):** choose the card-payment provider
+   (Stripe / Netopia / PayU / alt) and create a sandbox account. Agent then
+   starts feat-012 at 01-spec.
+2. **Owner (gating feat-009):** decide the first channel
+   (Telegram — bot token, minutes to create; WhatsApp Business —
+   verification, days/weeks) and provide a fresh ANTHROPIC_API_KEY (the
+   assistant core is the engine behind feat-009; live testing needs it).
+3. **Owner decision:** merge `feat/011-cupoane` → main (clean fast-forward
+   from 83f77b6) and push, same as feat-010. Commits already have NO
+   co-author trailers (standing rule).
+4. **Owner, small (standing):** Google Cloud OAuth client + 005 quickstart
+   Flow 6; fresh production ANTHROPIC_API_KEY at deploy time; hear the
+   new-order tone on the restaurant device; lawyer-reviewed T&C/GDPR texts.
 
 ## Blockers / Risks
 
-- None technical. Go-live needs: branches merged + pushed, staff accounts
-  on the real host, production keys in the host `.env`, owner walk-through.
-- Q5 accepted risk (unverified guest-order linking) is live behavior now —
-  disclosed on /confidentialitate; SMS/email verification is the recorded
-  follow-up feature.
+- feat-009 and feat-012 are both blocked on owner inputs (provider choice /
+  tokens / API key) — nothing technical.
+- Q3 recorded consequence (feat-011): a valid coupon has NO usage limits in
+  v1 — same client can reuse it within the window; control = validity
+  window + manual deactivation. Usage limits = deferred feature.
+- Q5 accepted risk (feat-010) unchanged: unverified guest-order linking,
+  disclosed on /confidentialitate.
 
 ## Decisions Made This Session
 
-- Promoted to harness/docs/DECISIONS.md (owner-approved at research):
-  shared auth-primitives module (D3); write-time stamped ownership for
-  cross-feature identity linking (D4).
-- T10 implementation-level: set-customer-password.ts mirrors
-  create-staff-user.ts exactly (env/stdin password, never argv; email
-  matched lowercase). Cleanup lesson: `docker exec psql -c "A; B; C"` runs
-  ONE transaction — a late error rolls back earlier deletes silently;
-  verify with SELECTs in the same batch.
-- Quickstart observations (005 09-debug.md): phoneSchema rejects inner
-  spaces — inherited feat-006 contract, identical in checkout, NOT changed;
-  OrdersList keeps polling on 401 by design (comment in code), cost
-  accepted for v1.
+- Owner (2026-07-06): merge feat-010 with co-author trailers REMOVED —
+  standing rule for all commits in this repo; feature history rewritten
+  (content identical, SHAs remapped — see DEV_LOG).
+- Owner (2026-07-06): do ALL three remaining features; feat-011 first
+  (self-contained). Coupons interview Q1–Q4 + research D1–D6 approved in
+  full (incl. D-d: free-delivery threshold compares the PRE-discount
+  value).
+- Implementation-level (feat-011, in 006 03-research + 09-debug): every
+  coupon type manifests as `discountBani` (fee line stays intact;
+  free_delivery renders «gratuită (cupon)»); CHECK constraints on nullable
+  columns need explicit IS NOT NULL; `caffeinate -is` for unattended test
+  runs on this Mac.
 
 ## Files Modified This Session
 
-- scripts/set-customer-password.ts (new — T10)
-- .env.example (+GOOGLE_CLIENT_ID/SECRET, APP_BASE_URL — T10)
-- harness/specs/005-conturi-clienti/08-quickstart.md (new — written AND
-  executed, flows 1–5 + documented Flow 6) + 09-debug.md (new)
-- harness/specs/005-conturi-clienti/07-tasks.md (T10 ticked)
-- harness/feature-list.json (feat-010 → done with evidence)
-- harness/docs/DECISIONS.md (+2 promoted entries)
-- harness/PROGRESS.md, harness/SESSION-HANDOFF.md, harness/DEV_LOG.md
-- .env (local only, git-ignored): revoked ANTHROPIC_API_KEY commented out
+- feat-011 full chain: harness/specs/006-cupoane/* (01–09), schema.ts +
+  migration 0007, repositories/coupons.ts, services/{pricing,orders,
+  admin-coupons}.ts, repositories/orders.ts, api/admin/coupons*,
+  api/cart/quote, lib/{order-schemas,admin-schemas,quote-types}.ts,
+  components/cart/{cart-store,useQuote}.ts, cos/comanda/confirmare/cont
+  pages, components/admin/{CouponsTable,OrderDetailPanel,types},
+  admin layout + /admin/cupoane, services/assistant.ts (mechanical
+  projection), tests/{coupons,coupons-routes,orders,assistant}.test.ts
+- harness/feature-list.json (feat-011 → done + evidence; feat-010 SHA
+  remap), harness/PROGRESS.md, SESSION-HANDOFF.md, DEV_LOG.md
 
 ## Notes for the Next Session
 
@@ -123,10 +119,12 @@ This project uses the long-track harness. Read AGENTS.md first, always.
 Docker Desktop must be running before ./init.sh. In THIS worktree, .env
 needs COMPOSE_PROJECT_NAME=magazin_online or docker compose conflicts on
 the royal-db container name.
-Integration tests self-migrate and self-seed; the admin suite runs the real
-seed and resets protection flags in cleanup; accounts tests clean up after
-themselves.
+Integration tests self-migrate and self-seed; suites clean up after
+themselves; vitest files run SEQUENTIALLY (shared dev DB).
+For unattended full-suite runs on this Mac use `caffeinate -is npm test` —
+the machine sleeping mid-run produces 15-minute phantom test failures.
 The boundary check greps the server-import string even in comments in
 src/components — do not write it literally there.
 Topping names are unique only within their group — scope lookups by
 (group, name).
+NO Co-Authored-By trailers in commits (owner rule, 2026-07-06).

@@ -26,6 +26,34 @@ that repeats across entries is a candidate for an AGENTS.md rule or an
 
 ## Log
 
+## [2026-07-07] — feat-011 Cupoane de reducere COMPLETE (spec→quickstart in one session)
+- Status: Completed
+- Action: Full document chain (owner interview Q1–Q4: all 3 discount types,
+  product-subtotal base, validity-window-only limits, admin-only; research
+  D1–D6 approved incl. flagged D-d pre-discount threshold) then T01–T08:
+  schema 0007 (coupons + orders snapshot columns, total CHECKs extended
+  with −discount and relaxed to ≥0), coupon math inside quoteCart (floor
+  percent / capped fixed / fee-equal free_delivery, 4 reason codes,
+  injectable now), placement snapshot, admin CRUD (routes + /admin/cupoane
+  UI), shop UI (coupon in the cart store under its own localStorage key,
+  auto-drop with RO messages, discount lines through confirmation/account/
+  panel). tests/coupons 28/28; quickstart flows 1–7 executed live at 375px
+  (order #1687, cleaned up). Same session also merged feat-010 to main
+  after stripping co-author trailers (owner request; SHAs remapped
+  817fc4e→67d317a … d2414fc→25db8f6, content identical) — origin/main @
+  83f77b6.
+- Challenge: (1) SQL 3-valued logic — `value BETWEEN 1 AND 100` with NULL
+  passes a CHECK; the negative test caught it before commit. (2) The shared
+  QuoteView gained two always-present fields — exact-shape literals in
+  orders/assistant suites needed updating (recorded as plan file-target
+  additions). (3) Overnight full-suite runs "failed" with 15-minute tests —
+  the Mac slept mid-run.
+- Solution: (1) explicit IS NOT NULL guards in the CHECK; migration
+  regenerated before first commit, dev DB rolled back by hand (lesson in
+  09-debug.md). (2) Mechanical literal updates + assistant projection
+  widened, D-e intact (assistant still sends no coupons). (3)
+  `caffeinate -is npm test` for unattended runs — 49s, green.
+
 ## [2026-07-06] — feat-010 Conturi clienți COMPLETE (T01–T10, done with evidence)
 - Status: Completed
 - Action: Closed feat-010 with T10 — scripts/set-customer-password.ts (Q4

@@ -8,58 +8,59 @@
 
 ## Current Objective
 
-- **Goal:** feat-010 (Conturi clienți și login social) delivered end-to-end:
-  shared auth primitives → schema + repos → services (customer-auth, Google
-  OIDC, account) → /api/account/* → checkout integration → /cont UI →
-  ops CLI → quickstart executed.
-- **Active feature:** none in progress — feat-010 is DONE with evidence.
-- **Status:** complete on branch `feat/010-conturi-clienti` (worktree
-  strange-hopper-b16056), T01–T10 committed.
-- **Branch / commit:** `feat/010-conturi-clienti`; last commits = T10
-  (ops + quickstart + harness bookkeeping) on top of 95594ad (T09).
-  History rewritten 2026-07-06 (co-author trailers stripped, owner request);
-  content identical, SHAs remapped: T01 817fc4e→67d317a … T10 d2414fc→25db8f6.
+- **Goal (session, met):** (1) merge feat-010 to main per the owner's
+  instructions (co-author trailers stripped first); (2) start and finish
+  feat-011 Cupoane — the owner picked all three remaining features and 011
+  was the only one not gated on external inputs.
+- **Active feature:** none — feat-011 is DONE with evidence
+  (spec → clarify → research → plan/data-model/contracts → tasks →
+  T01–T08 → quickstart executed).
+- **Branch / commit:** `feat/011-cupoane` @ T08 + this bookkeeping commit,
+  sitting directly on main (@ 83f77b6 = origin/main, which now contains
+  feat-010). A merge is a clean fast-forward.
 
 ## Completed This Session
 
-- [x] T10 — scripts/set-customer-password.ts (Q4 phone recovery; env/stdin
-      password, never argv), .env.example Google vars + APP_BASE_URL
-- [x] 08-quickstart.md written AND executed at 375px — flows 1–5 all PASS
-      (results recorded in the file); Flow 6 (real Google) documented,
-      pending the owner's OAuth client — deterministic Google paths are
-      test-covered via the injected exchange
-- [x] 09-debug.md (two recorded observations, no code changes needed);
-      D3 + D4 promoted to harness/docs/DECISIONS.md
-- [x] feat-010 → done in harness/feature-list.json with full evidence;
-      test data cleaned from the dev DB
-- [x] Baseline repair at session start: the owner-revoked ANTHROPIC_API_KEY
-      made the live smoke fail 401 — commented it out in the git-ignored
-      .env (smoke now skips by design; shop unaffected, ChatFab hidden)
+- [x] feat-010 merged to main + pushed (owner-approved). History rewritten
+      first to strip Co-Authored-By trailers (owner request — now a
+      STANDING RULE for this repo); content identical, SHAs remapped
+      (T01 817fc4e→67d317a … T10 d2414fc→25db8f6); evidence refs updated.
+- [x] feat-011 complete: owner interview (Q1–Q4) + research approved
+      (D1–D6 incl. flagged D-d) + full implementation + quickstart
+      executed live at 375px (flows 1–7 PASS, order #1687 end-to-end,
+      test data cleaned). Details: 006 08-quickstart.md "Rezultate",
+      lessons in 09-debug.md, evidence in feature-list.json.
 
 ## Verification Evidence
 
 | Check | Command | Result | Notes |
 |---|---|---|---|
 | Static (layer 1) | `npm run lint && npm run typecheck` | pass | boundary checks in init.sh pass |
-| Tests (layer 2) | `npm test` | 198 passed, 1 skipped | skip = assistant live smoke, key-gated by design (key revoked by owner) |
-| E2E (layer 3) | `npm test -- tests/accounts` + quickstart 1–5 | 43/43 + all PASS | 375px, 2026-07-06: signup #433, order #1156 stamped + absorbed, 15s status polling, guest #1157 claimed by phone, isolation 404, no-Google 503, password CLI |
+| Tests (layer 2) | `npm test` | 226 passed, 1 skipped | skip = assistant live smoke (owner-revoked key, by design) |
+| E2E (layer 3) | `npm test -- tests/coupons` + quickstart 1–7 | 28/28 + all PASS | 375px live preview, 2026-07-07: all 3 types via admin UI, angajat denial, order #1687 with VARA10 (DB snapshot verified), capped fixed, «gratuită (cupon)», per-code invalid messages |
+| Full | `./init.sh` | green | build includes /admin/cupoane + /api/admin/coupons* |
+
+Note for unattended runs on this Mac: `caffeinate -is npm test` — system
+sleep mid-run produces phantom 15-minute test failures.
 
 ## Files Changed
 
-See PROGRESS.md "Files Modified This Session". Code: only
-scripts/set-customer-password.ts + .env.example (everything else this
-session is harness/docs bookkeeping — T01–T09 were prior sessions).
+See PROGRESS.md "Files Modified This Session" — feat-011 full chain
+(schema/engine/routes/UI/tests + harness docs).
 
 ## Decisions Made
 
-- DECISIONS.md gained the two promoted feat-010 entries (shared auth
-  primitives; write-time stamped ownership). Session-local notes in
-  PROGRESS "Decisions Made This Session".
+- Owner: no co-author trailers in commits (standing); all three remaining
+  features approved; coupons Q1–Q4 + D1–D6 (D-d: threshold pre-discount).
+- Recorded consequence (Q3): NO usage limits in v1 — a valid coupon is
+  reusable within its window; deferred feature covers limits.
 
 ## Blockers / Risks
 
-- None technical. Q5 unverified-linking risk is live and disclosed on
-  /confidentialitate (owner accepted it; verification = future feature).
+- feat-009 needs: channel choice (Telegram token vs WhatsApp Business
+  verification) + a fresh ANTHROPIC_API_KEY. feat-012 needs: payment
+  provider choice + sandbox account. Both are owner inputs; nothing
+  technical is blocked.
 
 ## Next Session Startup
 
@@ -71,12 +72,9 @@ session is harness/docs bookkeeping — T01–T09 were prior sessions).
 
 ## Recommended Next Step
 
-Ask the human two things (PROGRESS "Next Steps"):
-1. Merge strategy: fast-forward main → `claude/strange-hopper-b16056`
-   (@ 1d8a87b), then merge `feat/010-conturi-clienti`; delete the obsolete
-   `feat/007-panou-admin`. After push, the shop can go live with accounts.
-2. Pick the next feature: feat-009 WhatsApp/Telegram (builds on the
-   assistant service), feat-011 cupoane, or feat-012 plată online. Start
-   at 01-spec per the document flow. Also remind the owner of the two
-   small standing items: Google OAuth client (then run 005 quickstart
-   Flow 6) and a fresh production ANTHROPIC_API_KEY at deploy time.
+Ask the human (PROGRESS "Next Steps"):
+1. Merge `feat/011-cupoane` → main (clean fast-forward) and push?
+2. Which gated feature to unblock first — feat-012 (pick payment provider,
+   sandbox account) or feat-009 (channel choice + fresh Anthropic key)?
+   Agent starts at 01-spec once the input exists; the spec interview can
+   happen before the credentials arrive if the owner prefers.
